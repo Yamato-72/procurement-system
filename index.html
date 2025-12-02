@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>調達管理システム</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;900&display=swap');
+        * { font-family: 'Noto Sans JP', sans-serif; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 flex items-center justify-center">
+            <div class="text-center">
+                <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+                <p class="text-slate-600 text-lg">初期化中...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CLIENT_ID = '47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
+        const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';
+        const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly';
+        const PARENT_FOLDER_ID = '1EvObQiCJgxJCzd_kQJ1PNbOUMD5P-Zxp';
+
+        let tokenClient;
+        let gapiInited = false;
+        let gisInited = false;
+        let accessToken = null;
+        let suppliers = [];
+        let projects = [];
+        let nextSerial = 554; // YS0554から開始
+
+        // 中国の祝日（2025年・2026年）
+        const chinaHolidays = [
+            // 2025年
+            '2025-01-01', // 元旦
+            '2025-01-28', '2025-01-29', '2025-01-30', '2025-01-31', '2025-02-01', '2025-02-02', '2025-02-03', '2025-02-04', // 春節
+            '2025-04-04', '2025-04-05', '2025-04-06', // 清明節
+            '2025-05-01', '2025-05-02', '2025-05-03', '2025-05-04', '2025-05-05', // 労働節
+            '2025-05-31', '2025-06-01', '2025-06-02', // 端午節
+            '2025-10-01', '2025-10-02', '2025-10-03', '2025-10-04', '2025-10-05', '2025-10-06', '2025-10-07', // 国慶節
+            // 2026年
+            '2026-01-01', // 元旦
+            '2026-02-17', '2026-02-18', '2026-02-19', '2026-02-20', '2026-02-21', '2026-02-22', '2026-02-23', // 春節
+            '2026-04-04', '2026-04-05', '2026-04-06', // 清明節
+            '2026-05-01', '2026-05-02', '2026-05-03', // 労働節
+            '2026-06-19', '2026-06-20', '2026-06-21', // 端午節
+            '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04', '2026-10-05', '2026-10-06', '2026-10-07', // 国慶節
+        ];
+
+        // 営業日計算（日曜と中国祝日を除外）
+        function addWorkingDays(startDate, days) {
+            let date = new Date(startDate);
+            date.setDate(date.getDate() + 1); // 翌日から開始
+            let count = 0;
+            
+            while (count < days) {
+                const dayOfWeek = date.getDay();
+                const dateStr = date.toISOString().split('T')[0];
+                
+                // 日曜日(0)と中国祝日を除外
+                if (dayOfWeek !== 0 && !chinaHolidays.includes(dateStr)) {
+                    count++;
+                }
+                
+                if (count < days) {
+                    date.setDate(date.getDate() + 1);
+                }
+            }
+            
+            return date;
+        }
+
+        // Serial番号を生成
+        function generateSerial(quantity) {
+            const serialNum = nextSerial;
+            nextSerial++;
+            const serialStr = 'YS' + String(serialNum).padStart(4, '0');
+            
+            if (quantity <= 1) {
+                return serialStr;
+            } else {
+                return `${serialStr}(1-${quantity})`;
+            }
+        }
+
+        // Serial番号の数値部分を取得
+        function getSerialNumber(serial) {
+            const match = serial.match(/YS(\d+)/);
+            return match ? parseInt(match[1]) : 0;
+        }
+
+        function gapiLoaded() {
+            gapi.load('client', initializeGapiClient);
+        }
+
+        async function initializeGapiClient() {
+            await gapi.client.init({
+                discoveryDocs: [
+                    'https://sheets.googleapis.com/$discovery/rest?version=v4',
+                    'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'
+                ],
+            });
+            gapiInited = true;
+            maybeEnableButtons();
+        }
+
+        function gisLoaded() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: (resp) => {
+                    if (resp.error !== undefined) {
+                        throw (resp);
+                    }
+                    accessToken = resp.access_token;
+                    sessionStorage.setItem('googleAccessToken', accessToken);
+                    loadData();
+                    renderMain();
+                },
+            });
+            gisInited = true;
+            maybeEnableButtons();
+        }
+
+        function maybeEnableButtons() {
+            if (gapiInited && gisInited) {
+                const savedToken = sessionStorage.getItem('googleAccessToken');
+                if (savedToken) {
+                    accessToken = savedToken;
+                    gapi.client.setToken({ access_token: accessToken });
+                    loadData();
+                    renderMain();
+                } else {
+                    renderSignIn();
+                }
+            }
+        }
+
+        function handleAuthClick() {
+            tokenClient.callback = async (resp) => {
+                if (resp.error !== undefined) {
+                    throw (resp);
+                }
+                accessToken = resp.access_token;
+                sessionStorage.setItem('googleAccessToken', accessToken);
+                await loadData();
+                renderMain();
+            };
+
+            if (accessToken === null) {
+                tokenClient.requestAccessToken({prompt: 'consent'});
+            } else {
+                tokenClient.requestAccessToken({prompt: ''});
+            }
+        }
+
+        function handleSignoutClick() {
+            if (accessToken) {
+                google.accounts.oauth2.revoke(accessToken);
+                sessionStorage.removeItem('googleAccessToken');
+                accessToken = null;
+            }
+            gapi.client.setToken(null);
+            suppliers = [];
+            projects = [];
+            renderSignIn();
+        }
+
+        let folderCache = {};
+
+        async function findFolderUrl(projectNumber) {
+            if (folderCache[projectNumber]) {
+                return folderCache[projectNumber];
+            }
+            
+            try {
+                const response = await gapi.client.drive.files.list({
+                    q: `name = '${projectNumber}' and '${PARENT_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+                    fields: 'files(id, name, webViewLink)',
+                    pageSize: 1,
+                    supportsAllDrives: true,
+                    includeItemsFromAllDrives: true,
+                    corpora: 'allDrives'
+                });
+                
+                const files = response.result.files;
+                if (files && files.length > 0) {
+                    const url = files[0].webViewLink;
+                    folderCache[projectNumber] = url;
+                    return url;
+                }
+                return null;
+            } catch (error) {
+                console.error('フォルダ検索エラー:', error);
+                return null;
+            }
+        }
+
+        async function loadFolderUrls() {
+            for (const project of projects) {
+                if (!folderCache[project.projectNumber]) {
+                    await findFolderUrl(project.projectNumber);
+                }
+            }
+            renderMain();
+        }
+
+        async function loadData() {
+            try {
+                showStatus('読み込み中...');
+                
+                const supplierResponse = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: 'サプライヤー!A2:D',
+                });
+                const supplierRows = supplierResponse.result.values || [];
+                suppliers = supplierRows.map(row => ({
+                    id: parseInt(row[0] || Date.now()),
+                    name: row[1] || '',
+                    depositCount: parseInt(row[2] || 2),
+                    depositRates: JSON.parse(row[3] || '[50,50]')
+                }));
+
+                const projectResponse = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '案件!A2:J',
+                });
+                const projectRows = projectResponse.result.values || [];
+                projects = projectRows.map(row => {
+                    const data = {
+                        id: parseInt(row[0] || Date.now()),
+                        projectNumber: row[1] || '',
+                        supplierId: parseInt(row[2] || 0),
+                        productName: row[3] || '',
+                        totalAmount: parseFloat(row[4] || 0),
+                        depositSchedule: [],
+                        serial: row[6] || '',
+                        quantity: parseInt(row[7] || 1),
+                        workingDays: parseInt(row[8] || 30),
+                        pickupDate: row[9] || ''
+                    };
+                    
+                    const supplier = suppliers.find(s => s.id === data.supplierId);
+                    if (supplier) {
+                        try {
+                            data.depositSchedule = JSON.parse(row[5] || '[]');
+                        } catch (e) {
+                            data.depositSchedule = supplier.depositRates.map((rate, idx) => ({
+                                depositNumber: idx + 1,
+                                percentage: rate,
+                                amountUSD: (data.totalAmount * rate / 100),
+                                paid: false,
+                                paidDate: null,
+                                exchangeRate: null,
+                                amountJPY: null
+                            }));
+                        }
+                    }
+                    
+                    // nextSerialを更新
+                    if (data.serial) {
+                        const serialNum = getSerialNumber(data.serial);
+                        if (serialNum >= nextSerial) {
+                            nextSerial = serialNum + 1;
+                        }
+                    }
+                    
+                    return data;
+                });
+
+                showStatus('同期完了');
+                setTimeout(() => showStatus(''), 2000);
+                renderMain();
+                
+                // フォルダURLを非同期で取得
+                loadFolderUrls();
+            } catch (err) {
+                console.error('読み込みエラー:', err);
+                showStatus('読み込みエラー: ' + err.message);
+            }
+        }
+
+        async function saveData() {
+            if (!accessToken) return;
+            try {
+                showStatus('保存中...');
+                
+                const supplierData = [
+                    ['ID', 'サプライヤー名', 'デポジット回数', 'デポジット率'],
+                    ...suppliers.map(s => [s.id, s.name, s.depositCount, JSON.stringify(s.depositRates)])
+                ];
+                await gapi.client.sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: 'サプライヤー!A1',
+                    valueInputOption: 'RAW',
+                    resource: { values: supplierData }
+                });
+
+                const projectData = [
+                    ['ID', '案件番号', 'サプライヤーID', '製品名', '総額USD', 'デポジット予定', 'Serial', '数量', 'WorkingDays', '集荷予定日'],
+                    ...projects.map(p => [p.id, p.projectNumber, p.supplierId, p.productName, p.totalAmount, JSON.stringify(p.depositSchedule), p.serial || '', p.quantity || 1, p.workingDays || 30, p.pickupDate || ''])
+                ];
+                await gapi.client.sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '案件!A1',
+                    valueInputOption: 'RAW',
+                    resource: { values: projectData }
+                });
+
+                showStatus('保存完了');
+                setTimeout(() => showStatus(''), 2000);
+            } catch (err) {
+                console.error('保存エラー:', err);
+                showStatus('保存エラー: ' + err.message);
+            }
+        }
+
+        function addSupplier(name, depositCount, depositRates) {
+            suppliers.push({ id: Date.now(), name, depositCount, depositRates });
+            saveData();
+        }
+
+        function addProject(projectNumber, supplierId, productName, totalAmount, quantity, workingDays) {
+            const supplier = suppliers.find(s => s.id === parseInt(supplierId));
+            const depositSchedule = supplier ? supplier.depositRates.map((rate, idx) => ({
+                depositNumber: idx + 1,
+                percentage: rate,
+                amountUSD: (parseFloat(totalAmount) * rate / 100),
+                paid: false,
+                paidDate: null,
+                exchangeRate: null,
+                amountJPY: null
+            })) : [];
+            
+            const serial = generateSerial(quantity);
+            
+            // 案件登録日から集荷予定日を計算
+            const today = new Date();
+            const pickupDate = addWorkingDays(today, workingDays);
+            const pickupDateStr = pickupDate.toISOString().split('T')[0];
+            
+            projects.push({
+                id: Date.now(),
+                projectNumber,
+                supplierId: parseInt(supplierId),
+                productName,
+                totalAmount: parseFloat(totalAmount),
+                depositSchedule: depositSchedule,
+                serial: serial,
+                quantity: quantity,
+                workingDays: workingDays,
+                pickupDate: pickupDateStr,
+                registeredDate: today.toISOString().split('T')[0]
+            });
+            saveData();
+        }
+
+        function markPaymentPaid(projectId, depositNumber, paidDate, exchangeRate) {
+            const project = projects.find(p => p.id === projectId);
+            if (project) {
+                const deposit = project.depositSchedule.find(d => d.depositNumber === depositNumber);
+                if (deposit) {
+                    deposit.paid = true;
+                    deposit.paidDate = paidDate;
+                    deposit.exchangeRate = parseFloat(exchangeRate);
+                    deposit.amountJPY = deposit.amountUSD * parseFloat(exchangeRate);
+                    saveData();
+                }
+            }
+        }
+
+        function exportCSV() {
+            const headers = ['案件番号', '製品名', 'サプライヤー', '支払回', '支払予定額(USD)', '支払状況', '支払日', '為替レート', '支払額(JPY)'];
+            const rows = projects.flatMap(p => {
+                const supplier = suppliers.find(s => s.id === p.supplierId);
+                return (p.depositSchedule || []).map(dep => [
+                    p.projectNumber, 
+                    p.productName, 
+                    supplier?.name || '', 
+                    dep.depositNumber,
+                    (dep.amountUSD || 0).toFixed(2),
+                    dep.paid ? '完了' : '未払',
+                    dep.paidDate || '',
+                    dep.exchangeRate || '',
+                    dep.amountJPY || ''
+                ]);
+            });
+            const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `procurement_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
+        function showStatus(msg) {
+            const el = document.getElementById('status');
+            if (el) el.textContent = msg;
+        }
+
+        function formatJPY(amount) {
+            return new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(amount || 0);
+        }
+
+        function renderSignIn() {
+            document.getElementById('app').innerHTML = `
+                <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 flex items-center justify-center p-6">
+                    <div class="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+                        <h1 class="text-3xl font-bold text-slate-900 mb-2">調達管理システム</h1>
+                        <p class="text-slate-600 mb-6">デジタルサイネージ プロジェクト管理</p>
+                        <p class="text-slate-700 mb-6">Google Sheetsと連携してデータを保存します。<br>Googleアカウントでサインインしてください。</p>
+                        <button onclick="handleAuthClick()" class="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">Googleでサインイン</button>
+                    </div>
+                </div>`;
+        }
+
+        function renderMain() {
+            const fiscalStart = new Date('2025-07-01');
+            const fiscalEnd = new Date('2026-06-30');
+            const fiscalPayments = projects.flatMap(p => 
+                (p.depositSchedule || []).filter(dep => {
+                    if (!dep.paid || !dep.paidDate) return false;
+                    const d = new Date(dep.paidDate);
+                    return d >= fiscalStart && d <= fiscalEnd;
+                }).map(dep => ({ ...dep, project: p }))
+            );
+            const totalJPY = fiscalPayments.reduce((sum, p) => sum + (p.amountJPY || 0), 0);
+
+            // 前期の計算
+            const prevFiscalStart = new Date('2024-07-01');
+            const prevFiscalEnd = new Date('2025-06-30');
+            const prevFiscalPayments = projects.flatMap(p => 
+                (p.depositSchedule || []).filter(dep => {
+                    if (!dep.paid || !dep.paidDate) return false;
+                    const d = new Date(dep.paidDate);
+                    return d >= prevFiscalStart && d <= prevFiscalEnd;
+                }).map(dep => ({ ...dep, project: p }))
+            );
+            const prevTotalJPY = prevFiscalPayments.reduce((sum, p) => sum + (p.amountJPY || 0), 0);
+
+            document.getElementById('app').innerHTML = `
+                <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
+                    <header class="bg-white border-b border-slate-200 shadow-sm">
+                        <div class="max-w-7xl mx-auto px-6 py-4">
+                            <div class="flex items-center justify-between">
+                                <div><h1 class="text-2xl font-bold text-slate-900">調達管理システム</h1><p class="text-sm text-slate-500 mt-1">デジタルサイネージ プロジェクト管理</p></div>
+                                <div class="flex items-center gap-4">
+                                    <span id="status" class="text-sm text-blue-600"></span>
+                                    <button onclick="exportCSV()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">CSVエクスポート</button>
+                                    <button onclick="handleSignoutClick()" class="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700">サインアウト</button>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+                    <main class="max-w-7xl mx-auto px-6 py-8">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                            <div class="bg-white rounded-xl p-6 shadow-sm border"><p class="text-slate-600 text-sm mb-2">今期総支払額</p><p class="text-3xl font-bold text-slate-900">${formatJPY(totalJPY)}</p><p class="text-xs text-slate-500 mt-2">2025/07/01 - 2026/06/30</p></div>
+                            <div class="bg-white rounded-xl p-6 shadow-sm border"><p class="text-slate-600 text-sm mb-2">前期総支払額</p><p class="text-3xl font-bold text-slate-500">${formatJPY(prevTotalJPY)}</p><p class="text-xs text-slate-500 mt-2">2024/07/01 - 2025/06/30</p></div>
+                            <div class="bg-white rounded-xl p-6 shadow-sm border"><p class="text-slate-600 text-sm mb-2">登録案件数</p><p class="text-3xl font-bold text-slate-900">${projects.length}</p></div>
+                            <div class="bg-white rounded-xl p-6 shadow-sm border"><p class="text-slate-600 text-sm mb-2">サプライヤー数</p><p class="text-3xl font-bold text-slate-900">${suppliers.length}</p></div>
+                        </div>
+                        <div class="bg-white rounded-xl p-6 shadow-sm border mb-8">
+                            <h2 class="text-xl font-bold text-slate-900 mb-4">サプライヤー管理</h2>
+                            <button onclick="showAddSupplierForm()" class="mb-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">+ サプライヤー追加</button>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                ${suppliers.map(s => `
+                                    <div class="p-4 border rounded-lg hover:border-blue-300 transition-colors">
+                                        <div class="flex justify-between items-start mb-2">
+                                            <div class="flex-1">
+                                                <h3 class="font-bold text-lg">${s.name}</h3>
+                                                <p class="text-sm text-slate-600">デポジット: ${s.depositCount}回</p>
+                                                <p class="text-sm text-slate-600">割合: ${s.depositRates.join('%, ')}%</p>
+                                            </div>
+                                            <div class="flex gap-2">
+                                                <button onclick="editSupplier(${s.id})" class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700" title="編集">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                </button>
+                                                <button onclick="deleteSupplier(${s.id})" class="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700" title="削除">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl p-6 shadow-sm border">
+                            <h2 class="text-xl font-bold text-slate-900 mb-4">案件管理</h2>
+                            <button onclick="showAddProjectForm()" class="mb-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">+ 新規案件</button>
+                            <div class="space-y-4">
+                                ${projects.map(p => {
+                                    const supplier = suppliers.find(s => s.id === p.supplierId);
+                                    const paidCount = (p.depositSchedule || []).filter(d => d.paid).length;
+                                    const totalPaid = (p.depositSchedule || []).filter(d => d.paid).reduce((sum, d) => sum + (d.amountJPY || 0), 0);
+                                    const nextPayment = (p.depositSchedule || []).find(d => !d.paid);
+                                    const allPaid = paidCount === (p.depositSchedule || []).length && paidCount > 0;
+                                    const unitPrice = allPaid && (p.quantity || 1) > 0 ? Math.round(totalPaid / (p.quantity || 1)) : null;
+                                    
+                                    // 集荷予定日を表示
+                                    const pickupDateDisplay = p.pickupDate ? p.pickupDate.replace(/-/g, '/') : '未設定';
+                                    
+                                    return `<div class="border-2 rounded-lg p-5 ${nextPayment ? 'border-amber-300 bg-amber-50' : 'border-green-300 bg-green-50'}">
+                                        <div class="flex justify-between items-start mb-4">
+                                            <div>
+                                                <div class="flex items-center gap-2 mb-1">
+                                                    <h3 class="font-bold text-xl text-slate-900">${p.projectNumber}</h3>
+                                                    <button onclick="editProjectDetails(${p.id})" class="p-1 text-slate-400 hover:text-blue-600" title="編集">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                    </button>
+                                                </div>
+                                                <p class="text-sm text-slate-700">${p.productName}</p>
+                                                <p class="text-sm text-slate-600">サプライヤー: ${supplier?.name || 'Unknown'}</p>
+                                                <p class="text-sm text-slate-600">総額: $${(p.totalAmount || 0).toLocaleString()} / 数量: ${p.quantity || 1}</p>
+                                                <p class="text-sm text-slate-600">Serial: <span class="font-mono font-semibold">${p.serial || '未設定'}</span></p>
+                                                <p class="text-sm text-slate-600">集荷予定日: <span class="font-semibold text-blue-600">${pickupDateDisplay}</span></p>
+                                                ${folderCache[p.projectNumber] ? `
+                                                    <a href="${folderCache[p.projectNumber]}" target="_blank" class="inline-flex items-center gap-1 mt-2 text-sm text-blue-600 hover:text-blue-800 hover:underline">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+                                                        Google Driveフォルダ
+                                                    </a>
+                                                ` : `
+                                                    <span class="inline-flex items-center gap-1 mt-2 text-sm text-slate-400">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+                                                        フォルダ未検出
+                                                    </span>
+                                                `}
+                                            </div>
+                                            <div class="text-right">
+                                                <p class="text-lg font-bold text-slate-900">${formatJPY(totalPaid)}</p>
+                                                ${unitPrice ? `<p class="text-sm text-green-600 font-semibold">単価: ${formatJPY(unitPrice)}</p>` : ''}
+                                                <p class="text-sm ${paidCount === (p.depositSchedule || []).length ? 'text-green-600 font-semibold' : 'text-amber-600 font-semibold'}">
+                                                    進捗: ${paidCount}/${(p.depositSchedule || []).length}回
+                                                </p>
+                                                <button onclick="copyInvoiceText(${p.id})" class="mt-2 px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 inline-flex items-center gap-1" title="インボイス用テキストをコピー">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+                                                    コピー
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        ${nextPayment ? `
+                                            <div class="bg-white border-2 border-amber-400 rounded-lg p-4 mb-3">
+                                                <p class="text-sm font-semibold text-amber-700 mb-2">📋 次回支払予定</p>
+                                                <div class="flex justify-between items-center">
+                                                    <div>
+                                                        <p class="font-bold text-lg text-slate-900">第${nextPayment.depositNumber}回: $${(nextPayment.amountUSD || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                                                        <p class="text-sm text-slate-600">(${nextPayment.percentage}%)</p>
+                                                    </div>
+                                                    <button onclick="markPaymentComplete(${p.id}, ${nextPayment.depositNumber})" class="px-4 py-2 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700">
+                                                        支払完了を記録
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ` : `
+                                            <div class="bg-white border-2 border-green-400 rounded-lg p-4 mb-3">
+                                                <p class="text-green-700 font-semibold text-center">✓ すべての支払いが完了しました</p>
+                                                ${unitPrice ? `<p class="text-green-600 text-center mt-1">単価: ${formatJPY(unitPrice)} (総額 ${formatJPY(totalPaid)} ÷ ${p.quantity || 1}個)</p>` : ''}
+                                            </div>
+                                        `}
+                                        
+                                        <div class="bg-slate-50 rounded-lg p-4">
+                                            <p class="text-sm font-semibold text-slate-700 mb-3">支払予定・履歴</p>
+                                            <div class="space-y-2">
+                                                ${(p.depositSchedule || []).map(dep => `
+                                                    <div class="flex justify-between items-center p-3 ${dep.paid ? 'bg-green-100 border border-green-300' : 'bg-white border border-slate-200'} rounded">
+                                                        <div class="flex-1">
+                                                            <span class="font-semibold text-slate-900">第${dep.depositNumber}回</span>
+                                                            <span class="text-slate-600 ml-3">$${(dep.amountUSD || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${dep.percentage}%)</span>
+                                                            ${dep.paid ? `
+                                                                <div class="text-sm text-slate-600 mt-1">
+                                                                    支払日: ${dep.paidDate} | レート: ¥${dep.exchangeRate} | ${formatJPY(dep.amountJPY)}
+                                                                </div>
+                                                            ` : ''}
+                                                        </div>
+                                                        <span class="px-3 py-1 rounded text-sm font-semibold ${dep.paid ? 'bg-green-600 text-white' : 'bg-slate-300 text-slate-600'}">
+                                                            ${dep.paid ? '完了' : '未払'}
+                                                        </span>
+                                                    </div>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    </div>`;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </main>
+                </div>`;
+        }
+
+        async function getExchangeRate(date) {
+            try {
+                // Frankfurter APIで過去日のレートを取得
+                const dateStr = new Date(date).toISOString().split('T')[0];
+                const response = await fetch(`https://api.frankfurter.app/${dateStr}?from=USD&to=JPY`);
+                const data = await response.json();
+                return data.rates.JPY;
+            } catch (error) {
+                console.error('為替レート取得エラー:', error);
+                // フォールバック: 最新レートを取得
+                try {
+                    const fallbackResponse = await fetch('https://api.frankfurter.app/latest?from=USD&to=JPY');
+                    const fallbackData = await fallbackResponse.json();
+                    return fallbackData.rates.JPY;
+                } catch (e) {
+                    return null;
+                }
+            }
+        }
+
+        async function markPaymentComplete(projectId, depositNumber) {
+            const paidDate = prompt('支払日 (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+            if (!paidDate) return;
+            
+            showStatus('為替レート取得中...');
+            const autoRate = await getExchangeRate(paidDate);
+            
+            let exchangeRate;
+            if (autoRate) {
+                const useAutoRate = confirm(`${paidDate}のレート: ¥${autoRate.toFixed(2)}\n\nこのレートを使用しますか？\n（キャンセルすると手動入力になります）`);
+                if (useAutoRate) {
+                    exchangeRate = autoRate;
+                } else {
+                    exchangeRate = parseFloat(prompt('為替レート (JPY/USD):', autoRate.toFixed(2)));
+                }
+            } else {
+                exchangeRate = parseFloat(prompt('為替レート (JPY/USD):'));
+            }
+            
+            if (!exchangeRate) return;
+            
+            markPaymentPaid(projectId, depositNumber, paidDate, exchangeRate);
+            renderMain();
+        }
+
+        function editSupplier(supplierId) {
+            const supplier = suppliers.find(s => s.id === supplierId);
+            if (!supplier) return;
+            
+            const name = prompt('サプライヤー名:', supplier.name);
+            if (!name) return;
+            
+            const count = parseInt(prompt('デポジット回数:', supplier.depositCount));
+            if (!count || count < 1) return;
+            
+            const rates = [];
+            let total = 0;
+            
+            for (let i = 0; i < count; i++) {
+                const defaultRate = supplier.depositRates[i] || '';
+                const rate = parseFloat(prompt(`第${i + 1}回目のデポジット割合 (%):\n残り: ${100 - total}%`, defaultRate));
+                if (rate === null || rate === '' || isNaN(rate)) {
+                    alert('入力がキャンセルされました');
+                    return;
+                }
+                rates.push(rate);
+                total += rate;
+            }
+            
+            if (Math.abs(total - 100) > 0.01) {
+                alert(`エラー: 合計が${total}%です。100%になるように入力してください。`);
+                return;
+            }
+            
+            supplier.name = name;
+            supplier.depositCount = count;
+            supplier.depositRates = rates;
+            
+            // 関連する案件のデポジット予定を更新
+            projects.forEach(p => {
+                if (p.supplierId === supplierId) {
+                    p.depositSchedule = rates.map((rate, idx) => {
+                        const existingDeposit = p.depositSchedule[idx];
+                        return {
+                            depositNumber: idx + 1,
+                            percentage: rate,
+                            amountUSD: (p.totalAmount * rate / 100),
+                            paid: existingDeposit ? existingDeposit.paid : false,
+                            paidDate: existingDeposit ? existingDeposit.paidDate : null,
+                            exchangeRate: existingDeposit ? existingDeposit.exchangeRate : null,
+                            amountJPY: existingDeposit && existingDeposit.paid ? 
+                                (p.totalAmount * rate / 100) * existingDeposit.exchangeRate : null
+                        };
+                    });
+                }
+            });
+            
+            saveData();
+            renderMain();
+        }
+
+        function deleteSupplier(supplierId) {
+            const supplier = suppliers.find(s => s.id === supplierId);
+            if (!supplier) return;
+            
+            // 関連する案件があるか確認
+            const relatedProjects = projects.filter(p => p.supplierId === supplierId);
+            if (relatedProjects.length > 0) {
+                alert(`エラー: このサプライヤーには${relatedProjects.length}件の案件が紐付いています。\n先に案件を削除してください。`);
+                return;
+            }
+            
+            if (!confirm(`「${supplier.name}」を削除しますか？`)) return;
+            
+            suppliers = suppliers.filter(s => s.id !== supplierId);
+            saveData();
+            renderMain();
+        }
+
+        function showAddSupplierForm() {
+            const name = prompt('サプライヤー名:');
+            if (!name) return;
+            const count = parseInt(prompt('デポジット回数:', '2'));
+            if (!count || count < 1) return;
+            
+            const rates = [];
+            let total = 0;
+            
+            for (let i = 0; i < count; i++) {
+                const rate = parseFloat(prompt(`第${i + 1}回目のデポジット割合 (%):\n残り: ${100 - total}%`, ''));
+                if (rate === null || rate === '' || isNaN(rate)) {
+                    alert('入力がキャンセルされました');
+                    return;
+                }
+                rates.push(rate);
+                total += rate;
+            }
+            
+            if (Math.abs(total - 100) > 0.01) {
+                alert(`エラー: 合計が${total}%です。100%になるように入力してください。`);
+                return;
+            }
+            
+            addSupplier(name, count, rates);
+            renderMain();
+        }
+
+        function showAddProjectForm() {
+            if (suppliers.length === 0) {
+                alert('先にサプライヤーを登録してください');
+                return;
+            }
+            
+            // モーダルダイアログを作成
+            const modal = document.createElement('div');
+            modal.id = 'projectModal';
+            modal.innerHTML = `
+                <div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;">
+                    <div style="background:white;padding:24px;border-radius:12px;width:450px;max-width:90%;max-height:90vh;overflow-y:auto;">
+                        <h3 style="font-size:18px;font-weight:bold;margin-bottom:16px;">新規案件登録</h3>
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;">案件番号</label>
+                            <input type="text" id="modalProjectNumber" placeholder="例: AD-0001" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                        </div>
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;">サプライヤー</label>
+                            <select id="modalSupplierId" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                                ${suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;">製品名</label>
+                            <input type="text" id="modalProductName" placeholder="製品名を入力" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                        </div>
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;">総額 (USD)</label>
+                            <input type="number" id="modalTotalAmount" placeholder="例: 10000" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                        </div>
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;">数量（枝番用）</label>
+                            <input type="number" id="modalQuantity" value="1" min="1" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                            <p style="font-size:12px;color:#666;margin-top:4px;">1の場合: YS0554、4の場合: YS0554(1-4)</p>
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;">Working Days（営業日数）</label>
+                            <input type="number" id="modalWorkingDays" value="30" min="1" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                            <p style="font-size:12px;color:#666;margin-top:4px;">第1回支払日から集荷予定日までの営業日数</p>
+                        </div>
+                        <div style="display:flex;gap:8px;justify-content:flex-end;">
+                            <button onclick="closeProjectModal()" style="padding:8px 16px;border:1px solid #ccc;border-radius:6px;background:white;cursor:pointer;">キャンセル</button>
+                            <button onclick="submitProjectForm()" style="padding:8px 16px;border:none;border-radius:6px;background:#2563eb;color:white;cursor:pointer;">登録</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function closeProjectModal() {
+            const modal = document.getElementById('projectModal');
+            if (modal) modal.remove();
+        }
+
+        function submitProjectForm() {
+            const projectNumber = document.getElementById('modalProjectNumber').value;
+            const supplierId = document.getElementById('modalSupplierId').value;
+            const productName = document.getElementById('modalProductName').value;
+            const totalAmount = document.getElementById('modalTotalAmount').value;
+            const quantity = parseInt(document.getElementById('modalQuantity').value) || 1;
+            const workingDays = parseInt(document.getElementById('modalWorkingDays').value) || 30;
+            
+            if (!projectNumber || !supplierId || !totalAmount) {
+                alert('案件番号、サプライヤー、総額は必須です');
+                return;
+            }
+            
+            addProject(projectNumber, supplierId, productName, totalAmount, quantity, workingDays);
+            closeProjectModal();
+            renderMain();
+        }
+
+        // インボイス用テキスト生成
+        function generateInvoiceText(project) {
+            const pickupDateDisplay = project.pickupDate ? project.pickupDate.replace(/-/g, '/') : '未設定';
+            
+            let text = `PJ番号：${project.projectNumber}\n`;
+            text += `Serial：${project.serial || ''}\n`;
+            text += `集荷予定日：${pickupDateDisplay}\n\n`;
+            
+            project.depositSchedule.forEach(dep => {
+                text += `${dep.percentage}%  $${dep.amountUSD.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n`;
+            });
+            
+            return text.trim();
+        }
+
+        // クリップボードにコピー
+        function copyInvoiceText(projectId) {
+            const project = projects.find(p => p.id === projectId);
+            if (!project) return;
+            
+            const text = generateInvoiceText(project);
+            navigator.clipboard.writeText(text).then(() => {
+                showStatus('コピーしました！');
+                setTimeout(() => showStatus(''), 2000);
+            }).catch(err => {
+                console.error('コピーエラー:', err);
+                alert('コピーに失敗しました');
+            });
+        }
+
+        // 案件編集（Serial、数量、WorkingDays、集荷予定日）
+        function editProjectDetails(projectId) {
+            const project = projects.find(p => p.id === projectId);
+            if (!project) return;
+            
+            const modal = document.createElement('div');
+            modal.id = 'editProjectModal';
+            modal.innerHTML = `
+                <div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;">
+                    <div style="background:white;padding:24px;border-radius:12px;width:400px;max-width:90%;">
+                        <h3 style="font-size:18px;font-weight:bold;margin-bottom:16px;">案件詳細編集 - ${project.projectNumber}</h3>
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;">Serial</label>
+                            <input type="text" id="editSerial" value="${project.serial || ''}" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                        </div>
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;">数量（枝番用）</label>
+                            <input type="number" id="editQuantity" value="${project.quantity || 1}" min="1" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                        </div>
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;">Working Days</label>
+                            <input type="number" id="editWorkingDays" value="${project.workingDays || 30}" min="1" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;">集荷予定日</label>
+                            <input type="date" id="editPickupDate" value="${project.pickupDate || ''}" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                        </div>
+                        <div style="display:flex;gap:8px;justify-content:flex-end;">
+                            <button onclick="closeEditProjectModal()" style="padding:8px 16px;border:1px solid #ccc;border-radius:6px;background:white;cursor:pointer;">キャンセル</button>
+                            <button onclick="submitEditProject(${projectId})" style="padding:8px 16px;border:none;border-radius:6px;background:#2563eb;color:white;cursor:pointer;">保存</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function closeEditProjectModal() {
+            const modal = document.getElementById('editProjectModal');
+            if (modal) modal.remove();
+        }
+
+        function submitEditProject(projectId) {
+            const project = projects.find(p => p.id === projectId);
+            if (!project) return;
+            
+            project.serial = document.getElementById('editSerial').value;
+            project.quantity = parseInt(document.getElementById('editQuantity').value) || 1;
+            project.workingDays = parseInt(document.getElementById('editWorkingDays').value) || 30;
+            project.pickupDate = document.getElementById('editPickupDate').value;
+            
+            saveData();
+            closeEditProjectModal();
+            renderMain();
+        }
+
+        window.onload = () => {
+            if (typeof gapi !== 'undefined') gapiLoaded();
+            if (typeof google !== 'undefined') gisLoaded();
+        };
+    </script>
+</body>
+</html>
