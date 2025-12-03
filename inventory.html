@@ -60,14 +60,33 @@
             status: '',
             search: '',
             sort: 'orderDate-desc',
-            shelfNo: ''
+            shelfNo: '',
+            receiveDateFrom: '',
+            receiveDateTo: '',
+            shipProject: '',
+            costRange: '',
+            noShelf: false,
+            todayReceive: false,
+            todayShip: false
         };
+
+        // 詳細フィルタ開閉状態
+        let showDetailFilters = false;
 
         // 折りたたみ状態（案件番号ごと）
         let expandedProjects = {};
 
         // 棚番リスト（1〜30）
         const SHELF_NUMBERS = Array.from({length: 30}, (_, i) => String(i + 1));
+
+        // 原価帯リスト
+        const COST_RANGES = [
+            { value: '', label: 'すべて' },
+            { value: '0-50000', label: '5万円未満' },
+            { value: '50000-100000', label: '5〜10万円' },
+            { value: '100000-300000', label: '10〜30万円' },
+            { value: '300000-', label: '30万円以上' }
+        ];
 
         function gapiLoaded() {
             gapi.load('client', initializeGapiClient);
@@ -388,10 +407,37 @@
         }
 
         function getFilteredInventory() {
+            const today = new Date().toISOString().split('T')[0];
+            
             let result = inventory.filter(item => {
                 if (currentFilters.category && item.category !== currentFilters.category) return false;
                 if (currentFilters.status && item.status !== currentFilters.status) return false;
                 if (currentFilters.shelfNo && item.shelfNo !== currentFilters.shelfNo) return false;
+                
+                // 入庫日範囲フィルタ
+                if (currentFilters.receiveDateFrom && item.receiveDate < currentFilters.receiveDateFrom) return false;
+                if (currentFilters.receiveDateTo && item.receiveDate > currentFilters.receiveDateTo) return false;
+                
+                // 出庫先案件フィルタ
+                if (currentFilters.shipProject && !item.shipProject.toLowerCase().includes(currentFilters.shipProject.toLowerCase())) return false;
+                
+                // 原価帯フィルタ
+                if (currentFilters.costRange) {
+                    const cost = Number(item.costJPY) || 0;
+                    const [min, max] = currentFilters.costRange.split('-').map(v => v ? Number(v) : null);
+                    if (min !== null && cost < min) return false;
+                    if (max !== null && cost >= max) return false;
+                }
+                
+                // クイックフィルタ: 棚未設定
+                if (currentFilters.noShelf && item.shelfNo) return false;
+                
+                // クイックフィルタ: 今日入庫
+                if (currentFilters.todayReceive && item.receiveDate !== today) return false;
+                
+                // クイックフィルタ: 今日出庫
+                if (currentFilters.todayShip && item.shipDate !== today) return false;
+                
                 if (currentFilters.search) {
                     const search = currentFilters.search.toLowerCase();
                     const matchSerial = item.serial.toLowerCase().includes(search);
@@ -502,24 +548,16 @@
                     
                     <main class="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
                         <!-- サマリー -->
-                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-4 mb-4 sm:mb-8">
-                            <div class="bg-white rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border">
-                                <p class="text-slate-600 text-xs sm:text-sm">総在庫</p>
-                                <p class="text-lg sm:text-2xl font-bold text-slate-900">${summary.total}</p>
+                        <div class="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                            <div class="bg-emerald-50 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border border-emerald-200">
+                                <p class="text-emerald-700 text-xs sm:text-sm">在庫中</p>
+                                <p class="text-lg sm:text-2xl font-bold text-emerald-600">${summary.inStock}</p>
                             </div>
                             <div class="bg-amber-50 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border border-amber-200">
                                 <p class="text-amber-700 text-xs sm:text-sm">入庫待</p>
                                 <p class="text-lg sm:text-2xl font-bold text-amber-600">${summary.waiting}</p>
                             </div>
-                            <div class="bg-emerald-50 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border border-emerald-200">
-                                <p class="text-emerald-700 text-xs sm:text-sm">在庫中</p>
-                                <p class="text-lg sm:text-2xl font-bold text-emerald-600">${summary.inStock}</p>
-                            </div>
-                            <div class="col-span-3 sm:col-span-1 bg-emerald-100 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border border-emerald-300">
-                                <p class="text-emerald-800 text-xs sm:text-sm">在庫総額</p>
-                                <p class="text-base sm:text-xl font-bold text-emerald-700">¥${summary.inStockValue.toLocaleString()}</p>
-                            </div>
-                            <div class="bg-blue-50 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border border-blue-200 hidden sm:block">
+                            <div class="bg-blue-50 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border border-blue-200">
                                 <p class="text-blue-700 text-xs sm:text-sm">出庫済</p>
                                 <p class="text-lg sm:text-2xl font-bold text-blue-600">${summary.shipped}</p>
                             </div>
@@ -527,9 +565,29 @@
                                 <p class="text-red-700 text-xs sm:text-sm">不具合</p>
                                 <p class="text-lg sm:text-2xl font-bold text-red-600">${summary.issue}</p>
                             </div>
+                            <div class="bg-white rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border hidden sm:block">
+                                <p class="text-slate-600 text-xs sm:text-sm">総在庫</p>
+                                <p class="text-lg sm:text-2xl font-bold text-slate-900">${summary.total}</p>
+                            </div>
                         </div>
 
-                        <!-- フィルタ -->
+                        <!-- クイックフィルタ -->
+                        <div class="flex flex-wrap gap-2 mb-3 sm:mb-4">
+                            <button onclick="quickFilter('todayReceive')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.todayReceive ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+                                📦 今日入庫
+                            </button>
+                            <button onclick="quickFilter('todayShip')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.todayShip ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+                                🚚 今日出庫
+                            </button>
+                            <button onclick="quickFilter('noShelf')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.noShelf ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+                                ⚠️ 棚未設定
+                            </button>
+                            <button onclick="quickFilter('issue')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.status === '不具合' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+                                🔴 不具合
+                            </button>
+                        </div>
+
+                        <!-- 基本フィルタ -->
                         <div class="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border mb-4 sm:mb-6">
                             <div class="flex flex-wrap gap-2 sm:gap-4 items-end">
                                 <div class="w-1/4 sm:w-auto">
@@ -568,6 +626,45 @@
                                 <input type="text" id="filterSearch" value="${currentFilters.search}" onkeydown="if(event.key==='Enter'){applyFilters();event.target.blur();}" placeholder="Serial/製品名/案件番号で検索" class="flex-1 px-3 py-2 text-sm border rounded-lg">
                                 <button onclick="applyFilters()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">検索</button>
                             </div>
+                            
+                            <!-- 詳細フィルタ（倉庫担当者向け） -->
+                            <div class="mt-3 border-t pt-3">
+                                <button onclick="toggleDetailFilters()" class="text-xs sm:text-sm text-slate-600 hover:text-slate-800 flex items-center gap-1">
+                                    <span>${showDetailFilters ? '▼' : '▶'}</span>
+                                    <span>詳細フィルタ（倉庫担当者向け）</span>
+                                </button>
+                                ${showDetailFilters ? `
+                                    <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div>
+                                            <label class="text-xs text-slate-600 block mb-1">入庫日（開始）</label>
+                                            <input type="date" id="filterReceiveDateFrom" value="${currentFilters.receiveDateFrom}" onchange="applyFilters()" class="w-full px-2 py-1.5 text-sm border rounded-lg">
+                                        </div>
+                                        <div>
+                                            <label class="text-xs text-slate-600 block mb-1">入庫日（終了）</label>
+                                            <input type="date" id="filterReceiveDateTo" value="${currentFilters.receiveDateTo}" onchange="applyFilters()" class="w-full px-2 py-1.5 text-sm border rounded-lg">
+                                        </div>
+                                        <div>
+                                            <label class="text-xs text-slate-600 block mb-1">出庫先案件</label>
+                                            <input type="text" id="filterShipProject" value="${currentFilters.shipProject}" onchange="applyFilters()" placeholder="AD-1700" class="w-full px-2 py-1.5 text-sm border rounded-lg">
+                                        </div>
+                                        <div>
+                                            <label class="text-xs text-slate-600 block mb-1">原価帯</label>
+                                            <select id="filterCostRange" onchange="applyFilters()" class="w-full px-2 py-1.5 text-sm border rounded-lg">
+                                                ${COST_RANGES.map(r => `<option value="${r.value}" ${currentFilters.costRange === r.value ? 'selected' : ''}>${r.label}</option>`).join('')}
+                                            </select>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+
+                        <!-- 在庫総額（棚卸し用） -->
+                        <div class="bg-emerald-50 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border border-emerald-200 mb-4 sm:mb-6 flex justify-between items-center">
+                            <div>
+                                <p class="text-emerald-700 text-xs sm:text-sm">在庫総額（棚卸し用）</p>
+                                <p class="text-lg sm:text-2xl font-bold text-emerald-700">¥${summary.inStockValue.toLocaleString()}</p>
+                            </div>
+                            <p class="text-xs sm:text-sm text-emerald-600">${summary.inStock}件の在庫中商品</p>
                         </div>
 
                         <!-- 在庫リスト -->
@@ -718,18 +815,75 @@
             const searchEl = document.getElementById('filterSearch');
             const sortEl = document.getElementById('filterSort');
             const shelfNoEl = document.getElementById('filterShelfNo');
+            const receiveDateFromEl = document.getElementById('filterReceiveDateFrom');
+            const receiveDateToEl = document.getElementById('filterReceiveDateTo');
+            const shipProjectEl = document.getElementById('filterShipProject');
+            const costRangeEl = document.getElementById('filterCostRange');
             
             if (categoryEl) currentFilters.category = categoryEl.value;
             if (statusEl) currentFilters.status = statusEl.value;
             if (searchEl) currentFilters.search = searchEl.value;
             if (sortEl) currentFilters.sort = sortEl.value;
             if (shelfNoEl) currentFilters.shelfNo = shelfNoEl.value;
+            if (receiveDateFromEl) currentFilters.receiveDateFrom = receiveDateFromEl.value;
+            if (receiveDateToEl) currentFilters.receiveDateTo = receiveDateToEl.value;
+            if (shipProjectEl) currentFilters.shipProject = shipProjectEl.value;
+            if (costRangeEl) currentFilters.costRange = costRangeEl.value;
             renderMain();
         }
 
         function clearFilters() {
-            currentFilters = { category: '', status: '', search: '', sort: 'orderDate-desc', shelfNo: '' };
+            currentFilters = { 
+                category: '', 
+                status: '', 
+                search: '', 
+                sort: 'orderDate-desc', 
+                shelfNo: '',
+                receiveDateFrom: '',
+                receiveDateTo: '',
+                shipProject: '',
+                costRange: '',
+                noShelf: false,
+                todayReceive: false,
+                todayShip: false
+            };
             expandedProjects = {};
+            showDetailFilters = false;
+            renderMain();
+        }
+
+        function quickFilter(type) {
+            // クイックフィルタはトグル式
+            if (type === 'todayReceive') {
+                currentFilters.todayReceive = !currentFilters.todayReceive;
+                currentFilters.todayShip = false;
+                currentFilters.noShelf = false;
+                if (currentFilters.status === '不具合') currentFilters.status = '';
+            } else if (type === 'todayShip') {
+                currentFilters.todayShip = !currentFilters.todayShip;
+                currentFilters.todayReceive = false;
+                currentFilters.noShelf = false;
+                if (currentFilters.status === '不具合') currentFilters.status = '';
+            } else if (type === 'noShelf') {
+                currentFilters.noShelf = !currentFilters.noShelf;
+                currentFilters.todayReceive = false;
+                currentFilters.todayShip = false;
+                if (currentFilters.status === '不具合') currentFilters.status = '';
+            } else if (type === 'issue') {
+                if (currentFilters.status === '不具合') {
+                    currentFilters.status = '';
+                } else {
+                    currentFilters.status = '不具合';
+                }
+                currentFilters.todayReceive = false;
+                currentFilters.todayShip = false;
+                currentFilters.noShelf = false;
+            }
+            renderMain();
+        }
+
+        function toggleDetailFilters() {
+            showDetailFilters = !showDetailFilters;
             renderMain();
         }
 
