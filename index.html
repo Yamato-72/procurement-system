@@ -10,6 +10,11 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;900&display=swap');
         * { font-family: 'Noto Sans JP', sans-serif; }
@@ -40,6 +45,21 @@
         let nextSerial = 554; // YS0554から開始
         let showSupplierSection = false; // サプライヤー管理の折りたたみ状態
         let expandedProjects = {}; // 案件カードの展開状態
+        let lastUpdated = null; // 最終更新日時
+        let lastUpdated = null; // 最終更新日時
+        let isDarkMode = localStorage.getItem('darkMode') === 'true'; // ダークモード状態
+
+        // ダークモード初期化
+        if (isDarkMode) {
+            document.documentElement.classList.add('dark');
+        }
+
+        function toggleDarkMode() {
+            isDarkMode = !isDarkMode;
+            localStorage.setItem('darkMode', isDarkMode);
+            document.documentElement.classList.toggle('dark', isDarkMode);
+            renderMain();
+        }
 
         // 中国の祝日（2025年・2026年）
         const chinaHolidays = [
@@ -280,6 +300,7 @@
                     return data;
                 });
 
+                lastUpdated = new Date();
                 showStatus('同期完了');
                 setTimeout(() => showStatus(''), 2000);
                 renderMain();
@@ -528,17 +549,22 @@
             );
             const prevTotalJPY = prevFiscalPayments.reduce((sum, p) => sum + (p.amountJPY || 0), 0);
 
+            const lastUpdatedText = lastUpdated ? lastUpdated.toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'}) : '-';
+            
             document.getElementById('app').innerHTML = `
-                <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
-                    <header class="bg-white border-b border-slate-200 shadow-sm">
+                <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+                    <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
                         <div class="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4">
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <h1 class="text-lg sm:text-2xl font-bold text-slate-900">調達管理システム</h1>
-                                    <p class="text-xs sm:text-sm text-slate-500">デジタルサイネージ</p>
+                                    <h1 class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">調達管理システム</h1>
+                                    <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">デジタルサイネージ</p>
                                 </div>
                                 <div class="flex items-center gap-1 sm:gap-3">
-                                    <span id="status" class="text-xs sm:text-sm text-blue-600 hidden sm:inline"></span>
+                                    <span id="status" class="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hidden sm:inline"></span>
+                                    <button onclick="toggleDarkMode()" class="p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" title="ダークモード切替">
+                                        ${isDarkMode ? '☀️' : '🌙'}
+                                    </button>
                                     <a href="inventory.html" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-teal-600 text-white text-xs sm:text-sm rounded-lg hover:bg-teal-700">在庫</a>
                                     <button onclick="exportCSV()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-emerald-600 text-white text-xs sm:text-sm rounded-lg hover:bg-emerald-700 hidden sm:inline">CSV</button>
                                     <button onclick="handleSignoutClick()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-600 text-white text-xs sm:text-sm rounded-lg hover:bg-slate-700">
@@ -547,32 +573,66 @@
                                     </button>
                                 </div>
                             </div>
+                            <div class="flex items-center justify-between mt-2 text-xs text-slate-500 dark:text-slate-400">
+                                <span>最終更新: ${lastUpdatedText}</span>
+                                <button onclick="loadData()" class="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                    更新
+                                </button>
+                            </div>
                         </div>
                     </header>
                     <main class="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
+                        <!-- アラート -->
+                        ${(() => {
+                            const pendingPayments = projects.filter(p => (p.depositSchedule || []).some(d => !d.paid)).length;
+                            const upcomingPickups = projects.filter(p => {
+                                if (!p.pickupDate) return false;
+                                const pickup = new Date(p.pickupDate);
+                                const today = new Date();
+                                const diff = (pickup - today) / (1000 * 60 * 60 * 24);
+                                return diff >= 0 && diff <= 7;
+                            }).length;
+                            if (pendingPayments === 0 && upcomingPickups === 0) return '';
+                            return `
+                                <div class="flex flex-wrap gap-2 mb-4">
+                                    ${pendingPayments > 0 ? `
+                                        <span class="flex items-center gap-1 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 text-xs sm:text-sm rounded-lg border border-amber-300 dark:border-amber-700">
+                                            💰 支払待ち ${pendingPayments}件
+                                        </span>
+                                    ` : ''}
+                                    ${upcomingPickups > 0 ? `
+                                        <span class="flex items-center gap-1 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs sm:text-sm rounded-lg border border-blue-300 dark:border-blue-700">
+                                            🚚 集荷予定（7日以内） ${upcomingPickups}件
+                                        </span>
+                                    ` : ''}
+                                </div>
+                            `;
+                        })()}
+                        
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-6 mb-4 sm:mb-8">
-                            <div class="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm border">
-                                <p class="text-slate-600 text-xs sm:text-sm mb-1 sm:mb-2">今期支払</p>
-                                <p class="text-base sm:text-2xl font-bold text-slate-900">${formatJPY(totalJPY)}</p>
-                                <p class="text-xs text-slate-500 mt-1 hidden sm:block">2025/07 - 2026/06</p>
+                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm border dark:border-slate-700">
+                                <p class="text-slate-600 dark:text-slate-400 text-xs sm:text-sm mb-1 sm:mb-2">今期支払</p>
+                                <p class="text-base sm:text-2xl font-bold text-slate-900 dark:text-white">${formatJPY(totalJPY)}</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 hidden sm:block">2025/07 - 2026/06</p>
                             </div>
-                            <div class="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm border">
-                                <p class="text-slate-600 text-xs sm:text-sm mb-1 sm:mb-2">前期支払</p>
-                                <p class="text-base sm:text-2xl font-bold text-slate-500">${formatJPY(prevTotalJPY)}</p>
-                                <p class="text-xs text-slate-500 mt-1 hidden sm:block">2024/07 - 2025/06</p>
+                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm border dark:border-slate-700">
+                                <p class="text-slate-600 dark:text-slate-400 text-xs sm:text-sm mb-1 sm:mb-2">前期支払</p>
+                                <p class="text-base sm:text-2xl font-bold text-slate-500 dark:text-slate-300">${formatJPY(prevTotalJPY)}</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 hidden sm:block">2024/07 - 2025/06</p>
                             </div>
-                            <div class="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm border">
-                                <p class="text-slate-600 text-xs sm:text-sm mb-1 sm:mb-2">案件数</p>
-                                <p class="text-xl sm:text-3xl font-bold text-slate-900">${projects.length}</p>
+                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm border dark:border-slate-700">
+                                <p class="text-slate-600 dark:text-slate-400 text-xs sm:text-sm mb-1 sm:mb-2">案件数</p>
+                                <p class="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white">${projects.length}</p>
                             </div>
-                            <div class="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm border">
-                                <p class="text-slate-600 text-xs sm:text-sm mb-1 sm:mb-2">サプライヤー</p>
-                                <p class="text-xl sm:text-3xl font-bold text-slate-900">${suppliers.length}</p>
+                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm border dark:border-slate-700">
+                                <p class="text-slate-600 dark:text-slate-400 text-xs sm:text-sm mb-1 sm:mb-2">サプライヤー</p>
+                                <p class="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white">${suppliers.length}</p>
                             </div>
                         </div>
-                        <div class="bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border mb-4 sm:mb-8">
+                        <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border dark:border-slate-700 mb-4 sm:mb-8">
                             <button onclick="toggleSupplierSection()" class="w-full flex justify-between items-center text-left">
-                                <h2 class="text-base sm:text-xl font-bold text-slate-900">サプライヤー管理</h2>
+                                <h2 class="text-base sm:text-xl font-bold text-slate-900 dark:text-white">サプライヤー管理</h2>
                                 <span class="text-slate-400">${showSupplierSection ? '▼' : '▶'}</span>
                             </button>
                             ${showSupplierSection ? `
@@ -580,12 +640,12 @@
                                     <button onclick="showAddSupplierForm()" class="mb-3 sm:mb-4 px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">+ 追加</button>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                         ${suppliers.map(s => `
-                                            <div class="p-3 sm:p-4 border rounded-lg hover:border-blue-300 transition-colors">
+                                            <div class="p-3 sm:p-4 border dark:border-slate-600 rounded-lg hover:border-blue-300 transition-colors">
                                                 <div class="flex justify-between items-start mb-2">
                                                     <div class="flex-1">
-                                                        <h3 class="font-bold text-sm sm:text-lg">${s.name}</h3>
-                                                        <p class="text-xs sm:text-sm text-slate-600">デポジット: ${s.depositCount}回</p>
-                                                        <p class="text-xs sm:text-sm text-slate-600">割合: ${s.depositRates.join('%, ')}%</p>
+                                                        <h3 class="font-bold text-sm sm:text-lg dark:text-white">${s.name}</h3>
+                                                        <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400">デポジット: ${s.depositCount}回</p>
+                                                        <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400">割合: ${s.depositRates.join('%, ')}%</p>
                                                     </div>
                                                     <div class="flex gap-1 sm:gap-2">
                                                         <button onclick="editSupplier(${s.id})" class="px-2 sm:px-3 py-1 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700" title="編集">
@@ -601,11 +661,11 @@
                                     </div>
                                 </div>
                             ` : `
-                                <p class="mt-2 text-sm text-slate-500">${suppliers.length}件のサプライヤー</p>
+                                <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">${suppliers.length}件のサプライヤー</p>
                             `}
                         </div>
-                        <div class="bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border">
-                            <h2 class="text-base sm:text-xl font-bold text-slate-900 mb-3 sm:mb-4">案件管理</h2>
+                        <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border dark:border-slate-700">
+                            <h2 class="text-base sm:text-xl font-bold text-slate-900 dark:text-white mb-3 sm:mb-4">案件管理</h2>
                             <button onclick="showAddProjectForm()" class="mb-3 sm:mb-4 px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">+ 新規案件</button>
                             <div class="space-y-3 sm:space-y-4">
                                 ${projects.map(p => {
@@ -620,7 +680,7 @@
                                     const pickupDateDisplay = p.pickupDate ? p.pickupDate.replace(/-/g, '/') : '未設定';
                                     const isExpanded = expandedProjects[p.id];
                                     
-                                    return `<div class="border-2 rounded-lg ${nextPayment ? 'border-amber-300 bg-amber-50' : 'border-green-300 bg-green-50'}">
+                                    return `<div class="border-2 rounded-lg ${nextPayment ? 'border-amber-300 bg-amber-50 dark:bg-amber-900/30 dark:border-amber-600' : 'border-green-300 bg-green-50 dark:bg-green-900/30 dark:border-green-600'}">
                                         <div class="p-3 sm:p-5 cursor-pointer" onclick="toggleProject(${p.id})">
                                             <div class="flex justify-between items-start">
                                                 <div class="flex-1">
