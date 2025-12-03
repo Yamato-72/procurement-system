@@ -8,10 +8,10 @@
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://apis.google.com/js/api.js"></script>
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body onload="gisLoaded()">
     <div id="app">
         <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-100">
             <div class="text-center">
@@ -356,6 +356,7 @@
                                 </div>
                                 <div class="flex items-center gap-4">
                                     <span id="status" class="text-sm text-emerald-600"></span>
+                                    <a href="index.html" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">調達管理へ</a>
                                     <button onclick="showAddInventoryModal()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">+ 在庫追加</button>
                                     <button onclick="handleSignoutClick()" class="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700">サインアウト</button>
                                 </div>
@@ -808,12 +809,6 @@
             const modal = document.getElementById(id);
             if (modal) modal.remove();
         }
-
-        // 初期化
-        window.onload = () => {
-            gapiLoaded();
-            gisLoaded();
-        };
     </script>
 </body>
 </html>
