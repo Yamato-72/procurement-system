@@ -67,7 +67,7 @@
             costRange: '',
             noShelf: false,
             todayReceive: false,
-            todayShip: false
+            recentShip: false
         };
 
         // 詳細フィルタ開閉状態
@@ -435,8 +435,14 @@
                 // クイックフィルタ: 今日入庫
                 if (currentFilters.todayReceive && item.receiveDate !== today) return false;
                 
-                // クイックフィルタ: 今日出庫
-                if (currentFilters.todayShip && item.shipDate !== today) return false;
+                // クイックフィルタ: 最近出庫（直近1週間）
+                if (currentFilters.recentShip) {
+                    if (!item.shipDate) return false;
+                    const shipDate = new Date(item.shipDate);
+                    const weekAgo = new Date();
+                    weekAgo.setDate(weekAgo.getDate() - 7);
+                    if (shipDate < weekAgo) return false;
+                }
                 
                 if (currentFilters.search) {
                     const search = currentFilters.search.toLowerCase();
@@ -576,8 +582,8 @@
                             <button onclick="quickFilter('todayReceive')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.todayReceive ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
                                 📦 今日入庫
                             </button>
-                            <button onclick="quickFilter('todayShip')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.todayShip ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
-                                🚚 今日出庫
+                            <button onclick="quickFilter('recentShip')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.recentShip ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+                                🚚 最近出庫
                             </button>
                             <button onclick="quickFilter('noShelf')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.noShelf ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
                                 ⚠️ 棚未設定
@@ -845,7 +851,7 @@
                 costRange: '',
                 noShelf: false,
                 todayReceive: false,
-                todayShip: false
+                recentShip: false
             };
             expandedProjects = {};
             showDetailFilters = false;
@@ -856,18 +862,18 @@
             // クイックフィルタはトグル式
             if (type === 'todayReceive') {
                 currentFilters.todayReceive = !currentFilters.todayReceive;
-                currentFilters.todayShip = false;
+                currentFilters.recentShip = false;
                 currentFilters.noShelf = false;
                 if (currentFilters.status === '不具合') currentFilters.status = '';
-            } else if (type === 'todayShip') {
-                currentFilters.todayShip = !currentFilters.todayShip;
+            } else if (type === 'recentShip') {
+                currentFilters.recentShip = !currentFilters.recentShip;
                 currentFilters.todayReceive = false;
                 currentFilters.noShelf = false;
                 if (currentFilters.status === '不具合') currentFilters.status = '';
             } else if (type === 'noShelf') {
                 currentFilters.noShelf = !currentFilters.noShelf;
                 currentFilters.todayReceive = false;
-                currentFilters.todayShip = false;
+                currentFilters.recentShip = false;
                 if (currentFilters.status === '不具合') currentFilters.status = '';
             } else if (type === 'issue') {
                 if (currentFilters.status === '不具合') {
@@ -876,7 +882,7 @@
                     currentFilters.status = '不具合';
                 }
                 currentFilters.todayReceive = false;
-                currentFilters.todayShip = false;
+                currentFilters.recentShip = false;
                 currentFilters.noShelf = false;
             }
             renderMain();
