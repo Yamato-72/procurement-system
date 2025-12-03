@@ -427,7 +427,10 @@
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <label class="text-xs sm:text-sm text-slate-600 block mb-1">検索</label>
-                                    <input type="text" id="filterSearch" value="${currentFilters.search}" onkeyup="applyFilters()" placeholder="Serial/製品名/案件" class="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border rounded-lg">
+                                    <div class="flex gap-1">
+                                        <input type="text" id="filterSearch" value="${currentFilters.search}" onkeydown="if(event.key==='Enter'){applyFilters();event.target.blur();}" placeholder="Serial/製品名/案件" class="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 text-sm border rounded-lg">
+                                        <button onclick="applyFilters()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">検索</button>
+                                    </div>
                                 </div>
                                 <div class="hidden sm:block">
                                     <label class="text-xs sm:text-sm text-slate-600 block mb-1">ステータス</label>
