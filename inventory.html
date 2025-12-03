@@ -590,21 +590,14 @@
                                         ${STATUSES.map(s => `<option value="${s}" ${currentFilters.status === s ? 'selected' : ''}>${s}</option>`).join('')}
                                     </select>
                                 </div>
-                                <div class="w-1/4 sm:w-auto">
+                                <div class="w-1/3 sm:w-auto">
                                     <label class="text-xs sm:text-sm text-slate-600 block mb-1">種別</label>
                                     <select id="filterCategory" onchange="applyFilters()" class="w-full sm:w-auto px-2 sm:px-3 py-1.5 sm:py-2 text-sm border rounded-lg">
                                         <option value="">すべて</option>
                                         ${CATEGORIES.map(c => `<option value="${c}" ${currentFilters.category === c ? 'selected' : ''}>${c}</option>`).join('')}
                                     </select>
                                 </div>
-                                <div class="w-1/4 sm:w-auto">
-                                    <label class="text-xs sm:text-sm text-slate-600 block mb-1">棚番</label>
-                                    <select id="filterShelfNo" onchange="applyFilters()" class="w-full sm:w-auto px-2 sm:px-3 py-1.5 sm:py-2 text-sm border rounded-lg">
-                                        <option value="">すべて</option>
-                                        ${SHELF_NUMBERS.map(n => `<option value="${n}" ${currentFilters.shelfNo === n ? 'selected' : ''}>${n}</option>`).join('')}
-                                    </select>
-                                </div>
-                                <div class="w-1/4 sm:w-auto">
+                                <div class="w-1/3 sm:w-auto">
                                     <label class="text-xs sm:text-sm text-slate-600 block mb-1">並び替え</label>
                                     <select id="filterSort" onchange="applyFilters()" class="w-full sm:w-auto px-2 sm:px-3 py-1.5 sm:py-2 text-sm border rounded-lg">
                                         <option value="orderDate-desc" ${currentFilters.sort === 'orderDate-desc' ? 'selected' : ''}>新しい順</option>
@@ -627,7 +620,14 @@
                                     <span>詳細フィルタ（倉庫担当者向け）</span>
                                 </button>
                                 ${showDetailFilters ? `
-                                    <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    <div class="mt-3 grid grid-cols-2 sm:grid-cols-5 gap-3">
+                                        <div>
+                                            <label class="text-xs text-slate-600 block mb-1">棚番</label>
+                                            <select id="filterShelfNo" onchange="applyFilters()" class="w-full px-2 py-1.5 text-sm border rounded-lg">
+                                                <option value="">すべて</option>
+                                                ${SHELF_NUMBERS.map(n => `<option value="${n}" ${currentFilters.shelfNo === n ? 'selected' : ''}>${n}</option>`).join('')}
+                                            </select>
+                                        </div>
                                         <div>
                                             <label class="text-xs text-slate-600 block mb-1">入庫日（開始）</label>
                                             <input type="date" id="filterReceiveDateFrom" value="${currentFilters.receiveDateFrom}" onchange="applyFilters()" class="w-full px-2 py-1.5 text-sm border rounded-lg">
