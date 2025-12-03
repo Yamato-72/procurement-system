@@ -157,7 +157,7 @@
                 try {
                     const inventoryResponse = await gapi.client.sheets.spreadsheets.values.get({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫!A2:K',
+                        range: '在庫!A2:L',
                     });
                     const inventoryRows = inventoryResponse.result.values || [];
                     inventory = inventoryRows.map(row => ({
@@ -171,7 +171,8 @@
                         status: row[7] || '入庫待ち',
                         shipDate: row[8] || '',
                         shipProject: row[9] || '',
-                        note: row[10] || ''
+                        costJPY: row[10] || '',
+                        note: row[11] || ''
                     }));
                 } catch (e) {
                     console.log('在庫シートがないため新規作成します');
@@ -183,7 +184,7 @@
                 try {
                     const archiveResponse = await gapi.client.sheets.spreadsheets.values.get({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫アーカイブ!A2:K',
+                        range: '在庫アーカイブ!A2:L',
                     });
                     const archiveRows = archiveResponse.result.values || [];
                     archivedInventory = archiveRows.map(row => ({
@@ -197,7 +198,8 @@
                         status: row[7] || '',
                         shipDate: row[8] || '',
                         shipProject: row[9] || '',
-                        note: row[10] || ''
+                        costJPY: row[10] || '',
+                        note: row[11] || ''
                     }));
                 } catch (e) {
                     console.log('アーカイブシートがないため新規作成します');
@@ -227,10 +229,10 @@
                 });
                 await gapi.client.sheets.spreadsheets.values.update({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫!A1:K1',
+                    range: '在庫!A1:L1',
                     valueInputOption: 'RAW',
                     resource: {
-                        values: [['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '入庫日', 'ステータス', '出庫日', '出庫先案件', '備考']]
+                        values: [['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '取得日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考']]
                     }
                 });
             } catch (e) {
@@ -252,10 +254,10 @@
                 });
                 await gapi.client.sheets.spreadsheets.values.update({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫アーカイブ!A1:K1',
+                    range: '在庫アーカイブ!A1:L1',
                     valueInputOption: 'RAW',
                     resource: {
-                        values: [['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '入庫日', 'ステータス', '出庫日', '出庫先案件', '備考']]
+                        values: [['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '取得日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考']]
                     }
                 });
             } catch (e) {
@@ -268,7 +270,7 @@
                 showStatus('保存中...');
                 
                 const inventoryData = [
-                    ['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '入庫日', 'ステータス', '出庫日', '出庫先案件', '備考'],
+                    ['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '取得日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考'],
                     ...inventory.map(item => [
                         item.id,
                         item.serial,
@@ -280,6 +282,7 @@
                         item.status,
                         item.shipDate,
                         item.shipProject,
+                        item.costJPY,
                         item.note
                     ])
                 ];
@@ -292,7 +295,7 @@
                 });
 
                 const archiveData = [
-                    ['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '入庫日', 'ステータス', '出庫日', '出庫先案件', '備考'],
+                    ['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '取得日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考'],
                     ...archivedInventory.map(item => [
                         item.id,
                         item.serial,
@@ -304,6 +307,7 @@
                         item.status,
                         item.shipDate,
                         item.shipProject,
+                        item.costJPY,
                         item.note
                     ])
                 ];
@@ -452,6 +456,8 @@
                                             <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">種別</th>
                                             <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">製品名</th>
                                             <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">発注案件</th>
+                                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">取得日</th>
+                                            <th class="px-3 py-2 text-right text-xs font-semibold text-slate-700">原価(税込)</th>
                                             <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">ステータス</th>
                                             <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">出庫先</th>
                                             <th class="px-3 py-2 text-center text-xs font-semibold text-slate-700">操作</th>
@@ -459,13 +465,15 @@
                                     </thead>
                                     <tbody class="divide-y">
                                         ${filtered.length === 0 ? `
-                                            <tr><td colspan="7" class="px-4 py-8 text-center text-slate-500 text-sm">データがありません</td></tr>
+                                            <tr><td colspan="9" class="px-4 py-8 text-center text-slate-500 text-sm">データがありません</td></tr>
                                         ` : filtered.map(item => `
                                             <tr class="hover:bg-slate-50">
                                                 <td class="px-3 py-2 font-mono font-semibold text-sm text-slate-900">${item.serial}</td>
                                                 <td class="px-3 py-2 text-xs text-slate-600">${item.category}</td>
                                                 <td class="px-3 py-2 text-xs">${item.productName}</td>
                                                 <td class="px-3 py-2 text-xs font-semibold text-blue-600">${item.orderProject}</td>
+                                                <td class="px-3 py-2 text-xs text-slate-600">${item.receiveDate || '-'}</td>
+                                                <td class="px-3 py-2 text-xs text-right font-semibold">${item.costJPY ? '¥' + Number(item.costJPY).toLocaleString() : '-'}</td>
                                                 <td class="px-3 py-2">
                                                     <span class="px-2 py-0.5 rounded text-xs font-semibold ${getStatusClass(item.status)}">${item.status}</span>
                                                 </td>
@@ -473,7 +481,7 @@
                                                 <td class="px-3 py-2 text-center">
                                                     <div class="flex gap-1 justify-center">
                                                         ${item.status === '入庫待ち' ? `
-                                                            <button onclick="receiveItem('${item.id}')" class="px-2 py-1 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700">入庫</button>
+                                                            <button onclick="showReceiveModal('${item.id}')" class="px-2 py-1 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700">入庫</button>
                                                         ` : ''}
                                                         ${item.status === '在庫中' ? `
                                                             <button onclick="showShipModal('${item.id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button>
@@ -621,6 +629,7 @@
                     status: '入庫待ち',
                     shipDate: '',
                     shipProject: '',
+                    costJPY: '',
                     note
                 });
             }
@@ -630,15 +639,59 @@
             renderMain();
         }
 
-        // 入庫処理
+        // 入庫モーダル
         function receiveItem(id) {
             const item = inventory.find(i => i.id === id);
             if (!item) return;
             
             const today = new Date().toISOString().split('T')[0];
-            item.receiveDate = today;
+            const modal = document.createElement('div');
+            modal.id = 'receiveModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+                        <h3 class="text-xl font-bold mb-4">入庫処理</h3>
+                        <p class="text-sm text-slate-600 mb-4">Serial: <span class="font-mono font-semibold">${item.serial}</span></p>
+                        <p class="text-sm text-slate-600 mb-4">${item.productName}</p>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold mb-1">取得日 <span class="text-red-500">*</span></label>
+                                <input type="date" id="receiveDate" class="w-full px-3 py-2 border rounded-lg" value="${today}">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1">取得金（税込円）</label>
+                                <input type="number" id="receiveCost" class="w-full px-3 py-2 border rounded-lg" placeholder="例: 375000">
+                                <p class="text-xs text-slate-500 mt-1">任意。後から編集可能</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-3 mt-6">
+                            <button onclick="closeModal('receiveModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50">キャンセル</button>
+                            <button onclick="submitReceive('${id}')" class="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">入庫</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function submitReceive(id) {
+            const item = inventory.find(i => i.id === id);
+            if (!item) return;
+
+            const receiveDate = document.getElementById('receiveDate').value;
+            const costJPY = document.getElementById('receiveCost').value;
+
+            if (!receiveDate) {
+                alert('取得日を入力してください');
+                return;
+            }
+
+            item.receiveDate = receiveDate;
+            item.costJPY = costJPY;
             item.status = '在庫中';
+            
             saveData();
+            closeModal('receiveModal');
             renderMain();
         }
 
@@ -731,8 +784,12 @@
                                 <input type="date" id="editOrderDate" class="w-full px-3 py-2 border rounded-lg" value="${item.orderDate}">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold mb-1">入庫日</label>
+                                <label class="block text-sm font-semibold mb-1">取得日</label>
                                 <input type="date" id="editReceiveDate" class="w-full px-3 py-2 border rounded-lg" value="${item.receiveDate}">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1">取得金（税込円）</label>
+                                <input type="number" id="editCostJPY" class="w-full px-3 py-2 border rounded-lg" value="${item.costJPY || ''}">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold mb-1">ステータス</label>
@@ -774,6 +831,7 @@
             item.orderProject = document.getElementById('editOrderProject').value.trim();
             item.orderDate = document.getElementById('editOrderDate').value;
             item.receiveDate = document.getElementById('editReceiveDate').value;
+            item.costJPY = document.getElementById('editCostJPY').value;
             item.status = document.getElementById('editStatus').value;
             item.shipDate = document.getElementById('editShipDate').value;
             item.shipProject = document.getElementById('editShipProject').value.trim();
