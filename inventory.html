@@ -66,8 +66,7 @@
             shipProject: '',
             costRange: '',
             noShelf: false,
-            todayReceive: false,
-            recentShip: false
+            todayReceive: false
         };
 
         // 詳細フィルタ開閉状態
@@ -435,15 +434,6 @@
                 // クイックフィルタ: 今日入庫
                 if (currentFilters.todayReceive && item.receiveDate !== today) return false;
                 
-                // クイックフィルタ: 最近出庫（直近1週間）
-                if (currentFilters.recentShip) {
-                    if (!item.shipDate) return false;
-                    const shipDate = new Date(item.shipDate);
-                    const weekAgo = new Date();
-                    weekAgo.setDate(weekAgo.getDate() - 7);
-                    if (shipDate < weekAgo) return false;
-                }
-                
                 if (currentFilters.search) {
                     const search = currentFilters.search.toLowerCase();
                     const matchSerial = item.serial.toLowerCase().includes(search);
@@ -582,12 +572,6 @@
                             <button onclick="quickFilter('todayReceive')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.todayReceive ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
                                 📦 今日入庫
                             </button>
-                            <button onclick="quickFilter('recentShip')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.recentShip ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
-                                🚚 最近出庫
-                            </button>
-                            <button onclick="quickFilter('noShelf')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.noShelf ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
-                                ⚠️ 棚未設定
-                            </button>
                             <button onclick="quickFilter('issue')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.status === '不具合' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
                                 🔴 不具合
                             </button>
@@ -640,7 +624,7 @@
                                     <span>詳細フィルタ（倉庫担当者向け）</span>
                                 </button>
                                 ${showDetailFilters ? `
-                                    <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
                                         <div>
                                             <label class="text-xs text-slate-600 block mb-1">入庫日（開始）</label>
                                             <input type="date" id="filterReceiveDateFrom" value="${currentFilters.receiveDateFrom}" onchange="applyFilters()" class="w-full px-2 py-1.5 text-sm border rounded-lg">
@@ -660,17 +644,21 @@
                                             </select>
                                         </div>
                                     </div>
+                                    <div class="mt-3 flex flex-wrap gap-2">
+                                        <button onclick="quickFilter('noShelf')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.noShelf ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+                                            ⚠️ 棚未設定のみ
+                                        </button>
+                                    </div>
+                                    <!-- 在庫総額（棚卸し用） -->
+                                    <div class="mt-3 bg-emerald-50 rounded-lg p-3 border border-emerald-200 flex justify-between items-center">
+                                        <div>
+                                            <p class="text-emerald-700 text-xs sm:text-sm">在庫総額（棚卸し用）</p>
+                                            <p class="text-lg sm:text-xl font-bold text-emerald-700">¥${summary.inStockValue.toLocaleString()}</p>
+                                        </div>
+                                        <p class="text-xs sm:text-sm text-emerald-600">${summary.inStock}件</p>
+                                    </div>
                                 ` : ''}
                             </div>
-                        </div>
-
-                        <!-- 在庫総額（棚卸し用） -->
-                        <div class="bg-emerald-50 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border border-emerald-200 mb-4 sm:mb-6 flex justify-between items-center">
-                            <div>
-                                <p class="text-emerald-700 text-xs sm:text-sm">在庫総額（棚卸し用）</p>
-                                <p class="text-lg sm:text-2xl font-bold text-emerald-700">¥${summary.inStockValue.toLocaleString()}</p>
-                            </div>
-                            <p class="text-xs sm:text-sm text-emerald-600">${summary.inStock}件の在庫中商品</p>
                         </div>
 
                         <!-- 在庫リスト -->
@@ -850,8 +838,7 @@
                 shipProject: '',
                 costRange: '',
                 noShelf: false,
-                todayReceive: false,
-                recentShip: false
+                todayReceive: false
             };
             expandedProjects = {};
             showDetailFilters = false;
@@ -862,18 +849,11 @@
             // クイックフィルタはトグル式
             if (type === 'todayReceive') {
                 currentFilters.todayReceive = !currentFilters.todayReceive;
-                currentFilters.recentShip = false;
-                currentFilters.noShelf = false;
-                if (currentFilters.status === '不具合') currentFilters.status = '';
-            } else if (type === 'recentShip') {
-                currentFilters.recentShip = !currentFilters.recentShip;
-                currentFilters.todayReceive = false;
                 currentFilters.noShelf = false;
                 if (currentFilters.status === '不具合') currentFilters.status = '';
             } else if (type === 'noShelf') {
                 currentFilters.noShelf = !currentFilters.noShelf;
                 currentFilters.todayReceive = false;
-                currentFilters.recentShip = false;
                 if (currentFilters.status === '不具合') currentFilters.status = '';
             } else if (type === 'issue') {
                 if (currentFilters.status === '不具合') {
@@ -882,7 +862,6 @@
                     currentFilters.status = '不具合';
                 }
                 currentFilters.todayReceive = false;
-                currentFilters.recentShip = false;
                 currentFilters.noShelf = false;
             }
             renderMain();
