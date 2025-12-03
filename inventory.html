@@ -29,6 +29,7 @@
         const CLIENT_ID = '47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
         const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';
         const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly';
+        const PARENT_FOLDER_ID = '1EvObQiCJgxJCzd_kQJ1PNbOUMD5P-Zxp';
 
         let tokenClient;
         let gapiInited = false;
@@ -36,6 +37,7 @@
         let accessToken = null;
         let inventory = [];
         let archivedInventory = [];
+        let folderCache = {};
 
         // 種別リスト
         const CATEGORIES = [
@@ -136,6 +138,44 @@
             renderSignIn();
         }
 
+        async function findFolderUrl(projectNumber) {
+            if (folderCache[projectNumber]) {
+                return folderCache[projectNumber];
+            }
+            
+            try {
+                const response = await gapi.client.drive.files.list({
+                    q: `name = '${projectNumber}' and '${PARENT_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+                    fields: 'files(id, name, webViewLink)',
+                    pageSize: 1,
+                    supportsAllDrives: true,
+                    includeItemsFromAllDrives: true,
+                    corpora: 'allDrives'
+                });
+                
+                const files = response.result.files;
+                if (files && files.length > 0) {
+                    const url = files[0].webViewLink;
+                    folderCache[projectNumber] = url;
+                    return url;
+                }
+                return null;
+            } catch (error) {
+                console.error('フォルダ検索エラー:', error);
+                return null;
+            }
+        }
+
+        async function loadFolderUrls() {
+            const projectNumbers = [...new Set(inventory.map(i => i.orderProject).filter(p => p && p !== '未設定'))];
+            for (const projectNumber of projectNumbers) {
+                if (!folderCache[projectNumber]) {
+                    await findFolderUrl(projectNumber);
+                }
+            }
+            renderMain();
+        }
+
         function renderSignIn() {
             document.getElementById('app').innerHTML = `
                 <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-100">
@@ -219,6 +259,9 @@
 
                 showStatus('');
                 renderMain();
+                
+                // フォルダURLを非同期で読み込み
+                loadFolderUrls();
             } catch (err) {
                 console.error('読み込みエラー:', err);
                 showStatus('エラー: ' + err.message);
@@ -549,6 +592,7 @@
                                             shipped: items.filter(i => i.status === '出庫済').length,
                                             issue: items.filter(i => i.status === '不具合').length
                                         };
+                                        const folderUrl = folderCache[project] || null;
                                         return `
                                             <div class="border-b last:border-b-0">
                                                 <div onclick="toggleProject('${project}')" class="p-3 sm:p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 active:bg-slate-100">
@@ -556,6 +600,15 @@
                                                         <span class="text-slate-400">${isExpanded ? '▼' : '▶'}</span>
                                                         <span class="font-semibold text-blue-600 text-sm sm:text-base">${project}</span>
                                                         <span class="text-xs sm:text-sm text-slate-500">(${items.length}件)</span>
+                                                        ${folderUrl ? `
+                                                            <a href="${folderUrl}" target="_blank" onclick="event.stopPropagation()" class="text-blue-500 hover:text-blue-700" title="Googleドライブを開く">
+                                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+                                                            </a>
+                                                        ` : (project !== '未設定' ? `
+                                                            <span class="text-slate-300" title="フォルダ未検出">
+                                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+                                                            </span>
+                                                        ` : '')}
                                                     </div>
                                                     <div class="flex gap-1 sm:gap-2">
                                                         ${statusCounts.waiting > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700">待${statusCounts.waiting}</span>` : ''}
