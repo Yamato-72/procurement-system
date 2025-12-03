@@ -56,8 +56,12 @@
         let currentFilters = {
             category: '',
             status: '',
-            search: ''
+            search: '',
+            sort: 'orderDate-desc'
         };
+
+        // 折りたたみ状態（案件番号ごと）
+        let expandedProjects = {};
 
         function gapiLoaded() {
             gapi.load('client', initializeGapiClient);
@@ -333,7 +337,7 @@
         }
 
         function getFilteredInventory() {
-            return inventory.filter(item => {
+            let result = inventory.filter(item => {
                 if (currentFilters.category && item.category !== currentFilters.category) return false;
                 if (currentFilters.status && item.status !== currentFilters.status) return false;
                 if (currentFilters.search) {
@@ -345,6 +349,55 @@
                 }
                 return true;
             });
+
+            // ソート
+            const [sortKey, sortOrder] = currentFilters.sort.split('-');
+            result.sort((a, b) => {
+                let valA, valB;
+                switch(sortKey) {
+                    case 'orderDate':
+                        valA = a.orderDate || '';
+                        valB = b.orderDate || '';
+                        break;
+                    case 'serial':
+                        valA = a.serial || '';
+                        valB = b.serial || '';
+                        break;
+                    case 'project':
+                        valA = a.orderProject || '';
+                        valB = b.orderProject || '';
+                        break;
+                    default:
+                        valA = a.orderDate || '';
+                        valB = b.orderDate || '';
+                }
+                if (sortOrder === 'asc') {
+                    return valA.localeCompare(valB);
+                } else {
+                    return valB.localeCompare(valA);
+                }
+            });
+
+            return result;
+        }
+
+        // 案件ごとにグループ化
+        function groupByProject(items) {
+            const groups = {};
+            items.forEach(item => {
+                const project = item.orderProject || '未設定';
+                if (!groups[project]) {
+                    groups[project] = [];
+                }
+                groups[project].push(item);
+            });
+            return groups;
+        }
+
+        // 折りたたみトグル
+        function toggleProject(project) {
+            expandedProjects[project] = !expandedProjects[project];
+            renderMain();
         }
 
         function getSummary() {
@@ -418,9 +471,25 @@
                         <!-- フィルタ -->
                         <div class="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border mb-4 sm:mb-6">
                             <div class="flex flex-wrap gap-2 sm:gap-4 items-end">
-                                <div class="w-full sm:w-auto">
+                                <div class="w-1/2 sm:w-auto">
+                                    <label class="text-xs sm:text-sm text-slate-600 block mb-1">ステータス</label>
+                                    <select id="filterStatus" onchange="applyFilters()" class="w-full sm:w-auto px-2 sm:px-3 py-1.5 sm:py-2 text-sm border rounded-lg">
+                                        <option value="">すべて</option>
+                                        ${STATUSES.map(s => `<option value="${s}" ${currentFilters.status === s ? 'selected' : ''}>${s}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div class="w-1/2 sm:w-auto">
+                                    <label class="text-xs sm:text-sm text-slate-600 block mb-1">並び替え</label>
+                                    <select id="filterSort" onchange="applyFilters()" class="w-full sm:w-auto px-2 sm:px-3 py-1.5 sm:py-2 text-sm border rounded-lg">
+                                        <option value="orderDate-desc" ${currentFilters.sort === 'orderDate-desc' ? 'selected' : ''}>新しい順</option>
+                                        <option value="orderDate-asc" ${currentFilters.sort === 'orderDate-asc' ? 'selected' : ''}>古い順</option>
+                                        <option value="serial-asc" ${currentFilters.sort === 'serial-asc' ? 'selected' : ''}>Serial順</option>
+                                        <option value="project-asc" ${currentFilters.sort === 'project-asc' ? 'selected' : ''}>案件順</option>
+                                    </select>
+                                </div>
+                                <div class="hidden sm:block">
                                     <label class="text-xs sm:text-sm text-slate-600 block mb-1">種別</label>
-                                    <select id="filterCategory" onchange="applyFilters()" class="w-full sm:w-auto px-2 sm:px-3 py-1.5 sm:py-2 text-sm border rounded-lg">
+                                    <select id="filterCategory" onchange="applyFilters()" class="px-2 sm:px-3 py-1.5 sm:py-2 text-sm border rounded-lg">
                                         <option value="">すべて</option>
                                         ${CATEGORIES.map(c => `<option value="${c}" ${currentFilters.category === c ? 'selected' : ''}>${c}</option>`).join('')}
                                     </select>
@@ -431,13 +500,6 @@
                                         <input type="text" id="filterSearch" value="${currentFilters.search}" onkeydown="if(event.key==='Enter'){applyFilters();event.target.blur();}" placeholder="Serial/製品名/案件" class="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 text-sm border rounded-lg">
                                         <button onclick="applyFilters()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">検索</button>
                                     </div>
-                                </div>
-                                <div class="hidden sm:block">
-                                    <label class="text-xs sm:text-sm text-slate-600 block mb-1">ステータス</label>
-                                    <select id="filterStatus" onchange="applyFilters()" class="px-2 sm:px-3 py-1.5 sm:py-2 text-sm border rounded-lg">
-                                        <option value="">すべて</option>
-                                        ${STATUSES.map(s => `<option value="${s}" ${currentFilters.status === s ? 'selected' : ''}>${s}</option>`).join('')}
-                                    </select>
                                 </div>
                                 <button onclick="clearFilters()" class="px-3 py-1.5 sm:py-2 bg-slate-200 text-slate-700 text-sm rounded-lg hover:bg-slate-300">クリア</button>
                             </div>
@@ -501,42 +563,70 @@
                                 </table>
                             </div>
 
-                            <!-- スマホ: カード表示 -->
+                            <!-- スマホ: 案件ごと折りたたみ表示 -->
                             <div class="md:hidden">
                                 ${filtered.length === 0 ? `
                                     <div class="px-4 py-8 text-center text-slate-500 text-sm">データがありません</div>
-                                ` : filtered.map(item => `
-                                    <div class="p-3 border-b last:border-b-0">
-                                        <div class="flex justify-between items-start mb-2">
-                                            <div>
-                                                <p class="font-mono font-bold text-slate-900">${item.serial}</p>
-                                                <p class="text-xs text-slate-500">${item.category}</p>
+                                ` : (() => {
+                                    const groups = groupByProject(filtered);
+                                    return Object.keys(groups).map(project => {
+                                        const items = groups[project];
+                                        const isExpanded = expandedProjects[project];
+                                        const statusCounts = {
+                                            waiting: items.filter(i => i.status === '入庫待ち').length,
+                                            inStock: items.filter(i => i.status === '在庫中').length,
+                                            shipped: items.filter(i => i.status === '出庫済').length
+                                        };
+                                        return `
+                                            <div class="border-b last:border-b-0">
+                                                <div onclick="toggleProject('${project}')" class="p-3 flex justify-between items-center cursor-pointer hover:bg-slate-50 active:bg-slate-100">
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="text-slate-400">${isExpanded ? '▼' : '▶'}</span>
+                                                        <span class="font-semibold text-blue-600">${project}</span>
+                                                        <span class="text-xs text-slate-500">(${items.length}件)</span>
+                                                    </div>
+                                                    <div class="flex gap-1">
+                                                        ${statusCounts.waiting > 0 ? `<span class="px-1.5 py-0.5 rounded text-xs bg-amber-100 text-amber-700">${statusCounts.waiting}</span>` : ''}
+                                                        ${statusCounts.inStock > 0 ? `<span class="px-1.5 py-0.5 rounded text-xs bg-emerald-100 text-emerald-700">${statusCounts.inStock}</span>` : ''}
+                                                        ${statusCounts.shipped > 0 ? `<span class="px-1.5 py-0.5 rounded text-xs bg-blue-100 text-blue-700">${statusCounts.shipped}</span>` : ''}
+                                                    </div>
+                                                </div>
+                                                ${isExpanded ? `
+                                                    <div class="bg-slate-50">
+                                                        ${items.map(item => `
+                                                            <div class="p-3 border-t border-slate-200">
+                                                                <div class="flex justify-between items-start mb-2">
+                                                                    <div>
+                                                                        <p class="font-mono font-bold text-sm text-slate-900">${item.serial}</p>
+                                                                        <p class="text-xs text-slate-500">${item.category}</p>
+                                                                    </div>
+                                                                    <span class="px-2 py-0.5 rounded text-xs font-semibold ${getStatusClass(item.status)}">${item.status}</span>
+                                                                </div>
+                                                                <p class="text-xs text-slate-800 mb-1">${item.productName}</p>
+                                                                <div class="flex justify-between items-center text-xs text-slate-500 mb-2">
+                                                                    <span>取得: ${item.receiveDate || '-'}</span>
+                                                                    <span>原価: ${item.costJPY ? '¥' + Number(item.costJPY).toLocaleString() : '-'}</span>
+                                                                </div>
+                                                                <div class="flex gap-2">
+                                                                    ${item.status === '入庫待ち' ? `
+                                                                        <button onclick="event.stopPropagation();showReceiveModal('${item.id}')" class="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700">入庫</button>
+                                                                    ` : ''}
+                                                                    ${item.status === '在庫中' ? `
+                                                                        <button onclick="event.stopPropagation();showShipModal('${item.id}')" class="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button>
+                                                                    ` : ''}
+                                                                    <button onclick="event.stopPropagation();editItem('${item.id}')" class="px-3 py-1.5 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">編集</button>
+                                                                    ${item.status === '出庫済' ? `
+                                                                        <button onclick="event.stopPropagation();archiveItem('${item.id}')" class="px-3 py-1.5 bg-slate-500 text-white text-xs rounded hover:bg-slate-600">保管</button>
+                                                                    ` : ''}
+                                                                </div>
+                                                            </div>
+                                                        `).join('')}
+                                                    </div>
+                                                ` : ''}
                                             </div>
-                                            <span class="px-2 py-0.5 rounded text-xs font-semibold ${getStatusClass(item.status)}">${item.status}</span>
-                                        </div>
-                                        <p class="text-sm text-slate-800 mb-1">${item.productName}</p>
-                                        <div class="flex justify-between items-center text-xs text-slate-500 mb-1">
-                                            <span>発注: <span class="font-semibold text-blue-600">${item.orderProject || '-'}</span></span>
-                                            ${item.shipProject ? `<span>出庫先: <span class="font-semibold">${item.shipProject}</span></span>` : ''}
-                                        </div>
-                                        <div class="flex justify-between items-center text-xs text-slate-500 mb-2">
-                                            <span>取得日: ${item.receiveDate || '-'}</span>
-                                            <span>原価: <span class="font-semibold">${item.costJPY ? '¥' + Number(item.costJPY).toLocaleString() : '-'}</span></span>
-                                        </div>
-                                        <div class="flex gap-2">
-                                            ${item.status === '入庫待ち' ? `
-                                                <button onclick="showReceiveModal('${item.id}')" class="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700">入庫</button>
-                                            ` : ''}
-                                            ${item.status === '在庫中' ? `
-                                                <button onclick="showShipModal('${item.id}')" class="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button>
-                                            ` : ''}
-                                            <button onclick="editItem('${item.id}')" class="px-3 py-1.5 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">編集</button>
-                                            ${item.status === '出庫済' ? `
-                                                <button onclick="archiveItem('${item.id}')" class="px-3 py-1.5 bg-slate-500 text-white text-xs rounded hover:bg-slate-600">保管</button>
-                                            ` : ''}
-                                        </div>
-                                    </div>
-                                `).join('')}
+                                        `;
+                                    }).join('');
+                                })()}
                             </div>
                         </div>
                     </main>
@@ -545,14 +635,21 @@
         }
 
         function applyFilters() {
-            currentFilters.category = document.getElementById('filterCategory').value;
-            currentFilters.status = document.getElementById('filterStatus').value;
-            currentFilters.search = document.getElementById('filterSearch').value;
+            const categoryEl = document.getElementById('filterCategory');
+            const statusEl = document.getElementById('filterStatus');
+            const searchEl = document.getElementById('filterSearch');
+            const sortEl = document.getElementById('filterSort');
+            
+            if (categoryEl) currentFilters.category = categoryEl.value;
+            if (statusEl) currentFilters.status = statusEl.value;
+            if (searchEl) currentFilters.search = searchEl.value;
+            if (sortEl) currentFilters.sort = sortEl.value;
             renderMain();
         }
 
         function clearFilters() {
-            currentFilters = { category: '', status: '', search: '' };
+            currentFilters = { category: '', status: '', search: '', sort: 'orderDate-desc' };
+            expandedProjects = {};
             renderMain();
         }
 
