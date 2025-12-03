@@ -54,6 +54,9 @@
         // ステータスリスト
         const STATUSES = ['入庫待ち', '在庫中', '出庫済', '不具合'];
 
+        // 保管場所リスト
+        const LOCATIONS = ['蓮田', '東京', '大阪'];
+
         // 現在のフィルタ
         let currentFilters = {
             category: '',
@@ -65,7 +68,8 @@
             receiveDateTo: '',
             shipProject: '',
             costRange: '',
-            noShelf: false
+            noShelf: false,
+            location: ''
         };
 
         // 詳細フィルタ開閉状態
@@ -222,7 +226,7 @@
                 try {
                     const inventoryResponse = await gapi.client.sheets.spreadsheets.values.get({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫!A2:M',
+                        range: '在庫!A2:N',
                     });
                     const inventoryRows = inventoryResponse.result.values || [];
                     inventory = inventoryRows.map(row => ({
@@ -238,7 +242,8 @@
                         shipProject: row[9] || '',
                         costJPY: row[10] || '',
                         note: row[11] || '',
-                        shelfNo: row[12] || ''
+                        shelfNo: row[12] || '',
+                        location: row[13] || ''
                     }));
                 } catch (e) {
                     console.log('在庫シートがないため新規作成します');
@@ -250,7 +255,7 @@
                 try {
                     const archiveResponse = await gapi.client.sheets.spreadsheets.values.get({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫アーカイブ!A2:M',
+                        range: '在庫アーカイブ!A2:N',
                     });
                     const archiveRows = archiveResponse.result.values || [];
                     archivedInventory = archiveRows.map(row => ({
@@ -266,7 +271,8 @@
                         shipProject: row[9] || '',
                         costJPY: row[10] || '',
                         note: row[11] || '',
-                        shelfNo: row[12] || ''
+                        shelfNo: row[12] || '',
+                        location: row[13] || ''
                     }));
                 } catch (e) {
                     console.log('アーカイブシートがないため新規作成します');
@@ -340,7 +346,7 @@
                 showStatus('保存中...');
                 
                 const inventoryData = [
-                    ['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '入庫日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考', '棚番'],
+                    ['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '入庫日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考', '棚番', '保管場所'],
                     ...inventory.map(item => [
                         item.id,
                         item.serial,
@@ -354,7 +360,8 @@
                         item.shipProject,
                         item.costJPY,
                         item.note,
-                        item.shelfNo
+                        item.shelfNo,
+                        item.location
                     ])
                 ];
                 
@@ -366,7 +373,7 @@
                 });
 
                 const archiveData = [
-                    ['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '入庫日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考', '棚番'],
+                    ['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '入庫日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考', '棚番', '保管場所'],
                     ...archivedInventory.map(item => [
                         item.id,
                         item.serial,
@@ -380,7 +387,8 @@
                         item.shipProject,
                         item.costJPY,
                         item.note,
-                        item.shelfNo
+                        item.shelfNo,
+                        item.location
                     ])
                 ];
                 
@@ -429,6 +437,9 @@
                 
                 // クイックフィルタ: 棚未設定
                 if (currentFilters.noShelf && item.shelfNo) return false;
+                
+                // 保管場所フィルタ
+                if (currentFilters.location && item.location !== currentFilters.location) return false;
                 
                 if (currentFilters.search) {
                     const search = currentFilters.search.toLowerCase();
@@ -575,8 +586,11 @@
                             <button onclick="quickFilter('outdoor')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.category === '屋外' ? 'bg-orange-500 text-white' : 'bg-orange-50 text-orange-600 hover:bg-orange-100'}">
                                 屋外
                             </button>
-                            <button onclick="quickFilter('indoor')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.category === '屋内' ? 'bg-sky-500 text-white' : 'bg-sky-50 text-sky-600 hover:bg-sky-100'}">
-                                屋内
+                            <button onclick="quickFilter('tokyo')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.location === '東京' ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-600 hover:bg-rose-100'}">
+                                東京
+                            </button>
+                            <button onclick="quickFilter('osaka')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.location === '大阪' ? 'bg-teal-500 text-white' : 'bg-teal-50 text-teal-600 hover:bg-teal-100'}">
+                                大阪
                             </button>
                         </div>
 
@@ -739,6 +753,8 @@
                                                                         <td class="px-3 py-2 text-xs text-right font-semibold">${item.costJPY ? '¥' + Number(item.costJPY).toLocaleString() : '-'}</td>
                                                                         <td class="px-3 py-2">
                                                                             <span class="px-2 py-0.5 rounded text-xs font-semibold ${getStatusClass(item.status)}">${item.status}</span>
+                                                                            ${item.location === '東京' ? '<span class="ml-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-600">東京</span>' : ''}
+                                                                            ${item.location === '大阪' ? '<span class="ml-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-teal-100 text-teal-600">大阪</span>' : ''}
                                                                         </td>
                                                                         <td class="px-3 py-2 text-xs">${item.shipProject || '-'}</td>
                                                                         <td class="px-3 py-2 text-center">
@@ -769,8 +785,10 @@
                                                                         <p class="font-mono font-bold text-sm text-slate-900">${item.serial}</p>
                                                                         <p class="text-xs text-slate-500">${item.category}</p>
                                                                     </div>
-                                                                    <div class="flex items-center gap-2">
+                                                                    <div class="flex items-center gap-1">
                                                                         ${item.shelfNo ? `<span class="px-1.5 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-700">棚${item.shelfNo}</span>` : ''}
+                                                                        ${item.location === '東京' ? '<span class="px-1.5 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-600">東京</span>' : ''}
+                                                                        ${item.location === '大阪' ? '<span class="px-1.5 py-0.5 rounded text-xs font-semibold bg-teal-100 text-teal-600">大阪</span>' : ''}
                                                                         <span class="px-2 py-0.5 rounded text-xs font-semibold ${getStatusClass(item.status)}">${item.status}</span>
                                                                     </div>
                                                                 </div>
@@ -840,7 +858,8 @@
                 receiveDateTo: '',
                 shipProject: '',
                 costRange: '',
-                noShelf: false
+                noShelf: false,
+                location: ''
             };
             expandedProjects = {};
             showDetailFilters = false;
@@ -860,6 +879,7 @@
                     currentFilters.category = 'マルチディスプレイ';
                 }
                 currentFilters.noShelf = false;
+                currentFilters.location = '';
                 if (currentFilters.status === '不具合') currentFilters.status = '';
             } else if (type === 'blackboard') {
                 if (currentFilters.category === 'STUDIA') {
@@ -868,6 +888,7 @@
                     currentFilters.category = 'STUDIA';
                 }
                 currentFilters.noShelf = false;
+                currentFilters.location = '';
                 if (currentFilters.status === '不具合') currentFilters.status = '';
             } else if (type === 'outdoor') {
                 if (currentFilters.category === '屋外') {
@@ -876,6 +897,7 @@
                     currentFilters.category = '屋外';
                 }
                 currentFilters.noShelf = false;
+                currentFilters.location = '';
                 if (currentFilters.status === '不具合') currentFilters.status = '';
             } else if (type === 'indoor') {
                 if (currentFilters.category === '屋内') {
@@ -883,6 +905,25 @@
                 } else {
                     currentFilters.category = '屋内';
                 }
+                currentFilters.noShelf = false;
+                currentFilters.location = '';
+                if (currentFilters.status === '不具合') currentFilters.status = '';
+            } else if (type === 'tokyo') {
+                if (currentFilters.location === '東京') {
+                    currentFilters.location = '';
+                } else {
+                    currentFilters.location = '東京';
+                }
+                currentFilters.category = '';
+                currentFilters.noShelf = false;
+                if (currentFilters.status === '不具合') currentFilters.status = '';
+            } else if (type === 'osaka') {
+                if (currentFilters.location === '大阪') {
+                    currentFilters.location = '';
+                } else {
+                    currentFilters.location = '大阪';
+                }
+                currentFilters.category = '';
                 currentFilters.noShelf = false;
                 if (currentFilters.status === '不具合') currentFilters.status = '';
             }
@@ -1121,6 +1162,14 @@
                                 </select>
                             </div>
                             <div>
+                                <label class="block text-sm font-semibold mb-1">保管場所</label>
+                                <select id="editLocation" class="w-full px-3 py-2 border rounded-lg">
+                                    <option value="" ${!item.location || item.location === '蓮田' ? 'selected' : ''}>蓮田（通常）</option>
+                                    <option value="東京" ${item.location === '東京' ? 'selected' : ''}>東京</option>
+                                    <option value="大阪" ${item.location === '大阪' ? 'selected' : ''}>大阪</option>
+                                </select>
+                            </div>
+                            <div>
                                 <label class="block text-sm font-semibold mb-1">発注案件番号</label>
                                 <input type="text" id="editOrderProject" class="w-full px-3 py-2 border rounded-lg" value="${item.orderProject}">
                             </div>
@@ -1174,6 +1223,7 @@
             item.category = document.getElementById('editCategory').value;
             item.productName = document.getElementById('editProductName').value.trim();
             item.shelfNo = document.getElementById('editShelfNo').value;
+            item.location = document.getElementById('editLocation').value;
             item.orderProject = document.getElementById('editOrderProject').value.trim();
             item.orderDate = document.getElementById('editOrderDate').value;
             item.receiveDate = document.getElementById('editReceiveDate').value;
