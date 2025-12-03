@@ -65,8 +65,7 @@
             receiveDateTo: '',
             shipProject: '',
             costRange: '',
-            noShelf: false,
-            todayReceive: false
+            noShelf: false
         };
 
         // 詳細フィルタ開閉状態
@@ -431,9 +430,6 @@
                 // クイックフィルタ: 棚未設定
                 if (currentFilters.noShelf && item.shelfNo) return false;
                 
-                // クイックフィルタ: 今日入庫
-                if (currentFilters.todayReceive && item.receiveDate !== today) return false;
-                
                 if (currentFilters.search) {
                     const search = currentFilters.search.toLowerCase();
                     const matchSerial = item.serial.toLowerCase().includes(search);
@@ -568,18 +564,19 @@
                         </div>
 
                         <!-- クイックフィルタ -->
-                        <div class="flex flex-wrap gap-2 mb-3 sm:mb-4">
-                            <button onclick="quickFilter('todayReceive')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.todayReceive ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
-                                📦 今日入庫
+                        <div class="flex flex-wrap items-center gap-2 mb-3 sm:mb-4">
+                            <span class="text-xs text-slate-500 font-medium">Quick:</span>
+                            <button onclick="quickFilter('multi')" class="px-3 py-1.5 text-xs sm:text-sm rounded-full border-2 ${currentFilters.category === 'マルチディスプレイ' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+                                マルチ
                             </button>
-                            <button onclick="quickFilter('issue')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.status === '不具合' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
-                                🔴 不具合
+                            <button onclick="quickFilter('blackboard')" class="px-3 py-1.5 text-xs sm:text-sm rounded-full border-2 ${currentFilters.category === '電子黒板' ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+                                電子黒板
                             </button>
-                            <button onclick="quickFilter('multi')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.category === 'マルチディスプレイ' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
-                                🖥️ マルチ
+                            <button onclick="quickFilter('outdoor')" class="px-3 py-1.5 text-xs sm:text-sm rounded-full border-2 ${currentFilters.category === '屋外' ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+                                屋外
                             </button>
-                            <button onclick="quickFilter('blackboard')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.category === '電子黒板' ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
-                                📋 電子黒板
+                            <button onclick="quickFilter('indoor')" class="px-3 py-1.5 text-xs sm:text-sm rounded-full border-2 ${currentFilters.category === '屋内' ? 'bg-sky-500 text-white border-sky-500' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+                                屋内
                             </button>
                         </div>
 
@@ -843,8 +840,7 @@
                 receiveDateTo: '',
                 shipProject: '',
                 costRange: '',
-                noShelf: false,
-                todayReceive: false
+                noShelf: false
             };
             expandedProjects = {};
             showDetailFilters = false;
@@ -853,32 +849,16 @@
 
         function quickFilter(type) {
             // クイックフィルタはトグル式
-            if (type === 'todayReceive') {
-                currentFilters.todayReceive = !currentFilters.todayReceive;
-                currentFilters.noShelf = false;
-                currentFilters.category = '';
-                if (currentFilters.status === '不具合') currentFilters.status = '';
-            } else if (type === 'noShelf') {
+            if (type === 'noShelf') {
                 currentFilters.noShelf = !currentFilters.noShelf;
-                currentFilters.todayReceive = false;
                 currentFilters.category = '';
                 if (currentFilters.status === '不具合') currentFilters.status = '';
-            } else if (type === 'issue') {
-                if (currentFilters.status === '不具合') {
-                    currentFilters.status = '';
-                } else {
-                    currentFilters.status = '不具合';
-                }
-                currentFilters.todayReceive = false;
-                currentFilters.noShelf = false;
-                currentFilters.category = '';
             } else if (type === 'multi') {
                 if (currentFilters.category === 'マルチディスプレイ') {
                     currentFilters.category = '';
                 } else {
                     currentFilters.category = 'マルチディスプレイ';
                 }
-                currentFilters.todayReceive = false;
                 currentFilters.noShelf = false;
                 if (currentFilters.status === '不具合') currentFilters.status = '';
             } else if (type === 'blackboard') {
@@ -887,7 +867,22 @@
                 } else {
                     currentFilters.category = '電子黒板';
                 }
-                currentFilters.todayReceive = false;
+                currentFilters.noShelf = false;
+                if (currentFilters.status === '不具合') currentFilters.status = '';
+            } else if (type === 'outdoor') {
+                if (currentFilters.category === '屋外') {
+                    currentFilters.category = '';
+                } else {
+                    currentFilters.category = '屋外';
+                }
+                currentFilters.noShelf = false;
+                if (currentFilters.status === '不具合') currentFilters.status = '';
+            } else if (type === 'indoor') {
+                if (currentFilters.category === '屋内') {
+                    currentFilters.category = '';
+                } else {
+                    currentFilters.category = '屋内';
+                }
                 currentFilters.noShelf = false;
                 if (currentFilters.status === '不具合') currentFilters.status = '';
             }
