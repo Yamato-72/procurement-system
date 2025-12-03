@@ -44,7 +44,7 @@
             'マルチディスプレイ',
             '屋外',
             '屋内',
-            '電子黒板',
+            'STUDIA',
             'マトリクス',
             'メディアプレーヤー',
             'スタンド/金具',
@@ -565,17 +565,17 @@
 
                         <!-- クイックフィルタ -->
                         <div class="flex flex-wrap items-center gap-2 mb-3 sm:mb-4">
-                            <span class="text-xs text-slate-500 font-medium">Quick:</span>
-                            <button onclick="quickFilter('multi')" class="px-3 py-1.5 text-xs sm:text-sm rounded-full border-2 ${currentFilters.category === 'マルチディスプレイ' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+                            <span class="text-slate-400" title="ショートカット">⚡</span>
+                            <button onclick="quickFilter('multi')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.category === 'マルチディスプレイ' ? 'bg-purple-500 text-white' : 'bg-purple-50 text-purple-600 hover:bg-purple-100'}">
                                 マルチ
                             </button>
-                            <button onclick="quickFilter('blackboard')" class="px-3 py-1.5 text-xs sm:text-sm rounded-full border-2 ${currentFilters.category === '電子黒板' ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
-                                電子黒板
+                            <button onclick="quickFilter('blackboard')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.category === 'STUDIA' ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
+                                STUDIA
                             </button>
-                            <button onclick="quickFilter('outdoor')" class="px-3 py-1.5 text-xs sm:text-sm rounded-full border-2 ${currentFilters.category === '屋外' ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+                            <button onclick="quickFilter('outdoor')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.category === '屋外' ? 'bg-orange-500 text-white' : 'bg-orange-50 text-orange-600 hover:bg-orange-100'}">
                                 屋外
                             </button>
-                            <button onclick="quickFilter('indoor')" class="px-3 py-1.5 text-xs sm:text-sm rounded-full border-2 ${currentFilters.category === '屋内' ? 'bg-sky-500 text-white border-sky-500' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+                            <button onclick="quickFilter('indoor')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.category === '屋内' ? 'bg-sky-500 text-white' : 'bg-sky-50 text-sky-600 hover:bg-sky-100'}">
                                 屋内
                             </button>
                         </div>
@@ -862,10 +862,10 @@
                 currentFilters.noShelf = false;
                 if (currentFilters.status === '不具合') currentFilters.status = '';
             } else if (type === 'blackboard') {
-                if (currentFilters.category === '電子黒板') {
+                if (currentFilters.category === 'STUDIA') {
                     currentFilters.category = '';
                 } else {
-                    currentFilters.category = '電子黒板';
+                    currentFilters.category = 'STUDIA';
                 }
                 currentFilters.noShelf = false;
                 if (currentFilters.status === '不具合') currentFilters.status = '';
