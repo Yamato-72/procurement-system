@@ -575,6 +575,12 @@
                             <button onclick="quickFilter('issue')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.status === '不具合' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
                                 🔴 不具合
                             </button>
+                            <button onclick="quickFilter('multi')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.category === 'マルチディスプレイ' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+                                🖥️ マルチ
+                            </button>
+                            <button onclick="quickFilter('blackboard')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.category === '電子黒板' ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+                                📋 電子黒板
+                            </button>
                         </div>
 
                         <!-- 基本フィルタ -->
@@ -850,10 +856,12 @@
             if (type === 'todayReceive') {
                 currentFilters.todayReceive = !currentFilters.todayReceive;
                 currentFilters.noShelf = false;
+                currentFilters.category = '';
                 if (currentFilters.status === '不具合') currentFilters.status = '';
             } else if (type === 'noShelf') {
                 currentFilters.noShelf = !currentFilters.noShelf;
                 currentFilters.todayReceive = false;
+                currentFilters.category = '';
                 if (currentFilters.status === '不具合') currentFilters.status = '';
             } else if (type === 'issue') {
                 if (currentFilters.status === '不具合') {
@@ -863,6 +871,25 @@
                 }
                 currentFilters.todayReceive = false;
                 currentFilters.noShelf = false;
+                currentFilters.category = '';
+            } else if (type === 'multi') {
+                if (currentFilters.category === 'マルチディスプレイ') {
+                    currentFilters.category = '';
+                } else {
+                    currentFilters.category = 'マルチディスプレイ';
+                }
+                currentFilters.todayReceive = false;
+                currentFilters.noShelf = false;
+                if (currentFilters.status === '不具合') currentFilters.status = '';
+            } else if (type === 'blackboard') {
+                if (currentFilters.category === '電子黒板') {
+                    currentFilters.category = '';
+                } else {
+                    currentFilters.category = '電子黒板';
+                }
+                currentFilters.todayReceive = false;
+                currentFilters.noShelf = false;
+                if (currentFilters.status === '不具合') currentFilters.status = '';
             }
             renderMain();
         }
