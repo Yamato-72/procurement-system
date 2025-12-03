@@ -236,7 +236,7 @@
                     range: '在庫!A1:L1',
                     valueInputOption: 'RAW',
                     resource: {
-                        values: [['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '取得日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考']]
+                        values: [['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '入庫日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考']]
                     }
                 });
             } catch (e) {
@@ -261,7 +261,7 @@
                     range: '在庫アーカイブ!A1:L1',
                     valueInputOption: 'RAW',
                     resource: {
-                        values: [['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '取得日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考']]
+                        values: [['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '入庫日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考']]
                     }
                 });
             } catch (e) {
@@ -274,7 +274,7 @@
                 showStatus('保存中...');
                 
                 const inventoryData = [
-                    ['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '取得日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考'],
+                    ['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '入庫日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考'],
                     ...inventory.map(item => [
                         item.id,
                         item.serial,
@@ -299,7 +299,7 @@
                 });
 
                 const archiveData = [
-                    ['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '取得日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考'],
+                    ['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '入庫日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考'],
                     ...archivedInventory.map(item => [
                         item.id,
                         item.serial,
@@ -555,7 +555,7 @@
                                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">Serial</th>
                                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">種別</th>
                                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">製品名</th>
-                                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">取得日</th>
+                                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">入庫日</th>
                                                                     <th class="px-3 py-2 text-right text-xs font-semibold text-slate-700">原価(税込)</th>
                                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">ステータス</th>
                                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">出庫先</th>
@@ -606,7 +606,7 @@
                                                                 </div>
                                                                 <p class="text-xs text-slate-800 mb-1">${item.productName}</p>
                                                                 <div class="flex justify-between items-center text-xs text-slate-500 mb-2">
-                                                                    <span>取得: ${item.receiveDate || '-'}</span>
+                                                                    <span>入庫: ${item.receiveDate || '-'}</span>
                                                                     <span>原価: ${item.costJPY ? '¥' + Number(item.costJPY).toLocaleString() : '-'}</span>
                                                                 </div>
                                                                 <div class="flex gap-2">
@@ -757,18 +757,11 @@
                 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
                         <h3 class="text-xl font-bold mb-4">入庫処理</h3>
-                        <p class="text-sm text-slate-600 mb-4">Serial: <span class="font-mono font-semibold">${item.serial}</span></p>
+                        <p class="text-sm text-slate-600 mb-2">Serial: <span class="font-mono font-semibold">${item.serial}</span></p>
                         <p class="text-sm text-slate-600 mb-4">${item.productName}</p>
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-semibold mb-1">取得日 <span class="text-red-500">*</span></label>
-                                <input type="date" id="receiveDate" class="w-full px-3 py-2 border rounded-lg" value="${today}">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold mb-1">取得金（税込円）</label>
-                                <input type="number" id="receiveCost" class="w-full px-3 py-2 border rounded-lg" placeholder="例: 375000">
-                                <p class="text-xs text-slate-500 mt-1">任意。後から編集可能</p>
-                            </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">入庫日 <span class="text-red-500">*</span></label>
+                            <input type="date" id="receiveDate" class="w-full px-3 py-2 border rounded-lg" value="${today}">
                         </div>
                         <div class="flex gap-3 mt-6">
                             <button onclick="closeModal('receiveModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50">キャンセル</button>
@@ -785,15 +778,13 @@
             if (!item) return;
 
             const receiveDate = document.getElementById('receiveDate').value;
-            const costJPY = document.getElementById('receiveCost').value;
 
             if (!receiveDate) {
-                alert('取得日を入力してください');
+                alert('入庫日を入力してください');
                 return;
             }
 
             item.receiveDate = receiveDate;
-            item.costJPY = costJPY;
             item.status = '在庫中';
             
             saveData();
@@ -813,11 +804,13 @@
                 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
                         <h3 class="text-xl font-bold mb-4">出庫処理</h3>
-                        <p class="text-sm text-slate-600 mb-4">Serial: <span class="font-mono font-semibold">${item.serial}</span></p>
+                        <p class="text-sm text-slate-600 mb-2">Serial: <span class="font-mono font-semibold">${item.serial}</span></p>
+                        <p class="text-sm text-slate-600 mb-4">${item.productName}</p>
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-sm font-semibold mb-1">出庫先案件番号 <span class="text-red-500">*</span></label>
-                                <input type="text" id="shipProject" class="w-full px-3 py-2 border rounded-lg" placeholder="AD-1700">
+                                <input type="text" id="shipProject" class="w-full px-3 py-2 border rounded-lg" value="${item.orderProject || ''}" placeholder="AD-1700">
+                                <p class="text-xs text-slate-500 mt-1">発注案件と異なる場合は変更してください</p>
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold mb-1">出庫日</label>
@@ -890,7 +883,7 @@
                                 <input type="date" id="editOrderDate" class="w-full px-3 py-2 border rounded-lg" value="${item.orderDate}">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold mb-1">取得日</label>
+                                <label class="block text-sm font-semibold mb-1">入庫日</label>
                                 <input type="date" id="editReceiveDate" class="w-full px-3 py-2 border rounded-lg" value="${item.receiveDate}">
                             </div>
                             <div>
