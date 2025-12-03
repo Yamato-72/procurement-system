@@ -38,6 +38,7 @@
         let suppliers = [];
         let projects = [];
         let nextSerial = 554; // YS0554から開始
+        let showSupplierSection = false; // サプライヤー管理の折りたたみ状態
 
         // 中国の祝日（2025年・2026年）
         const chinaHolidays = [
@@ -566,29 +567,38 @@
                             </div>
                         </div>
                         <div class="bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border mb-4 sm:mb-8">
-                            <h2 class="text-base sm:text-xl font-bold text-slate-900 mb-3 sm:mb-4">サプライヤー管理</h2>
-                            <button onclick="showAddSupplierForm()" class="mb-3 sm:mb-4 px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">+ 追加</button>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                                ${suppliers.map(s => `
-                                    <div class="p-3 sm:p-4 border rounded-lg hover:border-blue-300 transition-colors">
-                                        <div class="flex justify-between items-start mb-2">
-                                            <div class="flex-1">
-                                                <h3 class="font-bold text-sm sm:text-lg">${s.name}</h3>
-                                                <p class="text-xs sm:text-sm text-slate-600">デポジット: ${s.depositCount}回</p>
-                                                <p class="text-xs sm:text-sm text-slate-600">割合: ${s.depositRates.join('%, ')}%</p>
+                            <button onclick="toggleSupplierSection()" class="w-full flex justify-between items-center text-left">
+                                <h2 class="text-base sm:text-xl font-bold text-slate-900">サプライヤー管理</h2>
+                                <span class="text-slate-400">${showSupplierSection ? '▼' : '▶'}</span>
+                            </button>
+                            ${showSupplierSection ? `
+                                <div class="mt-3 sm:mt-4">
+                                    <button onclick="showAddSupplierForm()" class="mb-3 sm:mb-4 px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">+ 追加</button>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                                        ${suppliers.map(s => `
+                                            <div class="p-3 sm:p-4 border rounded-lg hover:border-blue-300 transition-colors">
+                                                <div class="flex justify-between items-start mb-2">
+                                                    <div class="flex-1">
+                                                        <h3 class="font-bold text-sm sm:text-lg">${s.name}</h3>
+                                                        <p class="text-xs sm:text-sm text-slate-600">デポジット: ${s.depositCount}回</p>
+                                                        <p class="text-xs sm:text-sm text-slate-600">割合: ${s.depositRates.join('%, ')}%</p>
+                                                    </div>
+                                                    <div class="flex gap-1 sm:gap-2">
+                                                        <button onclick="editSupplier(${s.id})" class="px-2 sm:px-3 py-1 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700" title="編集">
+                                                            <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                        </button>
+                                                        <button onclick="deleteSupplier(${s.id})" class="px-2 sm:px-3 py-1 bg-red-600 text-white text-xs sm:text-sm rounded hover:bg-red-700" title="削除">
+                                                            <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div class="flex gap-1 sm:gap-2">
-                                                <button onclick="editSupplier(${s.id})" class="px-2 sm:px-3 py-1 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700" title="編集">
-                                                    <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                                </button>
-                                                <button onclick="deleteSupplier(${s.id})" class="px-2 sm:px-3 py-1 bg-red-600 text-white text-xs sm:text-sm rounded hover:bg-red-700" title="削除">
-                                                    <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                </button>
-                                            </div>
-                                        </div>
+                                        `).join('')}
                                     </div>
-                                `).join('')}
-                            </div>
+                                </div>
+                            ` : `
+                                <p class="mt-2 text-sm text-slate-500">${suppliers.length}件のサプライヤー</p>
+                            `}
                         </div>
                         <div class="bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border">
                             <h2 class="text-base sm:text-xl font-bold text-slate-900 mb-3 sm:mb-4">案件管理</h2>
@@ -734,7 +744,12 @@
             
             if (!exchangeRate) return;
             
-            markPaymentPaid(projectId, depositNumber, paidDate, exchangeRate);
+            markPaymentPaid(projectId, depositNumber, exchangeRate);
+            renderMain();
+        }
+
+        function toggleSupplierSection() {
+            showSupplierSection = !showSupplierSection;
             renderMain();
         }
 
