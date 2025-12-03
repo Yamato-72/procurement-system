@@ -403,10 +403,13 @@
         }
 
         function getSummary() {
+            const inStockItems = inventory.filter(i => i.status === '在庫中');
+            const inStockValue = inStockItems.reduce((sum, i) => sum + (Number(i.costJPY) || 0), 0);
             return {
                 total: inventory.length,
                 waiting: inventory.filter(i => i.status === '入庫待ち').length,
-                inStock: inventory.filter(i => i.status === '在庫中').length,
+                inStock: inStockItems.length,
+                inStockValue: inStockValue,
                 shipped: inventory.filter(i => i.status === '出庫済').length,
                 issue: inventory.filter(i => i.status === '不具合').length
             };
@@ -447,7 +450,7 @@
                     
                     <main class="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
                         <!-- サマリー -->
-                        <div class="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-8">
+                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-4 mb-4 sm:mb-8">
                             <div class="bg-white rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border">
                                 <p class="text-slate-600 text-xs sm:text-sm">総在庫</p>
                                 <p class="text-lg sm:text-2xl font-bold text-slate-900">${summary.total}</p>
@@ -459,6 +462,10 @@
                             <div class="bg-emerald-50 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border border-emerald-200">
                                 <p class="text-emerald-700 text-xs sm:text-sm">在庫中</p>
                                 <p class="text-lg sm:text-2xl font-bold text-emerald-600">${summary.inStock}</p>
+                            </div>
+                            <div class="col-span-3 sm:col-span-1 bg-emerald-100 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border border-emerald-300">
+                                <p class="text-emerald-800 text-xs sm:text-sm">在庫総額</p>
+                                <p class="text-base sm:text-xl font-bold text-emerald-700">¥${summary.inStockValue.toLocaleString()}</p>
                             </div>
                             <div class="bg-blue-50 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border border-blue-200 hidden sm:block">
                                 <p class="text-blue-700 text-xs sm:text-sm">出庫済</p>
