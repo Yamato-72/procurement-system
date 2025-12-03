@@ -7,48 +7,35 @@
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        // Google API初期化フラグ
-        let gapiInited = false;
-        let gisInited = false;
-        
-        function gapiLoaded() {
-            gapi.load('client', initializeGapiClient);
-        }
-        
-        function gisLoaded() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: '627655302838-7k5e20ocdegp3m5vvmtlgpq63u5lp7c7.apps.googleusercontent.com',
-                scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly',
-                callback: '',
-            });
-            gisInited = true;
-            maybeEnableButtons();
-        }
-    </script>
-    <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
-    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;900&display=swap');
+        * { font-family: 'Noto Sans JP', sans-serif; }
+    </style>
 </head>
 <body>
     <div id="app">
-        <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-100">
+        <div class="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-100 flex items-center justify-center">
             <div class="text-center">
-                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-                <p class="text-slate-600">読み込み中...</p>
+                <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-emerald-600 mx-auto mb-4"></div>
+                <p class="text-slate-600 text-lg">初期化中...</p>
             </div>
         </div>
     </div>
 
     <script>
-        let tokenClient;
-        let inventory = [];
-        let archivedInventory = [];
-
-        const CLIENT_ID = '627655302838-7k5e20ocdegp3m5vvmtlgpq63u5lp7c7.apps.googleusercontent.com';
-        const API_KEY = 'AIzaSyC_CRoPFMPMWaIO-ag0aUwcG9T3bsueD4E';
+        const CLIENT_ID = '47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
         const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';
         const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly';
+
+        let tokenClient;
+        let gapiInited = false;
+        let gisInited = false;
+        let accessToken = null;
+        let inventory = [];
+        let archivedInventory = [];
 
         // 種別リスト
         const CATEGORIES = [
@@ -72,9 +59,12 @@
             search: ''
         };
 
+        function gapiLoaded() {
+            gapi.load('client', initializeGapiClient);
+        }
+
         async function initializeGapiClient() {
             await gapi.client.init({
-                apiKey: API_KEY,
                 discoveryDocs: [
                     'https://sheets.googleapis.com/$discovery/rest?version=v4',
                     'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'
@@ -84,25 +74,47 @@
             maybeEnableButtons();
         }
 
+        function gisLoaded() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: (resp) => {
+                    if (resp.error !== undefined) {
+                        throw (resp);
+                    }
+                    accessToken = resp.access_token;
+                    sessionStorage.setItem('googleAccessToken', accessToken);
+                    loadData();
+                },
+            });
+            gisInited = true;
+            maybeEnableButtons();
+        }
+
         function maybeEnableButtons() {
             if (gapiInited && gisInited) {
-                const savedToken = sessionStorage.getItem('gapi_token');
+                const savedToken = sessionStorage.getItem('googleAccessToken');
                 if (savedToken) {
-                    gapi.client.setToken(JSON.parse(savedToken));
+                    accessToken = savedToken;
+                    gapi.client.setToken({ access_token: accessToken });
                     loadData();
                 } else {
-                    renderLogin();
+                    renderSignIn();
                 }
             }
         }
 
         function handleAuthClick() {
             tokenClient.callback = async (resp) => {
-                if (resp.error !== undefined) throw resp;
-                sessionStorage.setItem('gapi_token', JSON.stringify(gapi.client.getToken()));
+                if (resp.error !== undefined) {
+                    throw (resp);
+                }
+                accessToken = resp.access_token;
+                sessionStorage.setItem('googleAccessToken', accessToken);
                 await loadData();
             };
-            if (gapi.client.getToken() === null) {
+
+            if (accessToken === null) {
                 tokenClient.requestAccessToken({ prompt: 'consent' });
             } else {
                 tokenClient.requestAccessToken({ prompt: '' });
@@ -110,16 +122,13 @@
         }
 
         function handleSignoutClick() {
-            const token = gapi.client.getToken();
-            if (token !== null) {
-                google.accounts.oauth2.revoke(token.access_token);
-                gapi.client.setToken('');
-                sessionStorage.removeItem('gapi_token');
-            }
-            renderLogin();
+            accessToken = null;
+            sessionStorage.removeItem('googleAccessToken');
+            gapi.client.setToken(null);
+            renderSignIn();
         }
 
-        function renderLogin() {
+        function renderSignIn() {
             document.getElementById('app').innerHTML = `
                 <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-100">
                     <div class="bg-white p-10 rounded-2xl shadow-xl max-w-md w-full mx-4">
@@ -344,6 +353,16 @@
             };
         }
 
+        function getStatusClass(status) {
+            switch(status) {
+                case '入庫待ち': return 'bg-amber-100 text-amber-700';
+                case '在庫中': return 'bg-emerald-100 text-emerald-700';
+                case '出庫済': return 'bg-blue-100 text-blue-700';
+                case '不具合': return 'bg-red-100 text-red-700';
+                default: return 'bg-slate-100 text-slate-700';
+            }
+        }
+
         function renderMain() {
             const summary = getSummary();
             const filtered = getFilteredInventory();
@@ -474,16 +493,6 @@
                     </main>
                 </div>
             `;
-        }
-
-        function getStatusClass(status) {
-            switch(status) {
-                case '入庫待ち': return 'bg-amber-100 text-amber-700';
-                case '在庫中': return 'bg-emerald-100 text-emerald-700';
-                case '出庫済': return 'bg-blue-100 text-blue-700';
-                case '不具合': return 'bg-red-100 text-red-700';
-                default: return 'bg-slate-100 text-slate-700';
-            }
         }
 
         function applyFilters() {
@@ -772,7 +781,7 @@
                     <div class="bg-white rounded-xl p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-xl font-bold">アーカイブ一覧（${archivedInventory.length}件）</h3>
-                            <button onclick="closeModal('archiveModal')" class="text-slate-500 hover:text-slate-700">✕</button>
+                            <button onclick="closeModal('archiveModal')" class="text-slate-500 hover:text-slate-700 text-2xl">&times;</button>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full">
@@ -812,6 +821,19 @@
             const modal = document.getElementById(id);
             if (modal) modal.remove();
         }
+
+        // API読み込み確認と初期化
+        function checkAndInit() {
+            if (typeof gapi !== 'undefined' && typeof google !== 'undefined') {
+                gapiLoaded();
+                gisLoaded();
+            } else {
+                setTimeout(checkAndInit, 100);
+            }
+        }
+        
+        // DOM読み込み完了後に初期化
+        document.addEventListener('DOMContentLoaded', checkAndInit);
     </script>
 </body>
 </html>
