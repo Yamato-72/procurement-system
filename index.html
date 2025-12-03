@@ -566,6 +566,12 @@
                                             <div class="bg-white border-2 border-green-400 rounded-lg p-4 mb-3">
                                                 <p class="text-green-700 font-semibold text-center">✓ すべての支払いが完了しました</p>
                                                 ${unitPrice ? `<p class="text-green-600 text-center mt-1">単価: ${formatJPY(unitPrice)} (総額 ${formatJPY(totalPaid)} ÷ ${p.quantity || 1}個)</p>` : ''}
+                                                <div class="flex justify-center mt-3">
+                                                    <button onclick="sendToInventory(${p.id})" class="px-4 py-2 bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 inline-flex items-center gap-2">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                                                        在庫に送る
+                                                    </button>
+                                                </div>
                                             </div>
                                         `}
                                         
@@ -715,6 +721,137 @@
             suppliers = suppliers.filter(s => s.id !== supplierId);
             saveData();
             renderMain();
+        }
+
+        // 在庫に送る機能
+        async function sendToInventory(projectId) {
+            const project = projects.find(p => p.id === projectId);
+            if (!project) return;
+
+            // 種別を選択
+            const categories = [
+                'マルチディスプレイ',
+                '屋外',
+                '屋内',
+                '電子黒板',
+                'マトリクス',
+                'メディアプレーヤー',
+                'スタンド/金具',
+                '周辺機器'
+            ];
+
+            const categoryIndex = prompt(
+                `種別を選択してください（番号入力）:\n\n` +
+                categories.map((c, i) => `${i + 1}. ${c}`).join('\n') +
+                `\n\n案件: ${project.projectNumber}\n製品: ${project.productName}\n数量: ${project.quantity || 1}台`
+            );
+            
+            if (!categoryIndex) return;
+            const category = categories[parseInt(categoryIndex) - 1];
+            if (!category) {
+                alert('正しい番号を入力してください');
+                return;
+            }
+
+            const quantity = project.quantity || 1;
+            const serial = project.serial || '';
+            
+            if (!serial) {
+                alert('Serialが設定されていません。案件を編集してSerialを設定してください。');
+                return;
+            }
+
+            // 在庫シートに追加
+            try {
+                showStatus('在庫シートに追加中...');
+
+                // 既存の在庫データを取得
+                let existingInventory = [];
+                try {
+                    const response = await gapi.client.sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: '在庫!A2:L',
+                    });
+                    existingInventory = response.result.values || [];
+                } catch (e) {
+                    // シートがない場合は新規作成
+                    await gapi.client.sheets.spreadsheets.batchUpdate({
+                        spreadsheetId: SPREADSHEET_ID,
+                        resource: {
+                            requests: [{
+                                addSheet: {
+                                    properties: { title: '在庫' }
+                                }
+                            }]
+                        }
+                    });
+                    await gapi.client.sheets.spreadsheets.values.update({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: '在庫!A1:L1',
+                        valueInputOption: 'RAW',
+                        resource: {
+                            values: [['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '取得日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考']]
+                        }
+                    });
+                }
+
+                // 重複チェック
+                const existingSerials = existingInventory.map(row => row[1]);
+                const baseSerial = serial.replace(/\(.*\)/, ''); // YS0554(1-4) → YS0554
+                
+                // 追加するデータを作成
+                const newRows = [];
+                const today = new Date().toISOString().split('T')[0];
+                
+                for (let i = 1; i <= quantity; i++) {
+                    const itemSerial = quantity > 1 ? `${baseSerial}-${i}` : baseSerial;
+                    
+                    // 既に存在するかチェック
+                    if (existingSerials.includes(itemSerial)) {
+                        continue; // スキップ
+                    }
+                    
+                    newRows.push([
+                        Date.now().toString() + '-' + i,  // ID
+                        itemSerial,                        // Serial
+                        category,                          // 種別
+                        project.productName,               // 製品名
+                        project.projectNumber,             // 発注案件
+                        today,                             // 発注日
+                        '',                                // 取得日（入庫時に入力）
+                        '入庫待ち',                        // ステータス
+                        '',                                // 出庫日
+                        '',                                // 出庫先案件
+                        '',                                // 取得金
+                        ''                                 // 備考
+                    ]);
+                }
+
+                if (newRows.length === 0) {
+                    alert('すべてのSerialが既に在庫に登録されています。');
+                    showStatus('');
+                    return;
+                }
+
+                // 在庫シートに追加
+                await gapi.client.sheets.spreadsheets.values.append({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '在庫!A:L',
+                    valueInputOption: 'RAW',
+                    insertDataOption: 'INSERT_ROWS',
+                    resource: {
+                        values: newRows
+                    }
+                });
+
+                showStatus('');
+                alert(`在庫に${newRows.length}件追加しました！\n\n在庫管理システムで「入庫」処理を行ってください。`);
+                
+            } catch (err) {
+                console.error('在庫追加エラー:', err);
+                showStatus('');
+                alert('エラー: ' + err.message);
+            }
         }
 
         function showAddSupplierForm() {

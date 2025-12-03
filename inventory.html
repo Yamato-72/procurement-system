@@ -512,13 +512,17 @@
                                             <span class="px-2 py-0.5 rounded text-xs font-semibold ${getStatusClass(item.status)}">${item.status}</span>
                                         </div>
                                         <p class="text-sm text-slate-800 mb-1">${item.productName}</p>
-                                        <div class="flex justify-between items-center text-xs text-slate-500 mb-2">
+                                        <div class="flex justify-between items-center text-xs text-slate-500 mb-1">
                                             <span>発注: <span class="font-semibold text-blue-600">${item.orderProject || '-'}</span></span>
                                             ${item.shipProject ? `<span>出庫先: <span class="font-semibold">${item.shipProject}</span></span>` : ''}
                                         </div>
+                                        <div class="flex justify-between items-center text-xs text-slate-500 mb-2">
+                                            <span>取得日: ${item.receiveDate || '-'}</span>
+                                            <span>原価: <span class="font-semibold">${item.costJPY ? '¥' + Number(item.costJPY).toLocaleString() : '-'}</span></span>
+                                        </div>
                                         <div class="flex gap-2">
                                             ${item.status === '入庫待ち' ? `
-                                                <button onclick="receiveItem('${item.id}')" class="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700">入庫</button>
+                                                <button onclick="showReceiveModal('${item.id}')" class="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700">入庫</button>
                                             ` : ''}
                                             ${item.status === '在庫中' ? `
                                                 <button onclick="showShipModal('${item.id}')" class="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button>
