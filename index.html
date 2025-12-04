@@ -1437,49 +1437,42 @@
             document.body.appendChild(modal);
         }
 
-        // 3. 為替シミュレーション
+        // 3. 為替シミュレーション（シンプル変換電卓）
         function showExchangeSimulator() {
             toggleToolsMenu();
-
-            // 未払いの合計を計算
-            let totalUnpaidUSD = 0;
-            projects.forEach(p => {
-                (p.depositSchedule || []).forEach(dep => {
-                    if (!dep.paid) {
-                        totalUnpaidUSD += dep.amountUSD || 0;
-                    }
-                });
-            });
 
             const modal = document.createElement('div');
             modal.id = 'exchangeSimModal';
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4">
-                        <h3 class="text-xl font-bold mb-4 dark:text-white">💱 為替シミュレーション</h3>
-                        <div class="bg-slate-100 dark:bg-slate-700 rounded-lg p-4 mb-4">
-                            <p class="text-sm text-slate-600 dark:text-slate-400">未払い総額（USD）</p>
-                            <p class="text-2xl font-bold dark:text-white">$${totalUnpaidUSD.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-semibold mb-2 dark:text-slate-300">為替レートで試算</label>
+                        <h3 class="text-xl font-bold mb-4 dark:text-white">💱 為替計算</h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">金額（USD）</label>
+                                <input type="number" id="simUSD" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white text-lg" placeholder="1000.00" step="0.01" oninput="updateExchangeCalc()">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">為替レート（円/USD）</label>
+                                <input type="number" id="simRate" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="150.00" step="0.01" value="150" oninput="updateExchangeCalc()">
+                            </div>
+                            <div class="grid grid-cols-4 gap-2">
+                                <button onclick="setSimRate(140)" class="px-2 py-1.5 bg-slate-200 dark:bg-slate-600 rounded text-sm hover:bg-slate-300 dark:hover:bg-slate-500 dark:text-white">¥140</button>
+                                <button onclick="setSimRate(145)" class="px-2 py-1.5 bg-slate-200 dark:bg-slate-600 rounded text-sm hover:bg-slate-300 dark:hover:bg-slate-500 dark:text-white">¥145</button>
+                                <button onclick="setSimRate(150)" class="px-2 py-1.5 bg-slate-200 dark:bg-slate-600 rounded text-sm hover:bg-slate-300 dark:hover:bg-slate-500 dark:text-white">¥150</button>
+                                <button onclick="setSimRate(155)" class="px-2 py-1.5 bg-slate-200 dark:bg-slate-600 rounded text-sm hover:bg-slate-300 dark:hover:bg-slate-500 dark:text-white">¥155</button>
+                            </div>
                             <div class="flex gap-2">
-                                <input type="number" id="simRate" class="flex-1 px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="150.00" step="0.01" value="150">
-                                <span class="flex items-center text-slate-600 dark:text-slate-400">円/USD</span>
+                                <button onclick="fetchCurrentRate()" class="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">📡 現在のレート取得</button>
                             </div>
                         </div>
-                        <div class="grid grid-cols-3 gap-2 mb-4">
-                            <button onclick="setSimRate(140)" class="px-3 py-2 bg-slate-200 dark:bg-slate-600 rounded-lg text-sm hover:bg-slate-300 dark:hover:bg-slate-500 dark:text-white">¥140</button>
-                            <button onclick="setSimRate(145)" class="px-3 py-2 bg-slate-200 dark:bg-slate-600 rounded-lg text-sm hover:bg-slate-300 dark:hover:bg-slate-500 dark:text-white">¥145</button>
-                            <button onclick="setSimRate(150)" class="px-3 py-2 bg-slate-200 dark:bg-slate-600 rounded-lg text-sm hover:bg-slate-300 dark:hover:bg-slate-500 dark:text-white">¥150</button>
-                            <button onclick="setSimRate(155)" class="px-3 py-2 bg-slate-200 dark:bg-slate-600 rounded-lg text-sm hover:bg-slate-300 dark:hover:bg-slate-500 dark:text-white">¥155</button>
-                            <button onclick="setSimRate(160)" class="px-3 py-2 bg-slate-200 dark:bg-slate-600 rounded-lg text-sm hover:bg-slate-300 dark:hover:bg-slate-500 dark:text-white">¥160</button>
-                            <button onclick="fetchCurrentRate()" class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">現在</button>
+                        
+                        <div class="bg-emerald-50 dark:bg-emerald-900/30 rounded-lg p-4 mt-4">
+                            <p class="text-sm text-emerald-700 dark:text-emerald-400">換算結果（JPY）</p>
+                            <p class="text-3xl font-bold text-emerald-700 dark:text-emerald-400" id="simResultJPY">¥0</p>
                         </div>
-                        <div id="simResult" class="bg-emerald-50 dark:bg-emerald-900/30 rounded-lg p-4">
-                            <p class="text-sm text-emerald-700 dark:text-emerald-400">試算結果（JPY）</p>
-                            <p class="text-2xl font-bold text-emerald-700 dark:text-emerald-400" id="simResultJPY">${formatJPY(totalUnpaidUSD * 150)}</p>
-                        </div>
+                        
                         <div class="flex justify-end mt-6">
                             <button onclick="closeModal('exchangeSimModal')" class="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700">閉じる</button>
                         </div>
@@ -1487,21 +1480,11 @@
                 </div>
             `;
             document.body.appendChild(modal);
-
-            // レート変更時に再計算
-            document.getElementById('simRate').addEventListener('input', () => updateSimResult(totalUnpaidUSD));
         }
 
         function setSimRate(rate) {
             document.getElementById('simRate').value = rate;
-            // 未払い総額を再計算
-            let totalUnpaidUSD = 0;
-            projects.forEach(p => {
-                (p.depositSchedule || []).forEach(dep => {
-                    if (!dep.paid) totalUnpaidUSD += dep.amountUSD || 0;
-                });
-            });
-            updateSimResult(totalUnpaidUSD);
+            updateExchangeCalc();
         }
 
         async function fetchCurrentRate() {
@@ -1509,20 +1492,15 @@
             const rate = await getExchangeRate(new Date().toISOString().split('T')[0]);
             if (rate) {
                 document.getElementById('simRate').value = rate.toFixed(2);
-                let totalUnpaidUSD = 0;
-                projects.forEach(p => {
-                    (p.depositSchedule || []).forEach(dep => {
-                        if (!dep.paid) totalUnpaidUSD += dep.amountUSD || 0;
-                    });
-                });
-                updateSimResult(totalUnpaidUSD);
+                updateExchangeCalc();
             }
             showStatus('');
         }
 
-        function updateSimResult(totalUnpaidUSD) {
+        function updateExchangeCalc() {
+            const usd = parseFloat(document.getElementById('simUSD').value) || 0;
             const rate = parseFloat(document.getElementById('simRate').value) || 0;
-            const jpy = totalUnpaidUSD * rate;
+            const jpy = usd * rate;
             document.getElementById('simResultJPY').textContent = formatJPY(jpy);
         }
 
