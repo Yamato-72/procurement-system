@@ -1852,8 +1852,8 @@
                         p.projectNumber.toUpperCase() === parsed.projectNumber.toUpperCase()
                     ) : null;
                     
-                    // すでに同じ案件番号で登録済みかチェック
-                    const alreadyRegistered = existingProject !== null;
+                    // すでにこのファイルから登録済みかチェック（sourceFileに記録）
+                    const alreadyRegistered = existingProject && existingProject.sourceFile === file.name;
                     
                     return {
                         ...file,
@@ -1867,12 +1867,12 @@
                 // ファイルリスト表示
                 const listEl = document.getElementById('invoiceFileList');
                 listEl.innerHTML = invoiceFilesToProcess.map((file, idx) => `
-                    <div class="flex items-center gap-3 p-3 rounded-lg border ${file.alreadyRegistered ? 'bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600' : file.projectNumber ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700'}">
+                    <div class="flex items-center gap-3 p-3 rounded-lg border ${file.alreadyRegistered ? 'bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600' : file.existingProject ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700' : file.projectNumber ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700' : 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700'}">
                         <input type="checkbox" id="invoiceFile${idx}" ${file.selected ? 'checked' : ''} ${file.alreadyRegistered ? 'disabled' : ''} class="rounded" onchange="updateInvoiceSyncSummary()">
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-medium dark:text-white truncate">${file.name}</p>
                             <p class="text-xs text-slate-500 dark:text-slate-400">
-                                ${file.alreadyRegistered ? '✓ 登録済み' : file.projectNumber ? `🆕 ${file.projectNumber} / ${file.supplierName || '?'}` : '⚠️ 案件番号不明'}
+                                ${file.alreadyRegistered ? '✓ このファイルから登録済み' : file.existingProject ? `⚠️ ${file.projectNumber} は既存（上書き注意）` : file.projectNumber ? `🆕 ${file.projectNumber} / ${file.supplierName || '?'}` : '❌ 案件番号不明'}
                             </p>
                         </div>
                         <a href="${file.webViewLink}" target="_blank" class="text-blue-600 hover:text-blue-800 text-xs">開く</a>
