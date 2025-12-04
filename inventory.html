@@ -73,6 +73,7 @@
             'STUDIA',
             'マトリクス',
             'メディアプレーヤー',
+            'OPS',
             'スタンド/金具',
             '周辺機器'
         ];
@@ -377,9 +378,10 @@
                             brightness: row[colIndex['brightness']] || '',
                             touch: (row[colIndex['touch']] === 'TRUE' || row[colIndex['touch']] === true),
                             sheetName: sheetName,
-                            // LCD/STUDIA共通
+                            // LCD/STUDIA/OPS/player共通
                             os: row[colIndex['os']] || row[colIndex['OS']] || '',
                             cpu: row[colIndex['cpu']] || row[colIndex['CPU']] || '',
+                            gpu: row[colIndex['gpu']] || row[colIndex['GPU']] || '',
                             ram: row[colIndex['ram']] || row[colIndex['RAM']] || '',
                             rom: row[colIndex['rom']] || row[colIndex['ROM']] || '',
                             // STUDIA固有
@@ -401,8 +403,33 @@
                             // LED_others固有
                             product_type: row[colIndex['product_type']] || '',
                             detail: row[colIndex['detail']] || '',
+                            // OPS固有
+                            soc: row[colIndex['soc']] || row[colIndex['SoC']] || '',
+                            graphics_card: row[colIndex['graphics_card']] || '',
+                            usb3_amount: row[colIndex['usb3_amount']] || row[colIndex['USB3.0_amount']] || '',
+                            usb_typec_amount: row[colIndex['usb_typec_amount']] || row[colIndex['USBTypeC_amount']] || '',
+                            dp_out: row[colIndex['dp_out']] || row[colIndex['DP_out_amount']] || '',
+                            // player固有
+                            wifi: row[colIndex['wifi']] || row[colIndex['Wi-Fi']] || '',
+                            bluetooth_version: row[colIndex['bluetooth_version']] || '',
+                            usb2_amount: row[colIndex['usb2_amount']] || row[colIndex['USB2.0_amount']] || '',
+                            // dongle固有
+                            connector_type: row[colIndex['connector_type']] || '',
+                            resolution_max: row[colIndex['resolution_max']] || '',
+                            distance_max: row[colIndex['distance_max']] || '',
+                            touchback: row[colIndex['touchback']] || row[colIndex['touchback_TF']] || '',
+                            // スタンド固有
+                            inch_65: row[colIndex['inch_65']] || row[colIndex['65inch_attachable_TF']] || '',
+                            inch_75: row[colIndex['inch_75']] || row[colIndex['75inch_attachable_TF']] || '',
+                            inch_86: row[colIndex['inch_86']] || row[colIndex['86inch_attachable_TF']] || '',
+                            inch_98: row[colIndex['inch_98']] || row[colIndex['98inch_attachable_TF']] || '',
+                            inch_110: row[colIndex['inch_110']] || row[colIndex['110inch_attachable_TF']] || '',
+                            tilt_angle: row[colIndex['tilt_angle']] || '',
+                            height: row[colIndex['height']] || '',
+                            electric: row[colIndex['electric']] || row[colIndex['electric_TF']] || '',
                             // 電源
-                            power_max_w: row[colIndex['power_max_w']] || (row[colIndex['power_max_consumption']] || '').replace('W', '') || ''
+                            power_max_w: row[colIndex['power_max_w']] || (row[colIndex['power_max_consumption']] || '').replace('W', '') || '',
+                            power_consumption: row[colIndex['power_consumption']] || ''
                         });
                     });
                 } catch (e) {
@@ -2336,11 +2363,14 @@
             if (spec.brightness) rows.push(['輝度', spec.brightness + 'cd/m²']);
             if (spec.touch !== undefined) rows.push(['タッチ', spec.touch ? 'あり' : 'なし']);
             
-            // LCD固有
+            // LCD/OPS/player固有
             if (spec.os) rows.push(['OS', spec.os]);
             if (spec.cpu) rows.push(['CPU', spec.cpu]);
+            if (spec.gpu) rows.push(['GPU', spec.gpu]);
             if (spec.ram) rows.push(['RAM', spec.ram]);
             if (spec.rom) rows.push(['ROM', spec.rom]);
+            if (spec.soc) rows.push(['SoC', spec.soc]);
+            if (spec.graphics_card) rows.push(['グラフィック', spec.graphics_card]);
             
             // STUDIA固有
             if (spec.edla_certified) rows.push(['EDLA認証', spec.edla_certified === 'TRUE' ? 'あり' : 'なし']);
@@ -2365,8 +2395,39 @@
             if (spec.product_type) rows.push(['製品タイプ', spec.product_type]);
             if (spec.detail) rows.push(['詳細', spec.detail]);
             
+            // OPS固有
+            if (spec.usb3_amount) rows.push(['USB3.0', spec.usb3_amount + '個']);
+            if (spec.usb_typec_amount) rows.push(['USB Type-C', spec.usb_typec_amount + '個']);
+            if (spec.dp_out) rows.push(['DP出力', spec.dp_out]);
+            
+            // player固有
+            if (spec.wifi) rows.push(['Wi-Fi', spec.wifi]);
+            if (spec.bluetooth_version) rows.push(['Bluetooth', spec.bluetooth_version]);
+            if (spec.usb2_amount) rows.push(['USB2.0', spec.usb2_amount + '個']);
+            
+            // dongle固有
+            if (spec.connector_type) rows.push(['接続タイプ', spec.connector_type]);
+            if (spec.resolution_max) rows.push(['最大解像度', spec.resolution_max]);
+            if (spec.distance_max) rows.push(['最大距離', spec.distance_max]);
+            if (spec.touchback) rows.push(['タッチバック', spec.touchback === 'TRUE' ? '対応' : '非対応']);
+            
+            // スタンド固有
+            if (spec.inch_65 || spec.inch_75 || spec.inch_86 || spec.inch_98 || spec.inch_110) {
+                const sizes = [];
+                if (spec.inch_65 === 'TRUE') sizes.push('65"');
+                if (spec.inch_75 === 'TRUE') sizes.push('75"');
+                if (spec.inch_86 === 'TRUE') sizes.push('86"');
+                if (spec.inch_98 === 'TRUE') sizes.push('98"');
+                if (spec.inch_110 === 'TRUE') sizes.push('110"');
+                if (sizes.length > 0) rows.push(['対応サイズ', sizes.join(', ')]);
+            }
+            if (spec.tilt_angle) rows.push(['チルト角度', spec.tilt_angle]);
+            if (spec.height) rows.push(['高さ調整', spec.height]);
+            if (spec.electric) rows.push(['電動', spec.electric === 'TRUE' ? 'あり' : 'なし']);
+            
             // 電源関連
             if (spec.power_max_w) rows.push(['最大消費電力', spec.power_max_w + 'W']);
+            if (spec.power_consumption) rows.push(['消費電力', spec.power_consumption]);
             if (spec.warranty_term) rows.push(['保証期間', spec.warranty_term]);
             
             if (rows.length === 0) {
