@@ -2277,7 +2277,7 @@
             alert(`取込完了！\n新規案件登録: ${successCount}件\n${errorCount > 0 ? `エラー: ${errorCount}件` : ''}`);
         }
 
-        // インボイスPDFを解析
+        // インボイスPDFを解析（ZEMSOフォーマット対応）
         function parseInvoicePdf(text) {
             const result = {
                 invoiceNo: null,
@@ -2288,25 +2288,40 @@
                 workingDays: 20
             };
             
-            // Invoice No.
+            // Invoice No.: "Invoice No.: ZEMSO-20251114-Q001"
             const invoiceMatch = text.match(/Invoice\s*No\.?\s*:?\s*([A-Z0-9\-]+)/i);
             if (invoiceMatch) {
                 result.invoiceNo = invoiceMatch[1];
             }
             
-            // Total金額: "Total US$19,354.00" or "Total: $19,354.00"
-            const totalMatch = text.match(/Total\s*:?\s*(?:US)?\$?([\d,]+\.?\d*)/i);
+            // Total金額: "Total US$19,354.00" （行単位でマッチ）
+            // ヘッダーの "Unit Price Total" と区別するため、US$必須
+            const totalMatch = text.match(/^Total\s+US\$([\d,]+\.\d{2})/im) ||
+                               text.match(/Total\s+US\$([\d,]+\.\d{2})/i) ||
+                               text.match(/Total\s*:\s*US\$([\d,]+\.\d{2})/i);
             if (totalMatch) {
                 result.totalAmount = parseFloat(totalMatch[1].replace(/,/g, ''));
             }
             
-            // 数量: 複数の商品がある場合、最初の主要商品の数量を取得
-            const qtyMatches = text.match(/(\d+)\s+US\$/g);
-            if (qtyMatches && qtyMatches.length > 0) {
-                const firstQty = qtyMatches[0].match(/(\d+)/);
-                if (firstQty && parseInt(firstQty[1]) > 0) {
-                    result.quantity = parseInt(firstQty[1]);
+            // 数量: テーブルから主要製品（最大金額の行）の数量を取得
+            // パターン: "20 US$866.00 US$17,320.00" のような行
+            const lineItems = [];
+            const itemPattern = /(\d+)\s+US\$([\d,]+\.\d{2})\s+US\$([\d,]+\.\d{2})/g;
+            let itemMatch;
+            while ((itemMatch = itemPattern.exec(text)) !== null) {
+                const qty = parseInt(itemMatch[1]);
+                const unitPrice = parseFloat(itemMatch[2].replace(/,/g, ''));
+                const total = parseFloat(itemMatch[3].replace(/,/g, ''));
+                if (qty > 0 && total > 0) {
+                    lineItems.push({ qty, unitPrice, total });
                 }
+            }
+            
+            // 最大金額の行の数量を採用（主要製品）
+            if (lineItems.length > 0) {
+                const mainItem = lineItems.reduce((max, item) => 
+                    item.total > max.total ? item : max, lineItems[0]);
+                result.quantity = mainItem.qty;
             }
             
             // Payment terms: "30% deposit, 65% payment before shipment, 5% balance"
@@ -2318,8 +2333,8 @@
                     parseInt(paymentMatch[3])
                 ];
             } else {
-                // 別パターン: 数字%を順番に抽出
-                const pctMatches = text.match(/(\d+)%/g);
+                // 別パターン: 数字%を順番に抽出（ただし100%などは除外）
+                const pctMatches = text.match(/\b([1-9]\d?)%/g);
                 if (pctMatches && pctMatches.length >= 2) {
                     result.paymentTerms = pctMatches.slice(0, 3).map(p => parseInt(p));
                 }
@@ -2331,8 +2346,8 @@
                 result.workingDays = parseInt(daysMatch[1]);
             }
             
-            // 製品名（タイトル行から）
-            const productMatch = text.match(/(\d+[''"]?\s*(?:Indoor|Outdoor)?\s*(?:LCD|LED)?\s*(?:Video\s*Wall|Display|Monitor)[^\n]*)/i);
+            // 製品名: "55'' Indoor LCD Video Wall" パターン
+            const productMatch = text.match(/(\d+[''"]?\s*(?:Indoor|Outdoor)?\s*(?:LCD|LED)?\s*(?:Video\s*Wall|Display|Monitor|Touch\s*(?:Screen|Frame)?)[^\n]*)/i);
             if (productMatch) {
                 result.productName = productMatch[1].trim().substring(0, 50);
             }
