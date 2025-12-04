@@ -56,6 +56,28 @@
         const AUTO_RELOAD_SECONDS = 60; // 60秒間隔
         let lastDataHash = ''; // データ変更検知用
 
+        // 案件番号ヘルパー関数
+        // 表示用フォーマット（例: AD-1681）
+        function formatProjectNumber(prefix, number) {
+            if (!prefix && !number) return '';
+            return `${prefix || 'AD'}-${number || 0}`;
+        }
+
+        // 案件番号文字列からprefix/numberを分解
+        function parseProjectNumberString(str) {
+            if (!str) return { prefix: '', number: '' };
+            const match = str.match(/^([A-Z]+)-?(\d+)$/i);
+            if (match) {
+                return { prefix: match[1].toUpperCase(), number: match[2] };
+            }
+            // 数字のみの場合
+            const numMatch = str.match(/^(\d+)$/);
+            if (numMatch) {
+                return { prefix: 'AD', number: numMatch[1] };
+            }
+            return { prefix: '', number: '' };
+        }
+
         // ダークモード初期化
         if (isDarkMode) {
             document.documentElement.classList.add('dark');
@@ -221,7 +243,7 @@
         }
 
         async function loadFolderUrls() {
-            const projectNumbers = [...new Set(inventory.map(i => i.orderProject).filter(p => p && p !== '未設定'))];
+            const projectNumbers = [...new Set(inventory.map(i => formatProjectNumber(i.orderPrefix, i.orderNumber)).filter(p => p && p !== '未設定' && p !== '-0'))];
             for (const projectNumber of projectNumbers) {
                 if (!folderCache[projectNumber]) {
                     await findFolderUrl(projectNumber);
@@ -259,25 +281,62 @@
                 try {
                     const inventoryResponse = await gapi.client.sheets.spreadsheets.values.get({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫!A2:N',
+                        range: '在庫!A2:P',
                     });
                     const inventoryRows = inventoryResponse.result.values || [];
-                    inventory = inventoryRows.map(row => ({
-                        id: row[0] || '',
-                        serial: row[1] || '',
-                        category: row[2] || '',
-                        productName: row[3] || '',
-                        orderProject: row[4] || '',
-                        orderDate: row[5] || '',
-                        receiveDate: row[6] || '',
-                        status: row[7] || '入庫待ち',
-                        shipDate: row[8] || '',
-                        shipProject: row[9] || '',
-                        costJPY: row[10] || '',
-                        note: row[11] || '',
-                        shelfNo: row[12] || '',
-                        location: row[13] || ''
-                    }));
+                    inventory = inventoryRows.map(row => {
+                        // 後方互換: 古い形式(orderProject=AD-1234)と新しい形式(prefix + number)の両方に対応
+                        let orderPrefix = row[4] || '';
+                        let orderNumber = row[5] || '';
+                        let shipPrefix = row[10] || '';
+                        let shipNumber = row[11] || '';
+                        
+                        // 古い形式の場合（row[4]が"AD-1234"のような形式）
+                        if (row[4] && row[4].match(/^[A-Z]+-\d+$/i)) {
+                            const parsed = parseProjectNumberString(row[4]);
+                            orderPrefix = parsed.prefix;
+                            orderNumber = parsed.number;
+                            // 古い形式の場合、カラム位置をシフト
+                            return {
+                                id: row[0] || '',
+                                serial: row[1] || '',
+                                category: row[2] || '',
+                                productName: row[3] || '',
+                                orderPrefix: orderPrefix,
+                                orderNumber: orderNumber,
+                                orderDate: row[5] || '',
+                                receiveDate: row[6] || '',
+                                status: row[7] || '入庫待ち',
+                                shipDate: row[8] || '',
+                                shipPrefix: '',
+                                shipNumber: '',
+                                shipProject: row[9] || '', // 古い形式の出庫先
+                                costJPY: row[10] || '',
+                                note: row[11] || '',
+                                shelfNo: row[12] || '',
+                                location: row[13] || ''
+                            };
+                        }
+                        
+                        return {
+                            id: row[0] || '',
+                            serial: row[1] || '',
+                            category: row[2] || '',
+                            productName: row[3] || '',
+                            orderPrefix: row[4] || '',
+                            orderNumber: row[5] || '',
+                            orderDate: row[6] || '',
+                            receiveDate: row[7] || '',
+                            status: row[8] || '入庫待ち',
+                            shipDate: row[9] || '',
+                            shipPrefix: row[10] || '',
+                            shipNumber: row[11] || '',
+                            costJPY: row[12] || '',
+                            note: row[13] || '',
+                            shelfNo: row[14] || '',
+                            location: row[15] || ''
+                        };
+                    });
                 } catch (e) {
                     console.log('在庫シートがないため新規作成します');
                     inventory = [];
@@ -288,24 +347,53 @@
                 try {
                     const archiveResponse = await gapi.client.sheets.spreadsheets.values.get({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫アーカイブ!A2:N',
+                        range: '在庫アーカイブ!A2:P',
                     });
                     const archiveRows = archiveResponse.result.values || [];
-                    archivedInventory = archiveRows.map(row => ({
-                        id: row[0] || '',
-                        serial: row[1] || '',
-                        category: row[2] || '',
-                        productName: row[3] || '',
-                        orderProject: row[4] || '',
-                        orderDate: row[5] || '',
-                        receiveDate: row[6] || '',
-                        status: row[7] || '',
-                        shipDate: row[8] || '',
-                        shipProject: row[9] || '',
-                        costJPY: row[10] || '',
-                        note: row[11] || '',
-                        shelfNo: row[12] || '',
-                        location: row[13] || ''
+                    archivedInventory = archiveRows.map(row => {
+                        // 後方互換
+                        if (row[4] && row[4].match(/^[A-Z]+-\d+$/i)) {
+                            const parsed = parseProjectNumberString(row[4]);
+                            return {
+                                id: row[0] || '',
+                                serial: row[1] || '',
+                                category: row[2] || '',
+                                productName: row[3] || '',
+                                orderPrefix: parsed.prefix,
+                                orderNumber: parsed.number,
+                                orderDate: row[5] || '',
+                                receiveDate: row[6] || '',
+                                status: row[7] || '',
+                                shipDate: row[8] || '',
+                                shipPrefix: '',
+                                shipNumber: '',
+                                shipProject: row[9] || '',
+                                costJPY: row[10] || '',
+                                note: row[11] || '',
+                                shelfNo: row[12] || '',
+                                location: row[13] || ''
+                            };
+                        }
+                        
+                        return {
+                            id: row[0] || '',
+                            serial: row[1] || '',
+                            category: row[2] || '',
+                            productName: row[3] || '',
+                            orderPrefix: row[4] || '',
+                            orderNumber: row[5] || '',
+                            orderDate: row[6] || '',
+                            receiveDate: row[7] || '',
+                            status: row[8] || '',
+                            shipDate: row[9] || '',
+                            shipPrefix: row[10] || '',
+                            shipNumber: row[11] || '',
+                            costJPY: row[12] || '',
+                            note: row[13] || '',
+                            shelfNo: row[14] || '',
+                            location: row[15] || ''
+                        };
+                    });
                     }));
                 } catch (e) {
                     console.log('アーカイブシートがないため新規作成します');
@@ -378,22 +466,48 @@
                 if (lastDataHash && newHash !== lastDataHash) {
                     // データが変更された
                     showSyncNotification();
-                    inventory = rows.map(row => ({
-                        id: row[0] || '',
-                        serial: row[1] || '',
-                        category: row[2] || '',
-                        productName: row[3] || '',
-                        orderProject: row[4] || '',
-                        orderDate: row[5] || '',
-                        receiveDate: row[6] || '',
-                        status: row[7] || '入庫待ち',
-                        shipDate: row[8] || '',
-                        shipProject: row[9] || '',
-                        costJPY: row[10] || '',
-                        note: row[11] || '',
-                        shelfNo: row[12] || '',
-                        location: row[13] || ''
-                    }));
+                    inventory = rows.map(row => {
+                        // 後方互換
+                        if (row[4] && row[4].match(/^[A-Z]+-\d+$/i)) {
+                            const parsed = parseProjectNumberString(row[4]);
+                            return {
+                                id: row[0] || '',
+                                serial: row[1] || '',
+                                category: row[2] || '',
+                                productName: row[3] || '',
+                                orderPrefix: parsed.prefix,
+                                orderNumber: parsed.number,
+                                orderDate: row[5] || '',
+                                receiveDate: row[6] || '',
+                                status: row[7] || '入庫待ち',
+                                shipDate: row[8] || '',
+                                shipPrefix: '',
+                                shipNumber: '',
+                                costJPY: row[10] || '',
+                                note: row[11] || '',
+                                shelfNo: row[12] || '',
+                                location: row[13] || ''
+                            };
+                        }
+                        return {
+                            id: row[0] || '',
+                            serial: row[1] || '',
+                            category: row[2] || '',
+                            productName: row[3] || '',
+                            orderPrefix: row[4] || '',
+                            orderNumber: row[5] || '',
+                            orderDate: row[6] || '',
+                            receiveDate: row[7] || '',
+                            status: row[8] || '入庫待ち',
+                            shipDate: row[9] || '',
+                            shipPrefix: row[10] || '',
+                            shipNumber: row[11] || '',
+                            costJPY: row[12] || '',
+                            note: row[13] || '',
+                            shelfNo: row[14] || '',
+                            location: row[15] || ''
+                        };
+                    });
                     lastUpdated = new Date();
                     renderMain();
                 }
@@ -578,10 +692,10 @@
                 });
                 await gapi.client.sheets.spreadsheets.values.update({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫!A1:M1',
+                    range: '在庫!A1:P1',
                     valueInputOption: 'RAW',
                     resource: {
-                        values: [['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '入庫日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考', '棚番']]
+                        values: [['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所']]
                     }
                 });
             } catch (e) {
@@ -603,10 +717,10 @@
                 });
                 await gapi.client.sheets.spreadsheets.values.update({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫アーカイブ!A1:M1',
+                    range: '在庫アーカイブ!A1:P1',
                     valueInputOption: 'RAW',
                     resource: {
-                        values: [['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '入庫日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考', '棚番']]
+                        values: [['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所']]
                     }
                 });
             } catch (e) {
@@ -622,7 +736,7 @@
                 try {
                     const checkResponse = await gapi.client.sheets.spreadsheets.values.get({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫!A2:N',
+                        range: '在庫!A2:P',
                     });
                     const currentRows = checkResponse.result.values || [];
                     const currentHash = JSON.stringify(currentRows);
@@ -639,18 +753,20 @@
                 }
                 
                 const inventoryData = [
-                    ['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '入庫日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考', '棚番', '保管場所'],
+                    ['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所'],
                     ...inventory.map(item => [
                         item.id,
                         item.serial,
                         item.category,
                         item.productName,
-                        item.orderProject,
+                        item.orderPrefix || '',
+                        item.orderNumber || '',
                         item.orderDate,
                         item.receiveDate,
                         item.status,
                         item.shipDate,
-                        item.shipProject,
+                        item.shipPrefix || '',
+                        item.shipNumber || '',
                         item.costJPY,
                         item.note,
                         item.shelfNo,
@@ -666,18 +782,20 @@
                 });
 
                 const archiveData = [
-                    ['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '入庫日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考', '棚番', '保管場所'],
+                    ['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所'],
                     ...archivedInventory.map(item => [
                         item.id,
                         item.serial,
                         item.category,
                         item.productName,
-                        item.orderProject,
+                        item.orderPrefix || '',
+                        item.orderNumber || '',
                         item.orderDate,
                         item.receiveDate,
                         item.status,
                         item.shipDate,
-                        item.shipProject,
+                        item.shipPrefix || '',
+                        item.shipNumber || '',
                         item.costJPY,
                         item.note,
                         item.shelfNo,
@@ -694,8 +812,9 @@
 
                 // 保存後にハッシュを更新
                 lastDataHash = JSON.stringify(inventory.map(item => [
-                    item.id, item.serial, item.category, item.productName, item.orderProject,
-                    item.orderDate, item.receiveDate, item.status, item.shipDate, item.shipProject,
+                    item.id, item.serial, item.category, item.productName, 
+                    item.orderPrefix, item.orderNumber, item.orderDate, item.receiveDate, 
+                    item.status, item.shipDate, item.shipPrefix, item.shipNumber,
                     item.costJPY, item.note, item.shelfNo, item.location
                 ]));
                 lastUpdated = new Date();
@@ -726,7 +845,8 @@
                 if (currentFilters.receiveDateTo && item.receiveDate > currentFilters.receiveDateTo) return false;
                 
                 // 出庫先案件フィルタ
-                if (currentFilters.shipProject && !item.shipProject.toLowerCase().includes(currentFilters.shipProject.toLowerCase())) return false;
+                const shipProjectFull = formatProjectNumber(item.shipPrefix, item.shipNumber);
+                if (currentFilters.shipProject && !shipProjectFull.toLowerCase().includes(currentFilters.shipProject.toLowerCase())) return false;
                 
                 // 原価帯フィルタ
                 if (currentFilters.costRange) {
@@ -746,8 +866,12 @@
                     const search = currentFilters.search.toLowerCase();
                     const matchSerial = item.serial.toLowerCase().includes(search);
                     const matchProduct = item.productName.toLowerCase().includes(search);
-                    const matchProject = item.orderProject.toLowerCase().includes(search) || item.shipProject.toLowerCase().includes(search);
-                    if (!matchSerial && !matchProduct && !matchProject) return false;
+                    const orderProjectFull = formatProjectNumber(item.orderPrefix, item.orderNumber);
+                    const matchProject = orderProjectFull.toLowerCase().includes(search) || shipProjectFull.toLowerCase().includes(search);
+                    // 番号のみで検索もマッチ
+                    const matchNumber = (item.orderNumber && item.orderNumber.toString().includes(search)) || 
+                                       (item.shipNumber && item.shipNumber.toString().includes(search));
+                    if (!matchSerial && !matchProduct && !matchProject && !matchNumber) return false;
                 }
                 return true;
             });
@@ -770,8 +894,8 @@
                         valB = b.serial || '';
                         break;
                     case 'project':
-                        valA = a.orderProject || '';
-                        valB = b.orderProject || '';
+                        valA = formatProjectNumber(a.orderPrefix, a.orderNumber);
+                        valB = formatProjectNumber(b.orderPrefix, b.orderNumber);
                         break;
                     default:
                         valA = a.orderDate || '9999';
@@ -789,7 +913,7 @@
         function groupByProject(items) {
             const groups = {};
             items.forEach(item => {
-                const project = item.orderProject || '未設定';
+                const project = formatProjectNumber(item.orderPrefix, item.orderNumber) || '未設定';
                 if (!groups[project]) {
                     groups[project] = [];
                 }
@@ -1144,7 +1268,7 @@
                                                                             ${item.location === '東京' ? '<span class="ml-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-600">東京</span>' : ''}
                                                                             ${item.location === '大阪' ? '<span class="ml-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-teal-100 text-teal-600">大阪</span>' : ''}
                                                                         </td>
-                                                                        <td class="px-3 py-2 text-xs">${item.shipProject || '-'}</td>
+                                                                        <td class="px-3 py-2 text-xs">${formatProjectNumber(item.shipPrefix, item.shipNumber) || '-'}</td>
                                                                         <td class="px-3 py-2 text-center" onclick="event.stopPropagation()">
                                                                             <div class="flex gap-1 justify-center">
                                                                                 ${item.status === '入庫待ち' ? `
@@ -1252,7 +1376,7 @@
         // 案件内全選択
         function toggleSelectAll(project) {
             const filtered = getFilteredInventory();
-            const projectItems = filtered.filter(i => (i.orderProject || '未設定') === project);
+            const projectItems = filtered.filter(i => (formatProjectNumber(i.orderPrefix, i.orderNumber) || '未設定') === project);
             const allSelected = projectItems.every(i => selectedItems.has(i.id));
             
             if (allSelected) {
@@ -1293,15 +1417,20 @@
         }
 
         function submitBulkProject() {
-            const orderProject = document.getElementById('bulkOrderProject').value.trim();
-            if (!orderProject) {
+            const orderProjectInput = document.getElementById('bulkOrderProject').value.trim();
+            if (!orderProjectInput) {
                 alert('案件番号を入力してください');
                 return;
             }
             
+            const parsed = parseProjectNumberString(orderProjectInput);
+            
             selectedItems.forEach(id => {
                 const item = inventory.find(i => i.id === id);
-                if (item) item.orderProject = orderProject;
+                if (item) {
+                    item.orderPrefix = parsed.prefix;
+                    item.orderNumber = parsed.number;
+                }
             });
             saveData();
             closeModal('bulkProjectModal');
@@ -1526,14 +1655,16 @@
         }
 
         function submitBulkShip() {
-            const shipProject = document.getElementById('bulkShipProject').value.trim();
+            const shipProjectInput = document.getElementById('bulkShipProject').value.trim();
             const shipDate = document.getElementById('bulkShipDate').value;
             const method = document.querySelector('input[name="bulkShipMethod"]:checked').value;
             
-            if (!shipProject) {
+            if (!shipProjectInput) {
                 alert('出庫先案件番号を入力してください');
                 return;
             }
+            
+            const parsedShip = parseProjectNumberString(shipProjectInput);
             
             const inStockItems = Array.from(selectedItems).filter(id => {
                 const item = inventory.find(i => i.id === id);
@@ -1543,7 +1674,8 @@
             inStockItems.forEach(id => {
                 const item = inventory.find(i => i.id === id);
                 if (item) {
-                    item.shipProject = shipProject;
+                    item.shipPrefix = parsedShip.prefix;
+                    item.shipNumber = parsedShip.number;
                     item.shipDate = shipDate;
                     item.shipMethod = method;
 
@@ -1868,10 +2000,12 @@
 
         function submitAddInventory() {
             let serial = document.getElementById('addSerial').value.trim();
-            const orderProject = document.getElementById('addOrderProject').value.trim();
+            const orderProjectInput = document.getElementById('addOrderProject').value.trim();
             const orderDate = document.getElementById('addOrderDate').value;
             const quantity = parseInt(document.getElementById('addQuantity').value) || 1;
             const note = document.getElementById('addNote').value.trim();
+            
+            const parsedOrder = parseProjectNumberString(orderProjectInput);
             
             let category, productName;
             
@@ -1910,12 +2044,14 @@
                     serial: itemSerial,
                     category,
                     productName,
-                    orderProject,
+                    orderPrefix: parsedOrder.prefix,
+                    orderNumber: parsedOrder.number,
                     orderDate,
                     receiveDate: '',
                     status: '入庫待ち',
                     shipDate: '',
-                    shipProject: '',
+                    shipPrefix: '',
+                    shipNumber: '',
                     costJPY: '',
                     note,
                     shelfNo: '',
@@ -2038,7 +2174,7 @@
                             <!-- 共通 -->
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">出庫先案件番号 <span class="text-red-500">*</span></label>
-                                <input type="text" id="shipProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.orderProject || ''}" placeholder="AD-1700">
+                                <input type="text" id="shipProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${formatProjectNumber(item.orderPrefix, item.orderNumber) || ''}" placeholder="AD-1700">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">出庫日</label>
@@ -2074,7 +2210,9 @@
                 return;
             }
 
-            item.shipProject = shipProject;
+            const parsedShip = parseProjectNumberString(shipProject);
+            item.shipPrefix = parsedShip.prefix;
+            item.shipNumber = parsedShip.number;
             item.shipDate = shipDate;
             item.shipMethod = method;
 
@@ -2139,7 +2277,7 @@
                                     </tr>
                                     <tr class="border-b border-slate-200 dark:border-slate-600">
                                         <td class="py-2 text-slate-500 dark:text-slate-400">発注案件</td>
-                                        <td class="py-2 dark:text-white font-medium">${item.orderProject || '-'}</td>
+                                        <td class="py-2 dark:text-white font-medium">${formatProjectNumber(item.orderPrefix, item.orderNumber) || '-'}</td>
                                     </tr>
                                     <tr class="border-b border-slate-200 dark:border-slate-600">
                                         <td class="py-2 text-slate-500 dark:text-slate-400">発注日</td>
@@ -2160,7 +2298,7 @@
                                     </tr>
                                     <tr class="border-b border-slate-200 dark:border-slate-600">
                                         <td class="py-2 text-slate-500 dark:text-slate-400">出庫先案件</td>
-                                        <td class="py-2 dark:text-white font-medium">${item.shipProject || '-'}</td>
+                                        <td class="py-2 dark:text-white font-medium">${formatProjectNumber(item.shipPrefix, item.shipNumber) || '-'}</td>
                                     </tr>
                                     ${item.shipMethod === 'delivery' ? `
                                     <tr class="border-b border-slate-200 dark:border-slate-600">
@@ -2242,7 +2380,7 @@
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-sm font-semibold mb-1 dark:text-slate-300">発注案件</label>
-                                    <input type="text" id="detailEditOrderProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.orderProject}">
+                                    <input type="text" id="detailEditOrderProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${formatProjectNumber(item.orderPrefix, item.orderNumber)}">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-semibold mb-1 dark:text-slate-300">発注日</label>
@@ -2266,7 +2404,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-sm font-semibold mb-1 dark:text-slate-300">出庫先案件</label>
-                                    <input type="text" id="detailEditShipProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.shipProject}">
+                                    <input type="text" id="detailEditShipProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${formatProjectNumber(item.shipPrefix, item.shipNumber)}">
                                 </div>
                             </div>
                             <div>
@@ -2317,12 +2455,22 @@
             item.productName = document.getElementById('detailEditProductName').value.trim();
             item.shelfNo = document.getElementById('detailEditShelfNo').value;
             item.location = document.getElementById('detailEditLocation').value;
-            item.orderProject = document.getElementById('detailEditOrderProject').value.trim();
+            
+            const orderProjectInput = document.getElementById('detailEditOrderProject').value.trim();
+            const parsedOrder = parseProjectNumberString(orderProjectInput);
+            item.orderPrefix = parsedOrder.prefix;
+            item.orderNumber = parsedOrder.number;
+            
             item.orderDate = document.getElementById('detailEditOrderDate').value;
             item.receiveDate = document.getElementById('detailEditReceiveDate').value;
             item.costJPY = document.getElementById('detailEditCostJPY').value;
             item.shipDate = document.getElementById('detailEditShipDate').value;
-            item.shipProject = document.getElementById('detailEditShipProject').value.trim();
+            
+            const shipProjectInput = document.getElementById('detailEditShipProject').value.trim();
+            const parsedShip = parseProjectNumberString(shipProjectInput);
+            item.shipPrefix = parsedShip.prefix;
+            item.shipNumber = parsedShip.number;
+            
             item.note = document.getElementById('detailEditNote').value.trim();
 
             saveData();
@@ -2389,7 +2537,7 @@
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-sm font-semibold mb-1 dark:text-slate-300">発注案件</label>
-                                    <input type="text" id="editOrderProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.orderProject}">
+                                    <input type="text" id="editOrderProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${formatProjectNumber(item.orderPrefix, item.orderNumber)}">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-semibold mb-1 dark:text-slate-300">発注日</label>
@@ -2419,7 +2567,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-sm font-semibold mb-1 dark:text-slate-300">出庫先案件</label>
-                                    <input type="text" id="editShipProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.shipProject}">
+                                    <input type="text" id="editShipProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${formatProjectNumber(item.shipPrefix, item.shipNumber)}">
                                 </div>
                             </div>
                             <div>
@@ -2602,13 +2750,23 @@
             item.productName = document.getElementById('editProductName').value.trim();
             item.shelfNo = document.getElementById('editShelfNo').value;
             item.location = document.getElementById('editLocation').value;
-            item.orderProject = document.getElementById('editOrderProject').value.trim();
+            
+            const orderProjectInput = document.getElementById('editOrderProject').value.trim();
+            const parsedOrder = parseProjectNumberString(orderProjectInput);
+            item.orderPrefix = parsedOrder.prefix;
+            item.orderNumber = parsedOrder.number;
+            
             item.orderDate = document.getElementById('editOrderDate').value;
             item.receiveDate = document.getElementById('editReceiveDate').value;
             item.costJPY = document.getElementById('editCostJPY').value;
             item.status = document.getElementById('editStatus').value;
             item.shipDate = document.getElementById('editShipDate').value;
-            item.shipProject = document.getElementById('editShipProject').value.trim();
+            
+            const shipProjectInput = document.getElementById('editShipProject').value.trim();
+            const parsedShip = parseProjectNumberString(shipProjectInput);
+            item.shipPrefix = parsedShip.prefix;
+            item.shipNumber = parsedShip.number;
+            
             item.note = document.getElementById('editNote').value.trim();
 
             saveData();
@@ -2669,8 +2827,8 @@
                                             <td class="px-3 py-2 font-mono text-sm">${item.serial}</td>
                                             <td class="px-3 py-2 text-sm">${item.category}</td>
                                             <td class="px-3 py-2 text-sm">${item.productName}</td>
-                                            <td class="px-3 py-2 text-sm">${item.orderProject}</td>
-                                            <td class="px-3 py-2 text-sm">${item.shipProject}</td>
+                                            <td class="px-3 py-2 text-sm">${formatProjectNumber(item.orderPrefix, item.orderNumber)}</td>
+                                            <td class="px-3 py-2 text-sm">${formatProjectNumber(item.shipPrefix, item.shipNumber)}</td>
                                             <td class="px-3 py-2 text-sm">${item.shipDate}</td>
                                         </tr>
                                     `).join('')}
@@ -2725,13 +2883,13 @@
                 item.productName,
                 item.shelfNo || '',
                 item.location || '蓮田',
-                item.orderProject || '',
+                formatProjectNumber(item.orderPrefix, item.orderNumber) || '',
                 item.orderDate || '',
                 item.receiveDate || '',
                 item.costJPY || '',
                 item.status,
                 item.shipDate || '',
-                item.shipProject || '',
+                formatProjectNumber(item.shipPrefix, item.shipNumber) || '',
                 item.note || ''
             ]);
 
