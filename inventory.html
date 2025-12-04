@@ -376,7 +376,33 @@
                             resolution: row[colIndex['resolution']] || row[colIndex['resoltion']] || '',
                             brightness: row[colIndex['brightness']] || '',
                             touch: (row[colIndex['touch']] === 'TRUE' || row[colIndex['touch']] === true),
-                            sheetName: sheetName
+                            sheetName: sheetName,
+                            // LCD/STUDIA共通
+                            os: row[colIndex['os']] || row[colIndex['OS']] || '',
+                            cpu: row[colIndex['cpu']] || row[colIndex['CPU']] || '',
+                            ram: row[colIndex['ram']] || row[colIndex['RAM']] || '',
+                            rom: row[colIndex['rom']] || row[colIndex['ROM']] || '',
+                            // STUDIA固有
+                            edla_certified: row[colIndex['edla_certified']] || row[colIndex['EDLAcartification_TF']] || '',
+                            touch_type: row[colIndex['touch_type']] || '',
+                            weight_net: row[colIndex['weight_net']] || '',
+                            weight_gross: row[colIndex['weight_gross']] || '',
+                            warranty_term: row[colIndex['warranty_term']] || '',
+                            // LED固有
+                            pixel_pitch: row[colIndex['pixel_pitch']] || row[colIndex['pixel']] || '',
+                            smd_type: row[colIndex['smd_type']] || row[colIndex['SMD']] || '',
+                            ip_rating: row[colIndex['ip_rating']] || row[colIndex['IP']] || '',
+                            // マトリクス固有
+                            input_count: row[colIndex['input_count']] || row[colIndex['in']] || '',
+                            output_count: row[colIndex['output_count']] || row[colIndex['out']] || '',
+                            // TVwall固有
+                            hdmi_out: row[colIndex['hdmi_out']] || row[colIndex['HDMI_output_amount']] || '',
+                            hdmi_in: row[colIndex['hdmi_in']] || row[colIndex['HDMI_input_amount']] || '',
+                            // LED_others固有
+                            product_type: row[colIndex['product_type']] || '',
+                            detail: row[colIndex['detail']] || '',
+                            // 電源
+                            power_max_w: row[colIndex['power_max_w']] || (row[colIndex['power_max_consumption']] || '').replace('W', '') || ''
                         });
                     });
                 } catch (e) {
@@ -1762,79 +1788,106 @@
             const item = inventory.find(i => i.id === id);
             if (!item) return;
 
+            // 製品マスタからスペック情報を取得
+            const spec = findProductSpec(item.productName);
+            const specHtml = spec ? generateSpecHtml(spec) : '<p class="text-slate-500 text-sm">製品マスタに該当するスペック情報がありません</p>';
+
             const modal = document.createElement('div');
             modal.id = 'editModal';
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-                        <h3 class="text-xl font-bold mb-4">在庫編集</h3>
-                        <div class="space-y-4">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+                        <h3 class="text-xl font-bold mb-2 dark:text-white">${item.productName}</h3>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Serial: ${item.serial}</p>
+                        
+                        <!-- タブ切替 -->
+                        <div class="flex border-b mb-4">
+                            <button onclick="switchEditTab('info')" id="tabInfo" class="px-4 py-2 text-sm font-semibold border-b-2 border-emerald-600 text-emerald-600">基本情報</button>
+                            <button onclick="switchEditTab('spec')" id="tabSpec" class="px-4 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400">スペック</button>
+                        </div>
+                        
+                        <!-- 基本情報タブ -->
+                        <div id="editTabInfo" class="space-y-4">
                             <div>
-                                <label class="block text-sm font-semibold mb-1">Serial</label>
-                                <input type="text" id="editSerial" class="w-full px-3 py-2 border rounded-lg" value="${item.serial}">
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">Serial</label>
+                                <input type="text" id="editSerial" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.serial}">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold mb-1">種別</label>
-                                <select id="editCategory" class="w-full px-3 py-2 border rounded-lg">
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">種別</label>
+                                <select id="editCategory" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                                     ${CATEGORIES.map(c => `<option value="${c}" ${item.category === c ? 'selected' : ''}>${c}</option>`).join('')}
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold mb-1">製品名</label>
-                                <input type="text" id="editProductName" class="w-full px-3 py-2 border rounded-lg" value="${item.productName}">
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">製品名</label>
+                                <input type="text" id="editProductName" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.productName}">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">棚番</label>
+                                    <select id="editShelfNo" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                        <option value="">未設定</option>
+                                        ${SHELF_NUMBERS.map(n => `<option value="${n}" ${item.shelfNo === n ? 'selected' : ''}>${n}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">保管場所</label>
+                                    <select id="editLocation" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                        <option value="" ${!item.location || item.location === '蓮田' ? 'selected' : ''}>蓮田</option>
+                                        <option value="東京" ${item.location === '東京' ? 'selected' : ''}>東京</option>
+                                        <option value="大阪" ${item.location === '大阪' ? 'selected' : ''}>大阪</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">発注案件</label>
+                                    <input type="text" id="editOrderProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.orderProject}">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">発注日</label>
+                                    <input type="date" id="editOrderDate" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.orderDate}">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">入庫日</label>
+                                    <input type="date" id="editReceiveDate" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.receiveDate}">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">取得金（税込円）</label>
+                                    <input type="number" id="editCostJPY" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.costJPY || ''}">
+                                </div>
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold mb-1">棚番</label>
-                                <select id="editShelfNo" class="w-full px-3 py-2 border rounded-lg">
-                                    <option value="">未設定</option>
-                                    ${SHELF_NUMBERS.map(n => `<option value="${n}" ${item.shelfNo === n ? 'selected' : ''}>${n}</option>`).join('')}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold mb-1">保管場所</label>
-                                <select id="editLocation" class="w-full px-3 py-2 border rounded-lg">
-                                    <option value="" ${!item.location || item.location === '蓮田' ? 'selected' : ''}>蓮田（通常）</option>
-                                    <option value="東京" ${item.location === '東京' ? 'selected' : ''}>東京</option>
-                                    <option value="大阪" ${item.location === '大阪' ? 'selected' : ''}>大阪</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold mb-1">発注案件番号</label>
-                                <input type="text" id="editOrderProject" class="w-full px-3 py-2 border rounded-lg" value="${item.orderProject}">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold mb-1">発注日</label>
-                                <input type="date" id="editOrderDate" class="w-full px-3 py-2 border rounded-lg" value="${item.orderDate}">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold mb-1">入庫日</label>
-                                <input type="date" id="editReceiveDate" class="w-full px-3 py-2 border rounded-lg" value="${item.receiveDate}">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold mb-1">取得金（税込円）</label>
-                                <input type="number" id="editCostJPY" class="w-full px-3 py-2 border rounded-lg" value="${item.costJPY || ''}">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold mb-1">ステータス</label>
-                                <select id="editStatus" class="w-full px-3 py-2 border rounded-lg">
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">ステータス</label>
+                                <select id="editStatus" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                                     ${STATUSES.map(s => `<option value="${s}" ${item.status === s ? 'selected' : ''}>${s}</option>`).join('')}
                                 </select>
                             </div>
-                            <div>
-                                <label class="block text-sm font-semibold mb-1">出庫日</label>
-                                <input type="date" id="editShipDate" class="w-full px-3 py-2 border rounded-lg" value="${item.shipDate}">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">出庫日</label>
+                                    <input type="date" id="editShipDate" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.shipDate}">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">出庫先案件</label>
+                                    <input type="text" id="editShipProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.shipProject}">
+                                </div>
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold mb-1">出庫先案件</label>
-                                <input type="text" id="editShipProject" class="w-full px-3 py-2 border rounded-lg" value="${item.shipProject}">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold mb-1">備考</label>
-                                <textarea id="editNote" class="w-full px-3 py-2 border rounded-lg" rows="2">${item.note}</textarea>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">備考</label>
+                                <textarea id="editNote" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" rows="2">${item.note}</textarea>
                             </div>
                         </div>
+                        
+                        <!-- スペックタブ -->
+                        <div id="editTabSpec" class="hidden">
+                            ${specHtml}
+                        </div>
+                        
                         <div class="flex gap-3 mt-6">
-                            <button onclick="closeModal('editModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50">キャンセル</button>
+                            <button onclick="closeModal('editModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
                             <button onclick="deleteItem('${id}')" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">削除</button>
                             <button onclick="submitEdit('${id}')" class="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">保存</button>
                         </div>
@@ -1842,6 +1895,100 @@
                 </div>
             `;
             document.body.appendChild(modal);
+        }
+
+        // タブ切替
+        function switchEditTab(tab) {
+            const tabInfo = document.getElementById('tabInfo');
+            const tabSpec = document.getElementById('tabSpec');
+            const contentInfo = document.getElementById('editTabInfo');
+            const contentSpec = document.getElementById('editTabSpec');
+            
+            if (tab === 'info') {
+                tabInfo.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-emerald-600 text-emerald-600';
+                tabSpec.className = 'px-4 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400';
+                contentInfo.classList.remove('hidden');
+                contentSpec.classList.add('hidden');
+            } else {
+                tabInfo.className = 'px-4 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400';
+                tabSpec.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-emerald-600 text-emerald-600';
+                contentInfo.classList.add('hidden');
+                contentSpec.classList.remove('hidden');
+            }
+        }
+
+        // 製品名からスペック情報を検索
+        function findProductSpec(productName) {
+            if (!productName) return null;
+            // 製品名からPNを抽出（例: "YSD-ID3200Z black 32"" → "YSD-ID3200Z"）
+            const pnMatch = productName.match(/^([A-Za-z0-9\-]+)/);
+            if (!pnMatch) return null;
+            const pn = pnMatch[1];
+            return productMaster.find(p => p.pn === pn || productName.includes(p.pn));
+        }
+
+        // スペック情報のHTML生成
+        function generateSpecHtml(spec) {
+            const rows = [];
+            
+            // 共通項目
+            if (spec.pn) rows.push(['型番', spec.pn]);
+            if (spec.category) rows.push(['種別', spec.category]);
+            if (spec.supplier) rows.push(['サプライヤー', spec.supplier]);
+            if (spec.inch) rows.push(['インチ', spec.inch + '"']);
+            if (spec.resolution) rows.push(['解像度', spec.resolution]);
+            if (spec.brightness) rows.push(['輝度', spec.brightness + 'cd/m²']);
+            if (spec.touch !== undefined) rows.push(['タッチ', spec.touch ? 'あり' : 'なし']);
+            
+            // LCD固有
+            if (spec.os) rows.push(['OS', spec.os]);
+            if (spec.cpu) rows.push(['CPU', spec.cpu]);
+            if (spec.ram) rows.push(['RAM', spec.ram]);
+            if (spec.rom) rows.push(['ROM', spec.rom]);
+            
+            // STUDIA固有
+            if (spec.edla_certified) rows.push(['EDLA認証', spec.edla_certified === 'TRUE' ? 'あり' : 'なし']);
+            if (spec.touch_type) rows.push(['タッチ方式', spec.touch_type]);
+            if (spec.weight_net) rows.push(['重量（本体）', spec.weight_net]);
+            if (spec.weight_gross) rows.push(['重量（梱包）', spec.weight_gross]);
+            
+            // LED固有
+            if (spec.pixel_pitch) rows.push(['ピクセルピッチ', 'P' + spec.pixel_pitch]);
+            if (spec.smd_type) rows.push(['SMD', spec.smd_type]);
+            if (spec.ip_rating) rows.push(['IP等級', spec.ip_rating]);
+            
+            // マトリクス固有
+            if (spec.input_count) rows.push(['入力数', spec.input_count]);
+            if (spec.output_count) rows.push(['出力数', spec.output_count]);
+            
+            // TVwall固有
+            if (spec.hdmi_out) rows.push(['HDMI出力', spec.hdmi_out]);
+            if (spec.hdmi_in) rows.push(['HDMI入力', spec.hdmi_in]);
+            
+            // LED_others固有
+            if (spec.product_type) rows.push(['製品タイプ', spec.product_type]);
+            if (spec.detail) rows.push(['詳細', spec.detail]);
+            
+            // 電源関連
+            if (spec.power_max_w) rows.push(['最大消費電力', spec.power_max_w + 'W']);
+            if (spec.warranty_term) rows.push(['保証期間', spec.warranty_term]);
+            
+            if (rows.length === 0) {
+                return '<p class="text-slate-500 text-sm">スペック情報がありません</p>';
+            }
+            
+            return `
+                <div class="bg-slate-50 dark:bg-slate-700 rounded-lg p-4">
+                    <table class="w-full text-sm">
+                        ${rows.map(([label, value]) => `
+                            <tr class="border-b border-slate-200 dark:border-slate-600 last:border-0">
+                                <td class="py-2 text-slate-500 dark:text-slate-400 w-1/3">${label}</td>
+                                <td class="py-2 dark:text-white font-medium">${value}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                </div>
+            `;
         }
 
         function submitEdit(id) {
