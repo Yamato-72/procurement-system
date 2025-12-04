@@ -45,6 +45,8 @@
         let folderCache = {};
         let lastUpdated = null; // 最終更新日時
         let isDarkMode = localStorage.getItem('darkMode') === 'true'; // ダークモード状態
+        let bulkSelectMode = false; // 一括選択モード
+        let selectedItems = new Set(); // 選択されたアイテムID
 
         // ダークモード初期化
         if (isDarkMode) {
@@ -572,6 +574,10 @@
                                         ${isDarkMode ? '☀️' : '🌙'}
                                     </button>
                                     <a href="index.html" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-blue-600 text-white text-xs sm:text-sm rounded-lg hover:bg-blue-700">調達</a>
+                                    <button onclick="toggleBulkSelectMode()" class="px-2 sm:px-3 py-1.5 sm:py-2 ${bulkSelectMode ? 'bg-amber-500' : 'bg-slate-500'} text-white text-xs sm:text-sm rounded-lg hover:opacity-90">
+                                        <span class="hidden sm:inline">${bulkSelectMode ? '選択中' : '一括'}</span>
+                                        <span class="sm:hidden">☑</span>
+                                    </button>
                                     <button onclick="showAddInventoryModal()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-emerald-600 text-white text-xs sm:text-sm rounded-lg hover:bg-emerald-700">+ 追加</button>
                                     <button onclick="handleSignoutClick()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-600 text-white text-xs sm:text-sm rounded-lg hover:bg-slate-700">
                                         <span class="hidden sm:inline">サインアウト</span>
@@ -792,6 +798,7 @@
                                                         <table class="w-full">
                                                             <thead class="bg-slate-100">
                                                                 <tr>
+                                                                    ${bulkSelectMode ? `<th class="px-2 py-2 text-center w-8"><input type="checkbox" onclick="toggleSelectAll('${project}')" class="w-4 h-4 rounded"></th>` : ''}
                                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">Serial</th>
                                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">種別</th>
                                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">製品名</th>
@@ -805,7 +812,8 @@
                                                             </thead>
                                                             <tbody class="divide-y bg-white">
                                                                 ${items.map(item => `
-                                                                    <tr class="hover:bg-slate-50">
+                                                                    <tr class="hover:bg-slate-50 ${selectedItems.has(item.id) ? 'bg-amber-50' : ''}">
+                                                                        ${bulkSelectMode ? `<td class="px-2 py-2 text-center"><input type="checkbox" ${selectedItems.has(item.id) ? 'checked' : ''} onclick="toggleSelectItem('${item.id}')" class="w-4 h-4 rounded"></td>` : ''}
                                                                         <td class="px-3 py-2 font-mono font-semibold text-sm text-slate-900">${item.serial}</td>
                                                                         <td class="px-3 py-2 text-xs text-slate-600">${item.category}</td>
                                                                         <td class="px-3 py-2 text-xs">${item.productName}</td>
@@ -840,11 +848,14 @@
                                                     <!-- スマホ: カード表示 -->
                                                     <div class="md:hidden bg-slate-50">
                                                         ${items.map(item => `
-                                                            <div class="p-3 border-t border-slate-200">
+                                                            <div class="p-3 border-t border-slate-200 ${selectedItems.has(item.id) ? 'bg-amber-50' : ''}">
                                                                 <div class="flex justify-between items-start mb-2">
-                                                                    <div>
-                                                                        <p class="font-mono font-bold text-sm text-slate-900">${item.serial}</p>
-                                                                        <p class="text-xs text-slate-500">${item.category}</p>
+                                                                    <div class="flex items-center gap-2">
+                                                                        ${bulkSelectMode ? `<input type="checkbox" ${selectedItems.has(item.id) ? 'checked' : ''} onclick="toggleSelectItem('${item.id}')" class="w-4 h-4 rounded">` : ''}
+                                                                        <div>
+                                                                            <p class="font-mono font-bold text-sm text-slate-900">${item.serial}</p>
+                                                                            <p class="text-xs text-slate-500">${item.category}</p>
+                                                                        </div>
                                                                     </div>
                                                                     <div class="flex items-center gap-1">
                                                                         ${item.shelfNo ? `<span class="px-1.5 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-700">棚${item.shelfNo}</span>` : ''}
@@ -882,7 +893,226 @@
                         </div>
                     </main>
                 </div>
+                ${bulkSelectMode && selectedItems.size > 0 ? `
+                    <div class="fixed bottom-0 left-0 right-0 bg-amber-500 text-white p-3 shadow-lg z-50">
+                        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+                            <span class="font-semibold text-sm">${selectedItems.size}件選択中</span>
+                            <div class="flex flex-wrap gap-2">
+                                <button onclick="showBulkShelfModal()" class="px-3 py-1.5 bg-purple-600 text-white text-xs sm:text-sm rounded hover:bg-purple-700">棚番変更</button>
+                                <button onclick="showBulkLocationModal()" class="px-3 py-1.5 bg-teal-600 text-white text-xs sm:text-sm rounded hover:bg-teal-700">場所変更</button>
+                                <button onclick="bulkReceive()" class="px-3 py-1.5 bg-emerald-600 text-white text-xs sm:text-sm rounded hover:bg-emerald-700">一括入庫</button>
+                                <button onclick="showBulkShipModal()" class="px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700">一括出庫</button>
+                                <button onclick="cancelBulkSelect()" class="px-3 py-1.5 bg-slate-600 text-white text-xs sm:text-sm rounded hover:bg-slate-700">キャンセル</button>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
             `;
+        }
+
+        // 一括選択モード切替
+        function toggleBulkSelectMode() {
+            bulkSelectMode = !bulkSelectMode;
+            if (!bulkSelectMode) {
+                selectedItems.clear();
+            }
+            renderMain();
+        }
+
+        // アイテム選択切替
+        function toggleSelectItem(id) {
+            if (selectedItems.has(id)) {
+                selectedItems.delete(id);
+            } else {
+                selectedItems.add(id);
+            }
+            renderMain();
+        }
+
+        // 案件内全選択
+        function toggleSelectAll(project) {
+            const filtered = getFilteredInventory();
+            const projectItems = filtered.filter(i => (i.orderProject || '未設定') === project);
+            const allSelected = projectItems.every(i => selectedItems.has(i.id));
+            
+            if (allSelected) {
+                projectItems.forEach(i => selectedItems.delete(i.id));
+            } else {
+                projectItems.forEach(i => selectedItems.add(i.id));
+            }
+            renderMain();
+        }
+
+        // 選択キャンセル
+        function cancelBulkSelect() {
+            bulkSelectMode = false;
+            selectedItems.clear();
+            renderMain();
+        }
+
+        // 一括棚番変更モーダル
+        function showBulkShelfModal() {
+            const modal = document.createElement('div');
+            modal.id = 'bulkShelfModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-sm mx-4">
+                        <h3 class="text-lg font-bold mb-4 dark:text-white">一括棚番変更（${selectedItems.size}件）</h3>
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold mb-1 dark:text-slate-300">棚番</label>
+                            <select id="bulkShelfNo" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <option value="">未設定</option>
+                                ${SHELF_NUMBERS.map(n => `<option value="${n}">${n}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="submitBulkShelf()" class="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">変更</button>
+                            <button onclick="closeModal('bulkShelfModal')" class="flex-1 px-4 py-2 bg-slate-300 dark:bg-slate-600 text-slate-700 dark:text-white rounded-lg hover:bg-slate-400">キャンセル</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function submitBulkShelf() {
+            const shelfNo = document.getElementById('bulkShelfNo').value;
+            selectedItems.forEach(id => {
+                const item = inventory.find(i => i.id === id);
+                if (item) item.shelfNo = shelfNo;
+            });
+            saveData();
+            closeModal('bulkShelfModal');
+            cancelBulkSelect();
+        }
+
+        // 一括保管場所変更モーダル
+        function showBulkLocationModal() {
+            const modal = document.createElement('div');
+            modal.id = 'bulkLocationModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-sm mx-4">
+                        <h3 class="text-lg font-bold mb-4 dark:text-white">一括場所変更（${selectedItems.size}件）</h3>
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold mb-1 dark:text-slate-300">保管場所</label>
+                            <select id="bulkLocation" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <option value="">蓮田（通常）</option>
+                                <option value="東京">東京</option>
+                                <option value="大阪">大阪</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="submitBulkLocation()" class="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700">変更</button>
+                            <button onclick="closeModal('bulkLocationModal')" class="flex-1 px-4 py-2 bg-slate-300 dark:bg-slate-600 text-slate-700 dark:text-white rounded-lg hover:bg-slate-400">キャンセル</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function submitBulkLocation() {
+            const location = document.getElementById('bulkLocation').value;
+            selectedItems.forEach(id => {
+                const item = inventory.find(i => i.id === id);
+                if (item) item.location = location;
+            });
+            saveData();
+            closeModal('bulkLocationModal');
+            cancelBulkSelect();
+        }
+
+        // 一括入庫
+        function bulkReceive() {
+            const waitingItems = Array.from(selectedItems).filter(id => {
+                const item = inventory.find(i => i.id === id);
+                return item && item.status === '入庫待ち';
+            });
+            
+            if (waitingItems.length === 0) {
+                alert('入庫待ちのアイテムがありません');
+                return;
+            }
+            
+            if (!confirm(`${waitingItems.length}件を入庫しますか？`)) return;
+            
+            const today = new Date().toISOString().split('T')[0];
+            waitingItems.forEach(id => {
+                const item = inventory.find(i => i.id === id);
+                if (item) {
+                    item.status = '在庫中';
+                    item.receiveDate = today;
+                }
+            });
+            
+            saveData();
+            cancelBulkSelect();
+        }
+
+        // 一括出庫モーダル
+        function showBulkShipModal() {
+            const inStockItems = Array.from(selectedItems).filter(id => {
+                const item = inventory.find(i => i.id === id);
+                return item && item.status === '在庫中';
+            });
+            
+            if (inStockItems.length === 0) {
+                alert('在庫中のアイテムがありません');
+                return;
+            }
+            
+            const today = new Date().toISOString().split('T')[0];
+            const modal = document.createElement('div');
+            modal.id = 'bulkShipModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-sm mx-4">
+                        <h3 class="text-lg font-bold mb-4 dark:text-white">一括出庫（${inStockItems.length}件）</h3>
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold mb-1 dark:text-slate-300">出庫先案件番号</label>
+                            <input type="text" id="bulkShipProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="AD-1700">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold mb-1 dark:text-slate-300">出庫日</label>
+                            <input type="date" id="bulkShipDate" value="${today}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="submitBulkShip()" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">出庫</button>
+                            <button onclick="closeModal('bulkShipModal')" class="flex-1 px-4 py-2 bg-slate-300 dark:bg-slate-600 text-slate-700 dark:text-white rounded-lg hover:bg-slate-400">キャンセル</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function submitBulkShip() {
+            const shipProject = document.getElementById('bulkShipProject').value.trim();
+            const shipDate = document.getElementById('bulkShipDate').value;
+            
+            if (!shipProject) {
+                alert('出庫先案件番号を入力してください');
+                return;
+            }
+            
+            const inStockItems = Array.from(selectedItems).filter(id => {
+                const item = inventory.find(i => i.id === id);
+                return item && item.status === '在庫中';
+            });
+            
+            inStockItems.forEach(id => {
+                const item = inventory.find(i => i.id === id);
+                if (item) {
+                    item.status = '出庫済';
+                    item.shipProject = shipProject;
+                    item.shipDate = shipDate;
+                }
+            });
+            
+            saveData();
+            closeModal('bulkShipModal');
+            cancelBulkSelect();
         }
 
         function applyFilters() {
