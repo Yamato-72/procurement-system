@@ -133,6 +133,36 @@
             return match ? parseInt(match[1]) : 0;
         }
 
+        // 製品名から種別を自動判定
+        function detectCategory(productName) {
+            const name = (productName || '').toLowerCase();
+            
+            if (name.includes('video wall') || name.includes('videowall') || name.includes('ビデオウォール')) {
+                return 'Video Wall';
+            }
+            if (name.includes('touch') || name.includes('タッチ')) {
+                return 'タッチディスプレイ';
+            }
+            if (name.includes('outdoor') || name.includes('屋外') || name.includes('自立')) {
+                return '屋外サイネージ';
+            }
+            if (name.includes('led') || name.includes('エルイーディー')) {
+                return 'LEDビジョン';
+            }
+            if (name.includes('stb') || name.includes('player') || name.includes('プレイヤー')) {
+                return 'STB';
+            }
+            if (name.includes('display') || name.includes('monitor') || name.includes('ディスプレイ') || name.includes('モニター') || name.includes('インチ')) {
+                return 'ディスプレイ';
+            }
+            if (name.includes('stand') || name.includes('スタンド') || name.includes('什器')) {
+                return 'スタンド・什器';
+            }
+            
+            // デフォルト
+            return 'その他';
+        }
+
         function gapiLoaded() {
             gapi.load('client', initializeGapiClient);
         }
@@ -2270,25 +2300,40 @@
                     const workingDays = invoiceData.workingDays || 20;
                     const today = new Date();
                     const pickupDate = addWorkingDays(today, workingDays);
+                    const todayStr = today.toISOString().split('T')[0];
+                    
+                    // 製品名から種別を判定
+                    const productName = invoiceData.productName || file.name.split('_').slice(4).join('_').replace('.pdf', '');
+                    const category = detectCategory(productName);
+                    
+                    // Serial生成
+                    const quantity = invoiceData.quantity || 1;
+                    const serial = generateSerial(quantity);
                     
                     // 案件登録（新形式：projectPrefix + projectNumber）
+                    const projectNumberFull = `${parsed.prefix}-${parsed.number}`;
                     projects.push({
                         id: Date.now() + Math.random(),
                         projectPrefix: parsed.prefix,
                         projectNumber: parsed.number,
                         supplierId: supplier?.id || null,
-                        productName: invoiceData.productName || file.name.split('_').slice(4).join('_').replace('.pdf', ''),
+                        productName: productName,
                         totalAmount: totalAmount,
                         depositSchedule: depositSchedule,
-                        serial: generateSerial(invoiceData.quantity || 1),
-                        quantity: invoiceData.quantity || 1,
+                        serial: serial,
+                        quantity: quantity,
                         workingDays: workingDays,
                         pickupDate: pickupDate.toISOString().split('T')[0],
-                        registeredDate: today.toISOString().split('T')[0],
+                        registeredDate: todayStr,
                         expenses: [],
                         invoiceNo: invoiceData.invoiceNo || '',
                         sourceFile: file.name
                     });
+                    
+                    // 在庫シートにも追加
+                    if (category) {
+                        await addToInventory(serial, category, productName, projectNumberFull, todayStr, quantity);
+                    }
                     
                     successCount++;
                 } catch (error) {
