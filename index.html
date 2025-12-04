@@ -1323,32 +1323,62 @@
         function editProjectDetails(projectId) {
             const project = projects.find(p => p.id === projectId);
             if (!project) return;
+            const supplier = suppliers.find(s => s.id === project.supplierId);
             
             const modal = document.createElement('div');
             modal.id = 'editProjectModal';
             modal.innerHTML = `
-                <div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;">
-                    <div style="background:white;padding:24px;border-radius:12px;width:400px;max-width:90%;">
-                        <h3 style="font-size:18px;font-weight:bold;margin-bottom:16px;">案件詳細編集 - ${project.projectNumber}</h3>
-                        <div style="margin-bottom:12px;">
-                            <label style="display:block;font-size:14px;margin-bottom:4px;">Serial</label>
-                            <input type="text" id="editSerial" value="${project.serial || ''}" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                        <h3 class="text-xl font-bold mb-4 dark:text-white">✏️ 案件編集 - ${project.projectNumber}</h3>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="col-span-2">
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">案件番号</label>
+                                <input type="text" id="editProjectNumber" value="${project.projectNumber || ''}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">製品名</label>
+                                <input type="text" id="editProductName" value="${project.productName || ''}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">サプライヤー</label>
+                                <select id="editSupplierId" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                    <option value="">-- 選択 --</option>
+                                    ${suppliers.map(s => `<option value="${s.id}" ${s.id === project.supplierId ? 'selected' : ''}>${s.name}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">総額 (USD)</label>
+                                <input type="number" id="editTotalAmount" value="${project.totalAmount || 0}" step="0.01" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">数量</label>
+                                <input type="number" id="editQuantity" value="${project.quantity || 1}" min="1" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">Serial</label>
+                                <input type="text" id="editSerial" value="${project.serial || ''}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">発注日</label>
+                                <input type="date" id="editRegisteredDate" value="${project.registeredDate || ''}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">Working Days</label>
+                                <input type="number" id="editWorkingDays" value="${project.workingDays || 30}" min="1" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">集荷予定日</label>
+                                <input type="date" id="editPickupDate" value="${project.pickupDate || ''}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                            </div>
                         </div>
-                        <div style="margin-bottom:12px;">
-                            <label style="display:block;font-size:14px;margin-bottom:4px;">数量（枝番用）</label>
-                            <input type="number" id="editQuantity" value="${project.quantity || 1}" min="1" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
-                        </div>
-                        <div style="margin-bottom:12px;">
-                            <label style="display:block;font-size:14px;margin-bottom:4px;">Working Days</label>
-                            <input type="number" id="editWorkingDays" value="${project.workingDays || 30}" min="1" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
-                        </div>
-                        <div style="margin-bottom:16px;">
-                            <label style="display:block;font-size:14px;margin-bottom:4px;">集荷予定日</label>
-                            <input type="date" id="editPickupDate" value="${project.pickupDate || ''}" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
-                        </div>
-                        <div style="display:flex;gap:8px;justify-content:flex-end;">
-                            <button onclick="closeEditProjectModal()" style="padding:8px 16px;border:1px solid #ccc;border-radius:6px;background:white;cursor:pointer;">キャンセル</button>
-                            <button onclick="submitEditProject(${projectId})" style="padding:8px 16px;border:none;border-radius:6px;background:#2563eb;color:white;cursor:pointer;">保存</button>
+                        
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-4">※ Serial変更時は在庫シートも自動更新されます</p>
+                        
+                        <div class="flex gap-3 mt-6">
+                            <button onclick="closeEditProjectModal()" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
+                            <button onclick="submitEditProject(${projectId})" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">保存</button>
                         </div>
                     </div>
                 </div>
@@ -1365,14 +1395,101 @@
             const project = projects.find(p => p.id === projectId);
             if (!project) return;
             
-            project.serial = document.getElementById('editSerial').value;
-            project.quantity = parseInt(document.getElementById('editQuantity').value) || 1;
+            const oldSerial = project.serial;
+            const oldProjectNumber = project.projectNumber;
+            
+            // 全フィールド更新
+            const newProjectNumber = document.getElementById('editProjectNumber').value.trim();
+            const newSerial = document.getElementById('editSerial').value.trim();
+            const newQuantity = parseInt(document.getElementById('editQuantity').value) || 1;
+            const newTotalAmount = parseFloat(document.getElementById('editTotalAmount').value) || 0;
+            
+            project.projectNumber = newProjectNumber;
+            project.productName = document.getElementById('editProductName').value.trim();
+            project.supplierId = parseInt(document.getElementById('editSupplierId').value) || null;
+            project.totalAmount = newTotalAmount;
+            project.quantity = newQuantity;
+            project.serial = newSerial;
+            project.registeredDate = document.getElementById('editRegisteredDate').value;
             project.workingDays = parseInt(document.getElementById('editWorkingDays').value) || 30;
             project.pickupDate = document.getElementById('editPickupDate').value;
+            
+            // 総額変更時は支払スケジュールも再計算するか確認
+            const oldTotal = project.depositSchedule?.reduce((sum, d) => sum + (d.amountUSD || 0), 0) || 0;
+            if (Math.abs(oldTotal - newTotalAmount) > 0.01 && project.depositSchedule?.length > 0) {
+                const unpaidDeposits = project.depositSchedule.filter(d => !d.paid);
+                if (unpaidDeposits.length > 0 && confirm('総額が変更されました。未払いの支払スケジュールを再計算しますか？')) {
+                    project.depositSchedule.forEach(dep => {
+                        if (!dep.paid) {
+                            dep.amountUSD = Math.round(newTotalAmount * dep.percentage / 100 * 100) / 100;
+                        }
+                    });
+                }
+            }
             
             saveData();
             closeEditProjectModal();
             renderMain();
+            
+            // Serialまたは案件番号が変更された場合、在庫シートも更新
+            if (oldSerial !== newSerial || oldProjectNumber !== newProjectNumber) {
+                updateInventoryFromProject(oldProjectNumber, oldSerial, newProjectNumber, newSerial, newQuantity);
+            }
+        }
+
+        // 在庫シートの案件情報更新（Serial、案件番号）
+        async function updateInventoryFromProject(oldProjectNumber, oldSerial, newProjectNumber, newSerial, quantity) {
+            try {
+                showStatus('在庫シートを更新中...');
+                
+                // 在庫データを取得
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '在庫!A2:N',
+                });
+                const rows = response.result.values || [];
+                
+                let updateCount = 0;
+                
+                rows.forEach((row, index) => {
+                    const itemProjectNumber = row[4] || ''; // 発注案件（E列）
+                    const itemSerial = row[1] || ''; // Serial（B列）
+                    
+                    // 旧案件番号に一致する場合
+                    if (itemProjectNumber === oldProjectNumber) {
+                        // 案件番号を更新
+                        row[4] = newProjectNumber;
+                        
+                        // Serialも変更されていれば更新
+                        if (oldSerial !== newSerial && itemSerial.startsWith(oldSerial.split('(')[0])) {
+                            const branchMatch = itemSerial.match(/\((\d+)\)$/);
+                            if (branchMatch) {
+                                row[1] = `${newSerial.split('(')[0]}(${branchMatch[1]})`;
+                            } else {
+                                row[1] = newSerial;
+                            }
+                        }
+                        updateCount++;
+                    }
+                });
+                
+                if (updateCount > 0) {
+                    await gapi.client.sheets.spreadsheets.values.update({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: '在庫!A2:N',
+                        valueInputOption: 'RAW',
+                        resource: { values: rows }
+                    });
+                    
+                    showStatus(`在庫シート ${updateCount}件を更新しました`);
+                    setTimeout(() => showStatus(''), 3000);
+                } else {
+                    showStatus('');
+                }
+            } catch (error) {
+                console.error('在庫シート更新エラー:', error);
+                showStatus('在庫シート更新エラー: ' + error.message);
+            }
         }
 
         // ==================== 新機能 ====================
