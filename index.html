@@ -268,11 +268,11 @@
 
                 const projectResponse = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: '案件!A2:L',
+                    range: '案件!A2:M',
                 });
                 const projectRows = projectResponse.result.values || [];
                 projects = projectRows.map(row => {
-                    // 後方互換: 古い形式(projectNumber)と新しい形式(prefix + number)の両方に対応
+                    // 新形式: ID, 接頭辞, 番号, サプライヤーID, 製品名, 総額USD, デポジット予定, Serial, 数量, WorkingDays, 集荷予定日, 発注日, 諸費用
                     let projectPrefix = row[1] || 'AD';
                     let projectNumber = parseInt(row[2]) || 0;
                     
@@ -288,27 +288,37 @@
                         projectPrefix = row[1].slice(0, -1).toUpperCase();
                     }
                     
+                    // 新形式かどうかを判定（row[3]がサプライヤーIDっぽいかどうか）
+                    const isNewFormat = row[3] && (row[3].length > 10 || !isNaN(parseInt(row[3])));
+                    
                     const data = {
                         id: parseInt(row[0] || Date.now()),
                         projectPrefix: projectPrefix,
                         projectNumber: projectNumber,
-                        supplierId: parseInt(row[3] || row[2] || 0),
-                        productName: row[4] || row[3] || '',
-                        totalAmount: parseFloat(row[5] || row[4] || 0),
+                        supplierId: parseInt(row[3] || 0),
+                        productName: row[4] || '',
+                        totalAmount: parseFloat(row[5] || 0),
                         depositSchedule: [],
-                        serial: row[7] || row[6] || '',
-                        quantity: parseInt(row[8] || row[7] || 1),
-                        workingDays: parseInt(row[9] || row[8] || 30),
-                        pickupDate: row[10] || row[9] || '',
+                        serial: (row[7] && row[7] !== '[]') ? row[7] : '',
+                        quantity: parseInt(row[8] || 1),
+                        workingDays: parseInt(row[9] || 30),
+                        pickupDate: (row[10] && row[10].includes('-')) ? row[10] : '',  // 日付形式のみ
                         registeredDate: row[11] || '',
                         expenses: []
                     };
                     
+                    // 諸費用をパース
+                    try {
+                        data.expenses = JSON.parse(row[12] || '[]');
+                    } catch (e) {
+                        data.expenses = [];
+                    }
+                    
                     const supplier = suppliers.find(s => s.id === data.supplierId);
-                    if (supplier) {
-                        try {
-                            data.depositSchedule = JSON.parse(row[6] || row[5] || '[]');
-                        } catch (e) {
+                    try {
+                        data.depositSchedule = JSON.parse(row[6] || '[]');
+                    } catch (e) {
+                        if (supplier) {
                             data.depositSchedule = supplier.depositRates.map((rate, idx) => ({
                                 depositNumber: idx + 1,
                                 percentage: rate,
