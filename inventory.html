@@ -78,7 +78,7 @@
         ];
 
         // ステータスリスト
-        const STATUSES = ['入庫待ち', '在庫中', '出庫済', '不具合'];
+        const STATUSES = ['入庫待ち', '在庫中', '発送済', '引渡済', '不具合'];
 
         // 保管場所リスト
         const LOCATIONS = ['蓮田', '東京', '大阪'];
@@ -670,7 +670,8 @@
                 waiting: inventory.filter(i => i.status === '入庫待ち').length,
                 inStock: inStockItems.length,
                 inStockValue: inStockValue,
-                shipped: inventory.filter(i => i.status === '出庫済').length,
+                shipped: inventory.filter(i => i.status === '発送済' || i.status === '出庫済').length,
+                handedOver: inventory.filter(i => i.status === '引渡済').length,
                 issue: inventory.filter(i => i.status === '不具合').length,
                 noShelf: noShelfCount,
                 tokyo: tokyoCount,
@@ -683,9 +684,31 @@
                 case '入庫待ち': return 'bg-amber-100 text-amber-700';
                 case '在庫中': return 'bg-emerald-100 text-emerald-700';
                 case '出庫済': return 'bg-blue-100 text-blue-700';
+                case '発送済': return 'bg-blue-100 text-blue-700';
+                case '引渡済': return 'bg-indigo-100 text-indigo-700';
                 case '不具合': return 'bg-red-100 text-red-700';
                 default: return 'bg-slate-100 text-slate-700';
             }
+        }
+
+        // 追跡リンク生成
+        function getTrackingLink(carrier, trackingNo) {
+            if (!trackingNo) return '-';
+            let url = '';
+            switch(carrier) {
+                case 'ヤマト運輸':
+                    url = `https://jizen.kuronekoyamato.co.jp/jizen/servlet/crjz.b.NQ0010?id=${trackingNo}`;
+                    break;
+                case '佐川急便':
+                    url = `https://k2k.sagawa-exp.co.jp/p/web/okurijosearch.do?okurijoNo=${trackingNo}`;
+                    break;
+                case '西濃運輸':
+                    url = `https://track.seino.co.jp/kamotsu/GempyoNoShoworiBin.do?gnpNo1=${trackingNo}`;
+                    break;
+                default:
+                    return trackingNo;
+            }
+            return `<a href="${url}" target="_blank" class="text-blue-600 hover:underline">${trackingNo} 🔗</a>`;
         }
 
         function renderMain() {
@@ -1739,6 +1762,9 @@
         }
 
         // 出庫モーダル
+        // 配送業者リスト
+        const CARRIERS = ['西濃運輸', 'ヤマト運輸', '佐川急便', 'チャーター便', 'その他'];
+
         function showShipModal(id) {
             const item = inventory.find(i => i.id === id);
             if (!item) return;
@@ -1748,23 +1774,65 @@
             modal.id = 'shipModal';
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-                        <h3 class="text-xl font-bold mb-4">出庫処理</h3>
-                        <p class="text-sm text-slate-600 mb-2">Serial: <span class="font-mono font-semibold">${item.serial}</span></p>
-                        <p class="text-sm text-slate-600 mb-4">${item.productName}</p>
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+                        <h3 class="text-xl font-bold mb-4 dark:text-white">出庫処理</h3>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-2">Serial: <span class="font-mono font-semibold">${item.serial}</span></p>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-4">${item.productName}</p>
+                        
                         <div class="space-y-4">
+                            <!-- 出庫方法 -->
                             <div>
-                                <label class="block text-sm font-semibold mb-1">出庫先案件番号 <span class="text-red-500">*</span></label>
-                                <input type="text" id="shipProject" class="w-full px-3 py-2 border rounded-lg" value="${item.orderProject || ''}" placeholder="AD-1700">
-                                <p class="text-xs text-slate-500 mt-1">発注案件と異なる場合は変更してください</p>
+                                <label class="block text-sm font-semibold mb-2 dark:text-slate-300">出庫方法</label>
+                                <div class="flex gap-4">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="shipMethod" value="delivery" checked onchange="toggleShipMethod()">
+                                        <span class="dark:text-white">📦 配送</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="shipMethod" value="pickup" onchange="toggleShipMethod()">
+                                        <span class="dark:text-white">🤝 引渡し</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 配送の場合 -->
+                            <div id="deliveryFields">
+                                <div class="mb-3">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">配送業者</label>
+                                    <select id="shipCarrier" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                        ${CARRIERS.map(c => `<option value="${c}">${c}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">送り状番号</label>
+                                    <input type="text" id="shipTrackingNo" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="追跡番号を入力">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">届け先</label>
+                                    <input type="text" id="shipDestination" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="会社名・担当者・住所など">
+                                </div>
+                            </div>
+
+                            <!-- 引渡しの場合 -->
+                            <div id="pickupFields" class="hidden">
+                                <div class="mb-3">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">引渡し先</label>
+                                    <input type="text" id="shipPickupTo" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="施工業者名など">
+                                </div>
+                            </div>
+
+                            <!-- 共通 -->
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">出庫先案件番号 <span class="text-red-500">*</span></label>
+                                <input type="text" id="shipProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.orderProject || ''}" placeholder="AD-1700">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold mb-1">出庫日</label>
-                                <input type="date" id="shipDate" class="w-full px-3 py-2 border rounded-lg" value="${today}">
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">出庫日</label>
+                                <input type="date" id="shipDate" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${today}">
                             </div>
                         </div>
                         <div class="flex gap-3 mt-6">
-                            <button onclick="closeModal('shipModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50">キャンセル</button>
+                            <button onclick="closeModal('shipModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
                             <button onclick="submitShip('${id}')" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">出庫</button>
                         </div>
                     </div>
@@ -1773,12 +1841,19 @@
             document.body.appendChild(modal);
         }
 
+        function toggleShipMethod() {
+            const method = document.querySelector('input[name="shipMethod"]:checked').value;
+            document.getElementById('deliveryFields').classList.toggle('hidden', method !== 'delivery');
+            document.getElementById('pickupFields').classList.toggle('hidden', method !== 'pickup');
+        }
+
         function submitShip(id) {
             const item = inventory.find(i => i.id === id);
             if (!item) return;
 
             const shipProject = document.getElementById('shipProject').value.trim();
             const shipDate = document.getElementById('shipDate').value;
+            const method = document.querySelector('input[name="shipMethod"]:checked').value;
 
             if (!shipProject) {
                 alert('出庫先案件番号を入力してください');
@@ -1787,7 +1862,17 @@
 
             item.shipProject = shipProject;
             item.shipDate = shipDate;
-            item.status = '出庫済';
+            item.shipMethod = method;
+
+            if (method === 'delivery') {
+                item.shipCarrier = document.getElementById('shipCarrier').value;
+                item.shipTrackingNo = document.getElementById('shipTrackingNo').value.trim();
+                item.shipDestination = document.getElementById('shipDestination').value.trim();
+                item.status = '発送済';
+            } else {
+                item.shipPickupTo = document.getElementById('shipPickupTo').value.trim();
+                item.status = '引渡済';
+            }
             
             saveData();
             closeModal('shipModal');
@@ -1854,15 +1939,35 @@
                                         <td class="py-2 text-slate-500 dark:text-slate-400">取得金（税込）</td>
                                         <td class="py-2 dark:text-white font-semibold">${item.costJPY ? '¥' + Number(item.costJPY).toLocaleString() : '-'}</td>
                                     </tr>
-                                    ${item.status === '出庫済' ? `
+                                    ${item.status === '発送済' || item.status === '引渡済' || item.status === '出庫済' ? `
                                     <tr class="border-b border-slate-200 dark:border-slate-600">
                                         <td class="py-2 text-slate-500 dark:text-slate-400">出庫日</td>
                                         <td class="py-2 dark:text-white">${item.shipDate || '-'}</td>
                                     </tr>
                                     <tr class="border-b border-slate-200 dark:border-slate-600">
-                                        <td class="py-2 text-slate-500 dark:text-slate-400">出庫先</td>
+                                        <td class="py-2 text-slate-500 dark:text-slate-400">出庫先案件</td>
                                         <td class="py-2 dark:text-white font-medium">${item.shipProject || '-'}</td>
                                     </tr>
+                                    ${item.shipMethod === 'delivery' ? `
+                                    <tr class="border-b border-slate-200 dark:border-slate-600">
+                                        <td class="py-2 text-slate-500 dark:text-slate-400">配送業者</td>
+                                        <td class="py-2 dark:text-white">${item.shipCarrier || '-'}</td>
+                                    </tr>
+                                    <tr class="border-b border-slate-200 dark:border-slate-600">
+                                        <td class="py-2 text-slate-500 dark:text-slate-400">送り状番号</td>
+                                        <td class="py-2 dark:text-white font-mono">${item.shipTrackingNo ? getTrackingLink(item.shipCarrier, item.shipTrackingNo) : '-'}</td>
+                                    </tr>
+                                    <tr class="border-b border-slate-200 dark:border-slate-600">
+                                        <td class="py-2 text-slate-500 dark:text-slate-400">届け先</td>
+                                        <td class="py-2 dark:text-white">${item.shipDestination || '-'}</td>
+                                    </tr>
+                                    ` : ''}
+                                    ${item.shipMethod === 'pickup' ? `
+                                    <tr class="border-b border-slate-200 dark:border-slate-600">
+                                        <td class="py-2 text-slate-500 dark:text-slate-400">引渡し先</td>
+                                        <td class="py-2 dark:text-white">${item.shipPickupTo || '-'}</td>
+                                    </tr>
+                                    ` : ''}
                                     ` : ''}
                                     ${item.note ? `
                                     <tr>
