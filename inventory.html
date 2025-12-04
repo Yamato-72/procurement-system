@@ -33,6 +33,7 @@
     <script>
         const CLIENT_ID = '47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
         const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';
+        const PRODUCT_MASTER_ID = '1YnEJ5LEYBwZJ2zDYnjUpkpjnB2naHFVAtPdzcv81nvI'; // 製品マスタ
         const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly';
         const PARENT_FOLDER_ID = '1EvObQiCJgxJCzd_kQJ1PNbOUMD5P-Zxp';
 
@@ -47,6 +48,7 @@
         let isDarkMode = localStorage.getItem('darkMode') === 'true'; // ダークモード状態
         let bulkSelectMode = false; // 一括選択モード
         let selectedItems = new Set(); // 選択されたアイテムID
+        let productMaster = []; // 製品マスタデータ
 
         // ダークモード初期化
         if (isDarkMode) {
@@ -301,6 +303,14 @@
                     await createArchiveSheet();
                 }
 
+                // 製品マスタを読み込み
+                try {
+                    await loadProductMaster();
+                } catch (e) {
+                    console.log('製品マスタ読み込みエラー:', e);
+                    productMaster = [];
+                }
+
                 lastUpdated = new Date();
                 showStatus('');
                 renderMain();
@@ -311,6 +321,87 @@
                 console.error('読み込みエラー:', err);
                 showStatus('エラー: ' + err.message);
             }
+        }
+
+        // 製品マスタ読み込み
+        async function loadProductMaster() {
+            const sheetNames = ['LCD', 'LED', 'LED_others', 'matrix-switcher', 'TVwall_controller', 'e-board', 'e-board_stand', 'OPS', 'dongle', 'player'];
+            productMaster = [];
+            
+            for (const sheetName of sheetNames) {
+                try {
+                    const response = await gapi.client.sheets.spreadsheets.values.get({
+                        spreadsheetId: PRODUCT_MASTER_ID,
+                        range: `${sheetName}!A1:BZ`,
+                    });
+                    const rows = response.result.values || [];
+                    if (rows.length < 2) continue;
+                    
+                    const headers = rows[0];
+                    const dataRows = rows.slice(1);
+                    
+                    // カラムインデックスを取得
+                    const colIndex = {};
+                    headers.forEach((h, i) => colIndex[h] = i);
+                    
+                    dataRows.forEach(row => {
+                        // is_active チェック（旧形式・新形式両対応）
+                        const isActive = row[colIndex['is_active']] || '';
+                        if (isActive !== 'TRUE') return;
+                        
+                        // type から category を決定（旧形式対応）
+                        const type = row[colIndex['type']] || '';
+                        // 新形式の category カラムがあればそれを使用、なければ type から変換
+                        let category = row[colIndex['category']] || '';
+                        if (!category) {
+                            if (type === 'ID') category = '屋内';
+                            else if (type === 'OD') category = '屋外';
+                            else if (type === 'MD') category = 'マルチディスプレイ';
+                            else category = sheetName;
+                        }
+                        
+                        // 新旧両方のカラム名に対応
+                        productMaster.push({
+                            id: row[colIndex['id']] || row[colIndex['ID']] || '',
+                            pn: row[colIndex['pn']] || row[colIndex['PN']] || '',
+                            pn_full: row[colIndex['pn_full']] || row[colIndex['PN2']] || '',
+                            type: type,
+                            category: category,
+                            supplier: row[colIndex['supplier']] || row[colIndex['suplier']] || '',
+                            inch: row[colIndex['inch']] || '',
+                            color: row[colIndex['color_body']] || '',
+                            resolution: row[colIndex['resolution']] || row[colIndex['resoltion']] || '',
+                            brightness: row[colIndex['brightness']] || '',
+                            touch: (row[colIndex['touch']] === 'TRUE' || row[colIndex['touch']] === true),
+                            sheetName: sheetName
+                        });
+                    });
+                } catch (e) {
+                    console.log(`${sheetName} シート読み込みスキップ:`, e.message);
+                }
+            }
+            console.log(`製品マスタ読み込み完了: ${productMaster.length}件`);
+        }
+
+        // 製品マスタから一意のPN一覧を取得（色違いを除く）
+        function getUniquePNList() {
+            const pnMap = new Map();
+            productMaster.forEach(p => {
+                if (!pnMap.has(p.pn)) {
+                    pnMap.set(p.pn, p);
+                }
+            });
+            return Array.from(pnMap.values());
+        }
+
+        // PNから製品情報を取得
+        function getProductByPN(pn) {
+            return productMaster.find(p => p.pn === pn);
+        }
+
+        // PNの色バリエーションを取得
+        function getColorVariants(pn) {
+            return productMaster.filter(p => p.pn === pn).map(p => p.color).filter(c => c);
         }
 
         async function createInventorySheet() {
@@ -1268,48 +1359,89 @@
         // 在庫追加モーダル
         function showAddInventoryModal() {
             const today = new Date().toISOString().split('T')[0];
+            const uniquePNs = getUniquePNList();
             const modal = document.createElement('div');
             modal.id = 'addModal';
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-                        <h3 class="text-xl font-bold mb-4">在庫追加</h3>
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+                        <h3 class="text-xl font-bold mb-4 dark:text-white">在庫追加</h3>
+                        
+                        <!-- 入力モード切替 -->
+                        <div class="flex gap-2 mb-4">
+                            <button onclick="setAddMode('master')" id="addModeMaster" class="flex-1 px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white">製品マスタから</button>
+                            <button onclick="setAddMode('manual')" id="addModeManual" class="flex-1 px-3 py-2 rounded-lg text-sm font-semibold bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-300">手動入力</button>
+                        </div>
+                        
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-semibold mb-1">Serial <span class="text-red-500">*</span></label>
-                                <input type="text" id="addSerial" class="w-full px-3 py-2 border rounded-lg" placeholder="YS0554-1">
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">Serial <span class="text-red-500">*</span></label>
+                                <input type="text" id="addSerial" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="YS0554-1">
+                            </div>
+                            
+                            <!-- 製品マスタモード -->
+                            <div id="masterModeFields">
+                                <div class="mb-4">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">型番（PN）<span class="text-red-500">*</span></label>
+                                    <select id="addPN" onchange="onPNSelect()" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                        <option value="">型番を選択...</option>
+                                        ${uniquePNs.map(p => `<option value="${p.pn}" data-category="${p.category}" data-inch="${p.inch}">${p.pn} (${p.inch}インチ / ${p.category})</option>`).join('')}
+                                    </select>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">製品マスタ: ${productMaster.length}件登録済み</p>
+                                </div>
+                                <div class="mb-4">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">色</label>
+                                    <select id="addColor" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                        <option value="">色を選択...</option>
+                                    </select>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                        <label class="block text-sm font-semibold mb-1 dark:text-slate-300">種別（自動）</label>
+                                        <input type="text" id="addCategoryDisplay" class="w-full px-3 py-2 border rounded-lg bg-slate-100 dark:bg-slate-600 dark:border-slate-500 dark:text-slate-300" readonly>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-semibold mb-1 dark:text-slate-300">インチ</label>
+                                        <input type="text" id="addInchDisplay" class="w-full px-3 py-2 border rounded-lg bg-slate-100 dark:bg-slate-600 dark:border-slate-500 dark:text-slate-300" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 手動入力モード -->
+                            <div id="manualModeFields" class="hidden">
+                                <div class="mb-4">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">種別 <span class="text-red-500">*</span></label>
+                                    <select id="addCategory" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                        <option value="">選択してください</option>
+                                        ${CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div class="mb-4">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">製品名 <span class="text-red-500">*</span></label>
+                                    <input type="text" id="addProductName" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="製品名を入力">
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">発注案件番号</label>
+                                <input type="text" id="addOrderProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="AD-1682">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold mb-1">種別 <span class="text-red-500">*</span></label>
-                                <select id="addCategory" class="w-full px-3 py-2 border rounded-lg">
-                                    <option value="">選択してください</option>
-                                    ${CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
-                                </select>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">発注日</label>
+                                <input type="date" id="addOrderDate" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${today}">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold mb-1">製品名 <span class="text-red-500">*</span></label>
-                                <input type="text" id="addProductName" class="w-full px-3 py-2 border rounded-lg" placeholder="製品名を入力">
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">数量（複数台の場合）</label>
+                                <input type="number" id="addQuantity" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="1" min="1">
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">複数の場合、Serial-1, Serial-2... と連番で追加されます</p>
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold mb-1">発注案件番号</label>
-                                <input type="text" id="addOrderProject" class="w-full px-3 py-2 border rounded-lg" placeholder="AD-1682">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold mb-1">発注日</label>
-                                <input type="date" id="addOrderDate" class="w-full px-3 py-2 border rounded-lg" value="${today}">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold mb-1">数量（複数台の場合）</label>
-                                <input type="number" id="addQuantity" class="w-full px-3 py-2 border rounded-lg" value="1" min="1">
-                                <p class="text-xs text-slate-500 mt-1">複数の場合、Serial-1, Serial-2... と連番で追加されます</p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold mb-1">備考</label>
-                                <textarea id="addNote" class="w-full px-3 py-2 border rounded-lg" rows="2"></textarea>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">備考</label>
+                                <textarea id="addNote" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" rows="2"></textarea>
                             </div>
                         </div>
                         <div class="flex gap-3 mt-6">
-                            <button onclick="closeModal('addModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50">キャンセル</button>
+                            <button onclick="closeModal('addModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
                             <button onclick="submitAddInventory()" class="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">追加</button>
                         </div>
                     </div>
@@ -1318,18 +1450,86 @@
             document.body.appendChild(modal);
         }
 
+        let addMode = 'master'; // 'master' or 'manual'
+        
+        function setAddMode(mode) {
+            addMode = mode;
+            const masterBtn = document.getElementById('addModeMaster');
+            const manualBtn = document.getElementById('addModeManual');
+            const masterFields = document.getElementById('masterModeFields');
+            const manualFields = document.getElementById('manualModeFields');
+            
+            if (mode === 'master') {
+                masterBtn.className = 'flex-1 px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white';
+                manualBtn.className = 'flex-1 px-3 py-2 rounded-lg text-sm font-semibold bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-300';
+                masterFields.classList.remove('hidden');
+                manualFields.classList.add('hidden');
+            } else {
+                masterBtn.className = 'flex-1 px-3 py-2 rounded-lg text-sm font-semibold bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-300';
+                manualBtn.className = 'flex-1 px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white';
+                masterFields.classList.add('hidden');
+                manualFields.classList.remove('hidden');
+            }
+        }
+
+        function onPNSelect() {
+            const pnSelect = document.getElementById('addPN');
+            const selectedPN = pnSelect.value;
+            const colorSelect = document.getElementById('addColor');
+            const categoryDisplay = document.getElementById('addCategoryDisplay');
+            const inchDisplay = document.getElementById('addInchDisplay');
+            
+            if (!selectedPN) {
+                colorSelect.innerHTML = '<option value="">色を選択...</option>';
+                categoryDisplay.value = '';
+                inchDisplay.value = '';
+                return;
+            }
+            
+            const product = getProductByPN(selectedPN);
+            const colors = getColorVariants(selectedPN);
+            
+            // 色選択肢を更新
+            colorSelect.innerHTML = '<option value="">色を選択...</option>' + 
+                colors.map(c => `<option value="${c}">${c}</option>`).join('');
+            
+            // 種別・インチを自動入力
+            if (product) {
+                categoryDisplay.value = product.category;
+                inchDisplay.value = product.inch ? product.inch + 'インチ' : '';
+            }
+        }
+
         function submitAddInventory() {
             const serial = document.getElementById('addSerial').value.trim();
-            const category = document.getElementById('addCategory').value;
-            const productName = document.getElementById('addProductName').value.trim();
             const orderProject = document.getElementById('addOrderProject').value.trim();
             const orderDate = document.getElementById('addOrderDate').value;
             const quantity = parseInt(document.getElementById('addQuantity').value) || 1;
             const note = document.getElementById('addNote').value.trim();
-
-            if (!serial || !category || !productName) {
-                alert('Serial、種別、製品名は必須です');
-                return;
+            
+            let category, productName;
+            
+            if (addMode === 'master') {
+                const pn = document.getElementById('addPN').value;
+                const color = document.getElementById('addColor').value;
+                
+                if (!serial || !pn) {
+                    alert('Serialと型番は必須です');
+                    return;
+                }
+                
+                const product = getProductByPN(pn);
+                category = product ? product.category : '';
+                // 製品名: PN + 色（あれば）+ インチ
+                productName = pn + (color ? ` ${color}` : '') + (product && product.inch ? ` ${product.inch}"` : '');
+            } else {
+                category = document.getElementById('addCategory').value;
+                productName = document.getElementById('addProductName').value.trim();
+                
+                if (!serial || !category || !productName) {
+                    alert('Serial、種別、製品名は必須です');
+                    return;
+                }
             }
 
             for (let i = 1; i <= quantity; i++) {
@@ -1346,7 +1546,9 @@
                     shipDate: '',
                     shipProject: '',
                     costJPY: '',
-                    note
+                    note,
+                    shelfNo: '',
+                    location: ''
                 });
             }
 
