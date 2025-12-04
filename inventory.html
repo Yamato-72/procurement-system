@@ -69,6 +69,7 @@
             '屋外LED',
             '屋内',
             '屋内LED',
+            'LEDコントローラー',
             'STUDIA',
             'マトリクス',
             'メディアプレーヤー',
@@ -327,7 +328,7 @@
 
         // 製品マスタ読み込み
         async function loadProductMaster() {
-            const sheetNames = ['LCD', 'LED', 'LED_others', 'matrix-switcher', 'TVwall_controller', 'e-board', 'e-board_stand', 'OPS', 'dongle', 'player'];
+            const sheetNames = ['LCD', 'LED', 'LED_others', 'matrix-switcher', 'TVwall_controller', 'STUDIA', 'e-board', 'e-board_stand', 'OPS', 'dongle', 'player'];
             productMaster = [];
             
             for (const sheetName of sheetNames) {
