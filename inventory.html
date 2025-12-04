@@ -429,7 +429,9 @@
                             electric: row[colIndex['electric']] || row[colIndex['electric_TF']] || '',
                             // 電源
                             power_max_w: row[colIndex['power_max_w']] || (row[colIndex['power_max_consumption']] || '').replace('W', '') || '',
-                            power_consumption: row[colIndex['power_consumption']] || ''
+                            power_consumption: row[colIndex['power_consumption']] || '',
+                            // ドキュメント
+                            doc_path: row[colIndex['doc_path']] || ''
                         });
                     });
                 } catch (e) {
@@ -2430,12 +2432,31 @@
             if (spec.power_consumption) rows.push(['消費電力', spec.power_consumption]);
             if (spec.warranty_term) rows.push(['保証期間', spec.warranty_term]);
             
-            if (rows.length === 0) {
+            // ドキュメントリンク生成
+            let docLinks = '';
+            if (spec.doc_path) {
+                const baseUrl = 'https://yamato-signage.com/wp-content/uploads/';
+                const datasheetUrl = `${baseUrl}${spec.doc_path}_datasheet.pdf`;
+                const drawingUrl = `${baseUrl}${spec.doc_path}_drawing.pdf`;
+                docLinks = `
+                    <div class="flex gap-2 mt-4">
+                        <a href="${datasheetUrl}" target="_blank" class="flex-1 px-3 py-2 bg-blue-600 text-white text-sm text-center rounded-lg hover:bg-blue-700">
+                            📄 カタログ
+                        </a>
+                        <a href="${drawingUrl}" target="_blank" class="flex-1 px-3 py-2 bg-emerald-600 text-white text-sm text-center rounded-lg hover:bg-emerald-700">
+                            📐 図面
+                        </a>
+                    </div>
+                `;
+            }
+            
+            if (rows.length === 0 && !spec.doc_path) {
                 return '<p class="text-slate-500 text-sm">スペック情報がありません</p>';
             }
             
             return `
                 <div class="bg-slate-50 dark:bg-slate-700 rounded-lg p-4">
+                    ${rows.length > 0 ? `
                     <table class="w-full text-sm">
                         ${rows.map(([label, value]) => `
                             <tr class="border-b border-slate-200 dark:border-slate-600 last:border-0">
@@ -2444,6 +2465,8 @@
                             </tr>
                         `).join('')}
                     </table>
+                    ` : ''}
+                    ${docLinks}
                 </div>
             `;
         }
