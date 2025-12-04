@@ -2203,9 +2203,25 @@
             
             let successCount = 0;
             let errorCount = 0;
+            let skippedCount = 0;
             
             for (const file of selectedFiles) {
                 try {
+                    // 案件番号を分解
+                    const parsed = parseProjectNumberString(file.projectNumber);
+                    
+                    // 重複チェック：同じ案件番号が既に存在するか
+                    const existingProject = projects.find(p => 
+                        (p.projectPrefix || 'AD') === parsed.prefix && 
+                        p.projectNumber === parsed.number
+                    );
+                    
+                    if (existingProject) {
+                        console.log(`スキップ: ${file.projectNumber} は既に登録済み`);
+                        skippedCount++;
+                        continue;
+                    }
+                    
                     // PDFをダウンロードして解析
                     const pdfData = await downloadDriveFile(file.id);
                     const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
@@ -2255,10 +2271,11 @@
                     const today = new Date();
                     const pickupDate = addWorkingDays(today, workingDays);
                     
-                    // 案件登録
+                    // 案件登録（新形式：projectPrefix + projectNumber）
                     projects.push({
                         id: Date.now() + Math.random(),
-                        projectNumber: file.projectNumber,
+                        projectPrefix: parsed.prefix,
+                        projectNumber: parsed.number,
                         supplierId: supplier?.id || null,
                         productName: invoiceData.productName || file.name.split('_').slice(4).join('_').replace('.pdf', ''),
                         totalAmount: totalAmount,
@@ -2284,7 +2301,10 @@
             closeModal('syncInvoiceModal');
             renderMain();
             
-            alert(`取込完了！\n新規案件登録: ${successCount}件\n${errorCount > 0 ? `エラー: ${errorCount}件` : ''}`);
+            let msg = `取込完了！\n新規案件登録: ${successCount}件`;
+            if (skippedCount > 0) msg += `\nスキップ（重複）: ${skippedCount}件`;
+            if (errorCount > 0) msg += `\nエラー: ${errorCount}件`;
+            alert(msg);
         }
 
         // インボイスPDFを解析（ZEMSOフォーマット対応）
