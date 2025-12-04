@@ -10,10 +10,13 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class'
         }
+        // PDF.js worker設定
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;900&display=swap');
@@ -588,8 +591,9 @@
                                             <span class="sm:hidden">🛠️</span>
                                         </button>
                                         <div id="toolsMenu" class="hidden absolute right-0 mt-2 w-52 bg-white dark:bg-slate-800 rounded-lg shadow-lg border dark:border-slate-700 z-50">
-                                            <button onclick="showSupplierSummary()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white rounded-t-lg">📊 サプライヤー別集計</button>
-                                            <button onclick="showExchangeSimulator()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">💱 為替シミュレーション</button>
+                                            <button onclick="showImportPermitModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white rounded-t-lg font-semibold text-orange-600 dark:text-orange-400">📄 輸入許可書読込</button>
+                                            <button onclick="showSupplierSummary()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📊 サプライヤー別集計</button>
+                                            <button onclick="showExchangeSimulator()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">💱 為替計算</button>
                                             <button onclick="exportCSV()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white rounded-b-lg">📥 CSV出力</button>
                                         </div>
                                     </div>
@@ -1770,6 +1774,340 @@
 
             project.expenses.splice(expenseIndex, 1);
             saveData();
+            renderMain();
+        }
+
+        // 8. 輸入許可書PDF読込
+        function showImportPermitModal() {
+            toggleToolsMenu();
+            
+            const modal = document.createElement('div');
+            modal.id = 'importPermitModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+                        <h3 class="text-xl font-bold mb-4 dark:text-white">📄 輸入許可書を読み込む</h3>
+                        
+                        <div id="importPermitUpload" class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center mb-4">
+                            <input type="file" id="permitPdfInput" accept=".pdf" class="hidden" onchange="handlePermitPdfUpload(event)">
+                            <label for="permitPdfInput" class="cursor-pointer">
+                                <div class="text-4xl mb-2">📄</div>
+                                <p class="text-slate-600 dark:text-slate-400">クリックしてPDFを選択</p>
+                                <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">または ドラッグ&ドロップ</p>
+                            </label>
+                        </div>
+                        
+                        <div id="importPermitResult" class="hidden">
+                            <div class="bg-slate-50 dark:bg-slate-700 rounded-lg p-4 mb-4">
+                                <p class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">📋 読み取り結果</p>
+                                <div class="grid grid-cols-2 gap-3 text-sm">
+                                    <div>
+                                        <span class="text-slate-500 dark:text-slate-400">許可日:</span>
+                                        <span id="permitDate" class="ml-2 font-semibold dark:text-white">-</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-500 dark:text-slate-400">仕入書番号:</span>
+                                        <span id="permitInvoiceNo" class="ml-2 font-mono text-xs dark:text-white">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 mb-4">
+                                <p class="text-sm font-semibold text-orange-700 dark:text-orange-400 mb-3">💰 諸費用</p>
+                                <div class="space-y-2" id="permitExpensesList">
+                                </div>
+                                <div class="flex justify-between items-center pt-3 mt-3 border-t border-orange-200 dark:border-orange-700">
+                                    <span class="font-semibold text-orange-700 dark:text-orange-400">合計</span>
+                                    <span id="permitTotal" class="font-bold text-lg text-orange-700 dark:text-orange-400">¥0</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="block text-sm font-semibold mb-2 dark:text-slate-300">対象案件を選択</label>
+                                <select id="permitTargetProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                    <option value="">-- 案件を選択 --</option>
+                                    ${projects.map(p => `<option value="${p.id}">${p.projectNumber} - ${p.productName}</option>`).join('')}
+                                </select>
+                                <p id="permitAutoMatch" class="text-xs text-emerald-600 dark:text-emerald-400 mt-1 hidden">✓ 仕入書番号から自動マッチしました</p>
+                            </div>
+                        </div>
+                        
+                        <div id="importPermitLoading" class="hidden text-center py-8">
+                            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-600 mx-auto mb-3"></div>
+                            <p class="text-slate-600 dark:text-slate-400">PDF解析中...</p>
+                        </div>
+                        
+                        <div class="flex gap-3">
+                            <button onclick="closeModal('importPermitModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
+                            <button id="permitSubmitBtn" onclick="submitPermitExpenses()" class="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed" disabled>諸費用に追加</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // ドラッグ&ドロップ設定
+            const uploadArea = document.getElementById('importPermitUpload');
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('border-orange-500', 'bg-orange-50');
+            });
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('border-orange-500', 'bg-orange-50');
+            });
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('border-orange-500', 'bg-orange-50');
+                const file = e.dataTransfer.files[0];
+                if (file && file.type === 'application/pdf') {
+                    processPermitPdf(file);
+                }
+            });
+        }
+
+        function handlePermitPdfUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                processPermitPdf(file);
+            }
+        }
+
+        // 解析結果を一時保存
+        let parsedPermitData = null;
+
+        async function processPermitPdf(file) {
+            document.getElementById('importPermitUpload').classList.add('hidden');
+            document.getElementById('importPermitLoading').classList.remove('hidden');
+            
+            try {
+                // ファイル名から案件番号を抽出
+                const projectNumberFromFile = extractProjectNumberFromFileName(file.name);
+                
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                
+                let fullText = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    fullText += pageText + '\n';
+                }
+                
+                // 解析
+                parsedPermitData = parseImportPermit(fullText);
+                parsedPermitData.projectNumberFromFile = projectNumberFromFile;
+                displayPermitResult(parsedPermitData);
+                
+            } catch (error) {
+                console.error('PDF解析エラー:', error);
+                alert('PDFの解析に失敗しました: ' + error.message);
+                document.getElementById('importPermitUpload').classList.remove('hidden');
+            }
+            
+            document.getElementById('importPermitLoading').classList.add('hidden');
+        }
+
+        // ファイル名から案件番号を抽出
+        // 例: "251015_輸入許可書_AD-1750.pdf" → "AD-1750"
+        function extractProjectNumberFromFileName(fileName) {
+            // AD-数字 または数字のみのパターンを探す
+            const patterns = [
+                /_(AD-\d+)/i,           // _AD-1750
+                /_(AS-\d+)/i,           // _AS-1234
+                /_(\d{4,})/,            // _1750 (4桁以上の数字)
+            ];
+            
+            for (const pattern of patterns) {
+                const match = fileName.match(pattern);
+                if (match) {
+                    return match[1].toUpperCase();
+                }
+            }
+            return null;
+        }
+
+        function parseImportPermit(text) {
+            const result = {
+                permitDate: null,
+                invoiceNo: null,
+                expenses: [],
+                freight: 0,
+                insurance: 0,
+                customsDuty: 0,
+                consumptionTax: 0,
+                localConsumptionTax: 0,
+                totalTax: 0
+            };
+            
+            // 許可日: "輸入許可日 2025/10/15" パターン
+            const permitDateMatch = text.match(/輸入許可日\s*(\d{4}\/\d{1,2}\/\d{1,2})/);
+            if (permitDateMatch) {
+                result.permitDate = permitDateMatch[1].replace(/\//g, '-');
+            }
+            
+            // 仕入書番号: "仕入書番号 B - OKV..." パターン
+            const invoiceMatch = text.match(/仕入書番号\s*[A-Z]?\s*[-－]?\s*([A-Z0-9]+)/i);
+            if (invoiceMatch) {
+                result.invoiceNo = invoiceMatch[1];
+            }
+            
+            // 運賃: "運賃 A JPY - 255,682" or "運賃 A JPY 255,682"
+            const freightMatch = text.match(/運賃\s*[A-Z]?\s*JPY\s*[-－]?\s*([\d,]+)/);
+            if (freightMatch) {
+                result.freight = parseInt(freightMatch[1].replace(/,/g, ''));
+            }
+            
+            // 保険: "保険 A JPY - 33,405"
+            const insuranceMatch = text.match(/保険\s*[A-Z]?\s*JPY\s*[-－]?\s*([\d,]+)/);
+            if (insuranceMatch) {
+                result.insurance = parseInt(insuranceMatch[1].replace(/,/g, ''));
+            }
+            
+            // 関税: "D 関税 ¥0" or "関税 ¥123,456"
+            const dutyMatch = text.match(/[D]?\s*関税\s*¥?([\d,]+)/);
+            if (dutyMatch) {
+                result.customsDuty = parseInt(dutyMatch[1].replace(/,/g, ''));
+            }
+            
+            // 消費税: "F 消費税 ¥916,000"
+            const consumptionMatch = text.match(/[F]?\s*消費税\s*¥?([\d,]+)/);
+            if (consumptionMatch) {
+                result.consumptionTax = parseInt(consumptionMatch[1].replace(/,/g, ''));
+            }
+            
+            // 地方消費税: "A 地方消費税 ¥258,300"
+            const localTaxMatch = text.match(/[A]?\s*地方消費税\s*¥?([\d,]+)/);
+            if (localTaxMatch) {
+                result.localConsumptionTax = parseInt(localTaxMatch[1].replace(/,/g, ''));
+            }
+            
+            // 納税額合計
+            const totalMatch = text.match(/納税額合計\s*¥?([\d,]+)/);
+            if (totalMatch) {
+                result.totalTax = parseInt(totalMatch[1].replace(/,/g, ''));
+            }
+            
+            // 諸費用リスト作成
+            if (result.freight > 0) {
+                result.expenses.push({ type: '国際運賃', amount: result.freight, checked: true });
+            }
+            if (result.insurance > 0) {
+                result.expenses.push({ type: '保険料', amount: result.insurance, checked: true });
+            }
+            if (result.customsDuty > 0) {
+                result.expenses.push({ type: '関税', amount: result.customsDuty, checked: true });
+            }
+            if (result.consumptionTax > 0) {
+                result.expenses.push({ type: '消費税', amount: result.consumptionTax, checked: true });
+            }
+            if (result.localConsumptionTax > 0) {
+                result.expenses.push({ type: '地方消費税', amount: result.localConsumptionTax, checked: true });
+            }
+            
+            return result;
+        }
+
+        function displayPermitResult(data) {
+            document.getElementById('importPermitResult').classList.remove('hidden');
+            
+            // 許可日
+            document.getElementById('permitDate').textContent = data.permitDate || '読取不可';
+            
+            // 仕入書番号
+            document.getElementById('permitInvoiceNo').textContent = data.invoiceNo || '読取不可';
+            
+            // 諸費用リスト
+            const listEl = document.getElementById('permitExpensesList');
+            listEl.innerHTML = data.expenses.map((exp, idx) => `
+                <div class="flex justify-between items-center p-2 bg-white dark:bg-slate-800 rounded border border-orange-200 dark:border-orange-700">
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="permitExp${idx}" ${exp.checked ? 'checked' : ''} onchange="updatePermitTotal()" class="rounded">
+                        <span class="text-sm dark:text-white">${exp.type}</span>
+                    </label>
+                    <span class="font-semibold text-orange-700 dark:text-orange-400">${formatJPY(exp.amount)}</span>
+                </div>
+            `).join('');
+            
+            updatePermitTotal();
+            
+            // ファイル名から案件を自動マッチング
+            const selectEl = document.getElementById('permitTargetProject');
+            const autoMatchEl = document.getElementById('permitAutoMatch');
+            
+            if (data.projectNumberFromFile) {
+                // 案件番号で検索
+                const matchedProject = projects.find(p => 
+                    p.projectNumber.toUpperCase() === data.projectNumberFromFile.toUpperCase() ||
+                    p.projectNumber.toUpperCase().includes(data.projectNumberFromFile.toUpperCase())
+                );
+                
+                if (matchedProject) {
+                    selectEl.value = matchedProject.id;
+                    autoMatchEl.textContent = `✓ ファイル名から「${data.projectNumberFromFile}」を自動検出しました`;
+                    autoMatchEl.classList.remove('hidden');
+                } else {
+                    autoMatchEl.textContent = `⚠️ 「${data.projectNumberFromFile}」に一致する案件が見つかりません`;
+                    autoMatchEl.classList.remove('hidden');
+                    autoMatchEl.classList.remove('text-emerald-600', 'dark:text-emerald-400');
+                    autoMatchEl.classList.add('text-amber-600', 'dark:text-amber-400');
+                }
+            }
+            
+            document.getElementById('permitSubmitBtn').disabled = false;
+        }
+
+        function updatePermitTotal() {
+            if (!parsedPermitData) return;
+            
+            let total = 0;
+            parsedPermitData.expenses.forEach((exp, idx) => {
+                const checkbox = document.getElementById(`permitExp${idx}`);
+                if (checkbox && checkbox.checked) {
+                    total += exp.amount;
+                }
+            });
+            
+            document.getElementById('permitTotal').textContent = formatJPY(total);
+        }
+
+        function submitPermitExpenses() {
+            const projectId = document.getElementById('permitTargetProject').value;
+            if (!projectId) {
+                alert('対象案件を選択してください');
+                return;
+            }
+            
+            const project = projects.find(p => p.id === parseInt(projectId));
+            if (!project) return;
+            
+            if (!project.expenses) {
+                project.expenses = [];
+            }
+            
+            const permitDate = parsedPermitData.permitDate || new Date().toISOString().split('T')[0];
+            
+            // チェックされた諸費用を追加
+            parsedPermitData.expenses.forEach((exp, idx) => {
+                const checkbox = document.getElementById(`permitExp${idx}`);
+                if (checkbox && checkbox.checked) {
+                    project.expenses.push({
+                        id: Date.now() + idx,
+                        type: exp.type,
+                        amountJPY: exp.amount,
+                        payee: exp.type === '国際運賃' || exp.type === '保険料' ? 'フォワーダー' : '税関',
+                        paidDate: permitDate,
+                        note: '輸入許可書より自動取込'
+                    });
+                }
+            });
+            
+            saveData();
+            closeModal('importPermitModal');
+            renderMain();
+            
+            // 対象案件を展開
+            expandedProjects[project.id] = true;
             renderMain();
         }
 
