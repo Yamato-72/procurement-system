@@ -49,6 +49,12 @@
         let bulkSelectMode = false; // 一括選択モード
         let selectedItems = new Set(); // 選択されたアイテムID
         let productMaster = []; // 製品マスタデータ
+        
+        // 複数人利用対応
+        let autoReloadInterval = null;
+        let autoReloadEnabled = true;
+        const AUTO_RELOAD_SECONDS = 60; // 60秒間隔
+        let lastDataHash = ''; // データ変更検知用
 
         // ダークモード初期化
         if (isDarkMode) {
@@ -321,10 +327,92 @@
                 
                 // フォルダURLを非同期で読み込み
                 loadFolderUrls();
+                
+                // 自動リロード開始
+                startAutoReload();
             } catch (err) {
                 console.error('読み込みエラー:', err);
                 showStatus('エラー: ' + err.message);
             }
+        }
+
+        // 自動リロード機能
+        function startAutoReload() {
+            if (autoReloadInterval) {
+                clearInterval(autoReloadInterval);
+            }
+            if (autoReloadEnabled) {
+                autoReloadInterval = setInterval(async () => {
+                    await silentReload();
+                }, AUTO_RELOAD_SECONDS * 1000);
+            }
+        }
+
+        function stopAutoReload() {
+            if (autoReloadInterval) {
+                clearInterval(autoReloadInterval);
+                autoReloadInterval = null;
+            }
+        }
+
+        function toggleAutoReload() {
+            autoReloadEnabled = !autoReloadEnabled;
+            if (autoReloadEnabled) {
+                startAutoReload();
+            } else {
+                stopAutoReload();
+            }
+            renderMain();
+        }
+
+        // サイレントリロード（UIを更新せずにデータ取得、変更があれば通知）
+        async function silentReload() {
+            try {
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '在庫!A2:N',
+                });
+                const rows = response.result.values || [];
+                const newHash = JSON.stringify(rows);
+                
+                if (lastDataHash && newHash !== lastDataHash) {
+                    // データが変更された
+                    showSyncNotification();
+                    inventory = rows.map(row => ({
+                        id: row[0] || '',
+                        serial: row[1] || '',
+                        category: row[2] || '',
+                        productName: row[3] || '',
+                        orderProject: row[4] || '',
+                        orderDate: row[5] || '',
+                        receiveDate: row[6] || '',
+                        status: row[7] || '入庫待ち',
+                        shipDate: row[8] || '',
+                        shipProject: row[9] || '',
+                        costJPY: row[10] || '',
+                        note: row[11] || '',
+                        shelfNo: row[12] || '',
+                        location: row[13] || ''
+                    }));
+                    lastUpdated = new Date();
+                    renderMain();
+                }
+                lastDataHash = newHash;
+            } catch (err) {
+                console.log('自動同期エラー:', err);
+            }
+        }
+
+        // 同期通知を表示
+        function showSyncNotification() {
+            const notification = document.createElement('div');
+            notification.className = 'fixed top-4 right-4 bg-blue-600 text-white px-4 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 animate-pulse';
+            notification.innerHTML = `
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                <span>データが更新されました</span>
+            `;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 3000);
         }
 
         // 製品マスタ読み込み
@@ -530,6 +618,26 @@
             try {
                 showStatus('保存中...');
                 
+                // 保存前に最新データをチェック（競合検知）
+                try {
+                    const checkResponse = await gapi.client.sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: '在庫!A2:N',
+                    });
+                    const currentRows = checkResponse.result.values || [];
+                    const currentHash = JSON.stringify(currentRows);
+                    
+                    if (lastDataHash && currentHash !== lastDataHash) {
+                        const confirmOverwrite = confirm('他のユーザーによってデータが更新されています。\n\n上書きしますか？\n（キャンセルで最新データを取得します）');
+                        if (!confirmOverwrite) {
+                            await loadData();
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.log('競合チェックスキップ:', e);
+                }
+                
                 const inventoryData = [
                     ['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '入庫日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考', '棚番', '保管場所'],
                     ...inventory.map(item => [
@@ -583,6 +691,14 @@
                     valueInputOption: 'RAW',
                     resource: { values: archiveData }
                 });
+
+                // 保存後にハッシュを更新
+                lastDataHash = JSON.stringify(inventory.map(item => [
+                    item.id, item.serial, item.category, item.productName, item.orderProject,
+                    item.orderDate, item.receiveDate, item.status, item.shipDate, item.shipProject,
+                    item.costJPY, item.note, item.shelfNo, item.location
+                ]));
+                lastUpdated = new Date();
 
                 showStatus('保存完了');
                 setTimeout(() => showStatus(''), 2000);
@@ -783,10 +899,16 @@
                                 </div>
                             </div>
                             <div class="flex items-center justify-between mt-2 text-xs text-slate-500 dark:text-slate-400">
-                                <span>最終更新: ${lastUpdatedText}</span>
-                                <button onclick="loadData()" class="flex items-center gap-1 hover:text-emerald-600 dark:hover:text-emerald-400">
+                                <div class="flex items-center gap-3">
+                                    <span>最終更新: ${lastUpdatedText}</span>
+                                    <button onclick="toggleAutoReload()" class="flex items-center gap-1 px-2 py-0.5 rounded ${autoReloadEnabled ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}" title="${autoReloadEnabled ? '自動同期ON (60秒)' : '自動同期OFF'}">
+                                        <span class="${autoReloadEnabled ? 'animate-pulse' : ''}">🔄</span>
+                                        <span class="hidden sm:inline">${autoReloadEnabled ? '自動同期ON' : '自動同期OFF'}</span>
+                                    </button>
+                                </div>
+                                <button onclick="loadData()" class="flex items-center gap-1 px-2 py-1 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded hover:bg-emerald-200 dark:hover:bg-emerald-900/70">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                                    更新
+                                    今すぐ更新
                                 </button>
                             </div>
                         </div>
