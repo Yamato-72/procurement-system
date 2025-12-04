@@ -390,7 +390,8 @@
                 quantity: quantity,
                 workingDays: workingDays,
                 pickupDate: pickupDateStr,
-                registeredDate: todayStr
+                registeredDate: todayStr,
+                expenses: [] // 諸費用（国際送料、関税、消費税など）
             });
             saveData();
 
@@ -822,6 +823,68 @@
                                                         `).join('')}
                                                     </div>
                                                 </div>
+                                                
+                                                <!-- 諸費用セクション -->
+                                                <div class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 sm:p-4 mt-3">
+                                                    <div class="flex justify-between items-center mb-2 sm:mb-3">
+                                                        <p class="text-xs sm:text-sm font-semibold text-orange-700 dark:text-orange-400">📦 諸費用（国際送料・関税等）</p>
+                                                        <button onclick="event.stopPropagation();showAddExpenseModal(${p.id})" class="px-2 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700">+ 追加</button>
+                                                    </div>
+                                                    ${(p.expenses || []).length > 0 ? `
+                                                        <div class="space-y-2">
+                                                            ${(p.expenses || []).map((exp, idx) => `
+                                                                <div class="flex justify-between items-center p-2 bg-white dark:bg-slate-800 border border-orange-200 dark:border-orange-700 rounded">
+                                                                    <div class="flex-1">
+                                                                        <span class="font-semibold text-xs sm:text-sm text-slate-900 dark:text-white">${exp.type}</span>
+                                                                        <span class="text-xs text-slate-500 dark:text-slate-400 ml-2">${exp.payee || ''}</span>
+                                                                        <div class="text-xs text-slate-600 dark:text-slate-400 mt-0.5">${exp.paidDate || '未払'}</div>
+                                                                    </div>
+                                                                    <div class="text-right flex items-center gap-2">
+                                                                        <span class="font-bold text-sm text-orange-700 dark:text-orange-400">${formatJPY(exp.amountJPY)}</span>
+                                                                        <button onclick="event.stopPropagation();deleteExpense(${p.id}, ${idx})" class="p-1 text-slate-400 hover:text-red-600" title="削除">
+                                                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            `).join('')}
+                                                            <div class="flex justify-between items-center pt-2 border-t border-orange-200 dark:border-orange-700">
+                                                                <span class="text-xs font-semibold text-orange-700 dark:text-orange-400">諸費用合計</span>
+                                                                <span class="font-bold text-sm text-orange-700 dark:text-orange-400">${formatJPY((p.expenses || []).reduce((sum, e) => sum + (e.amountJPY || 0), 0))}</span>
+                                                            </div>
+                                                        </div>
+                                                    ` : `
+                                                        <p class="text-xs text-slate-500 dark:text-slate-400 text-center py-2">諸費用の登録はありません</p>
+                                                    `}
+                                                </div>
+                                                
+                                                <!-- 総原価サマリー -->
+                                                ${(() => {
+                                                    const depositTotal = (p.depositSchedule || []).filter(d => d.paid).reduce((sum, d) => sum + (d.amountJPY || 0), 0);
+                                                    const expenseTotal = (p.expenses || []).reduce((sum, e) => sum + (e.amountJPY || 0), 0);
+                                                    const grandTotal = depositTotal + expenseTotal;
+                                                    const qty = p.quantity || 1;
+                                                    const unitCost = qty > 0 ? Math.round(grandTotal / qty) : 0;
+                                                    return grandTotal > 0 ? `
+                                                        <div class="bg-slate-800 dark:bg-slate-900 rounded-lg p-3 sm:p-4 mt-3">
+                                                            <p class="text-xs text-slate-400 mb-2">総原価サマリー</p>
+                                                            <div class="grid grid-cols-2 gap-2 text-sm">
+                                                                <div>
+                                                                    <span class="text-slate-400">製品代金:</span>
+                                                                    <span class="text-white ml-2">${formatJPY(depositTotal)}</span>
+                                                                </div>
+                                                                <div>
+                                                                    <span class="text-slate-400">諸費用:</span>
+                                                                    <span class="text-orange-400 ml-2">${formatJPY(expenseTotal)}</span>
+                                                                </div>
+                                                                <div class="col-span-2 pt-2 border-t border-slate-700">
+                                                                    <span class="text-slate-300 font-semibold">総原価:</span>
+                                                                    <span class="text-emerald-400 font-bold text-lg ml-2">${formatJPY(grandTotal)}</span>
+                                                                    <span class="text-slate-400 text-xs ml-2">(単価: ${formatJPY(unitCost)})</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ` : '';
+                                                })()}
                                             </div>
                                         ` : ''}
                                     </div>`;
@@ -1610,6 +1673,102 @@
             }
             
             projects = projects.filter(p => p.id !== projectId);
+            saveData();
+            renderMain();
+        }
+
+        // 7. 諸費用管理
+        function showAddExpenseModal(projectId) {
+            const project = projects.find(p => p.id === projectId);
+            if (!project) return;
+
+            const modal = document.createElement('div');
+            modal.id = 'expenseModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4">
+                        <h3 class="text-xl font-bold mb-4 dark:text-white">📦 諸費用を追加</h3>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-4">案件: ${project.projectNumber}</p>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">費用種別 <span class="text-red-500">*</span></label>
+                                <select id="expenseType" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                    <option value="国際送料">国際送料</option>
+                                    <option value="関税">関税</option>
+                                    <option value="輸入消費税">輸入消費税</option>
+                                    <option value="通関手数料">通関手数料</option>
+                                    <option value="国内配送料">国内配送料</option>
+                                    <option value="その他">その他</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">金額（円） <span class="text-red-500">*</span></label>
+                                <input type="number" id="expenseAmount" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="45000" step="1">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">支払先</label>
+                                <input type="text" id="expensePayee" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="ABC物流、税関など">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">支払日</label>
+                                <input type="date" id="expensePaidDate" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${new Date().toISOString().split('T')[0]}">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">備考</label>
+                                <input type="text" id="expenseNote" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="任意">
+                            </div>
+                        </div>
+                        <div class="flex gap-3 mt-6">
+                            <button onclick="closeModal('expenseModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
+                            <button onclick="submitExpense(${projectId})" class="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">追加</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function submitExpense(projectId) {
+            const project = projects.find(p => p.id === projectId);
+            if (!project) return;
+
+            const type = document.getElementById('expenseType').value;
+            const amount = parseFloat(document.getElementById('expenseAmount').value);
+            const payee = document.getElementById('expensePayee').value.trim();
+            const paidDate = document.getElementById('expensePaidDate').value;
+            const note = document.getElementById('expenseNote').value.trim();
+
+            if (!amount || amount <= 0) {
+                alert('金額を入力してください');
+                return;
+            }
+
+            if (!project.expenses) {
+                project.expenses = [];
+            }
+
+            project.expenses.push({
+                id: Date.now(),
+                type: type,
+                amountJPY: amount,
+                payee: payee,
+                paidDate: paidDate,
+                note: note
+            });
+
+            saveData();
+            closeModal('expenseModal');
+            renderMain();
+        }
+
+        function deleteExpense(projectId, expenseIndex) {
+            const project = projects.find(p => p.id === projectId);
+            if (!project || !project.expenses) return;
+
+            const expense = project.expenses[expenseIndex];
+            if (!confirm(`「${expense.type}」(${formatJPY(expense.amountJPY)}) を削除しますか？`)) return;
+
+            project.expenses.splice(expenseIndex, 1);
             saveData();
             renderMain();
         }
