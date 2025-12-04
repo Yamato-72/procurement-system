@@ -2129,12 +2129,19 @@
                 // ファイル名から情報を抽出
                 invoiceFilesToProcess = files.map(file => {
                     const parsed = parseInvoiceFileName(file.name);
-                    const existingProject = parsed.projectNumber ? projects.find(p => 
-                        formatProjectNumber(p).toUpperCase() === parsed.projectNumber.toUpperCase()
-                    ) : null;
                     
-                    // すでにこのファイルから登録済みかチェック（sourceFileに記録）
-                    const alreadyRegistered = existingProject && existingProject.sourceFile === file.name;
+                    // 案件番号で既存チェック
+                    let existingProject = null;
+                    if (parsed.projectNumber) {
+                        const pn = parseProjectNumberString(parsed.projectNumber);
+                        existingProject = projects.find(p => 
+                            (p.projectPrefix || 'AD') === pn.prefix && 
+                            parseInt(p.projectNumber) === pn.number
+                        );
+                    }
+                    
+                    // 既に同じ案件番号が登録されていれば登録済みとする
+                    const alreadyRegistered = !!existingProject;
                     
                     return {
                         ...file,
@@ -2243,11 +2250,19 @@
                     // 重複チェック：同じ案件番号が既に存在するか
                     const existingProject = projects.find(p => 
                         (p.projectPrefix || 'AD') === parsed.prefix && 
-                        p.projectNumber === parsed.number
+                        parseInt(p.projectNumber) === parsed.number
                     );
                     
                     if (existingProject) {
                         console.log(`スキップ: ${file.projectNumber} は既に登録済み`);
+                        skippedCount++;
+                        continue;
+                    }
+                    
+                    // このファイルから既に登録済みかチェック（sourceFileで判定）
+                    const registeredFromFile = projects.find(p => p.sourceFile === file.name);
+                    if (registeredFromFile) {
+                        console.log(`スキップ: ${file.name} は既に取込済み`);
                         skippedCount++;
                         continue;
                     }
