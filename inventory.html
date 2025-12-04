@@ -1359,7 +1359,6 @@
         // 在庫追加モーダル
         function showAddInventoryModal() {
             const today = new Date().toISOString().split('T')[0];
-            const uniquePNs = getUniquePNList();
             const modal = document.createElement('div');
             modal.id = 'addModal';
             modal.innerHTML = `
@@ -1382,12 +1381,18 @@
                             <!-- 製品マスタモード -->
                             <div id="masterModeFields">
                                 <div class="mb-4">
-                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">型番（PN）<span class="text-red-500">*</span></label>
-                                    <select id="addPN" onchange="onPNSelect()" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                                        <option value="">型番を選択...</option>
-                                        ${uniquePNs.map(p => `<option value="${p.pn}" data-category="${p.category}" data-inch="${p.inch}">${p.pn} (${p.inch}インチ / ${p.category})</option>`).join('')}
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">種別 <span class="text-red-500">*</span></label>
+                                    <select id="addMasterCategory" onchange="onMasterCategorySelect()" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                        <option value="">種別を選択...</option>
+                                        ${getMasterCategories().map(c => `<option value="${c}">${c}</option>`).join('')}
                                     </select>
                                     <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">製品マスタ: ${productMaster.length}件登録済み</p>
+                                </div>
+                                <div class="mb-4">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">型番（PN）<span class="text-red-500">*</span></label>
+                                    <select id="addPN" onchange="onPNSelect()" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                        <option value="">まず種別を選択してください</option>
+                                    </select>
                                 </div>
                                 <div class="mb-4">
                                     <label class="block text-sm font-semibold mb-1 dark:text-slate-300">色</label>
@@ -1397,12 +1402,12 @@
                                 </div>
                                 <div class="grid grid-cols-2 gap-4 mb-4">
                                     <div>
-                                        <label class="block text-sm font-semibold mb-1 dark:text-slate-300">種別（自動）</label>
-                                        <input type="text" id="addCategoryDisplay" class="w-full px-3 py-2 border rounded-lg bg-slate-100 dark:bg-slate-600 dark:border-slate-500 dark:text-slate-300" readonly>
-                                    </div>
-                                    <div>
                                         <label class="block text-sm font-semibold mb-1 dark:text-slate-300">インチ</label>
                                         <input type="text" id="addInchDisplay" class="w-full px-3 py-2 border rounded-lg bg-slate-100 dark:bg-slate-600 dark:border-slate-500 dark:text-slate-300" readonly>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-semibold mb-1 dark:text-slate-300">解像度</label>
+                                        <input type="text" id="addResolutionDisplay" class="w-full px-3 py-2 border rounded-lg bg-slate-100 dark:bg-slate-600 dark:border-slate-500 dark:text-slate-300" readonly>
                                     </div>
                                 </div>
                             </div>
@@ -1476,13 +1481,13 @@
             const pnSelect = document.getElementById('addPN');
             const selectedPN = pnSelect.value;
             const colorSelect = document.getElementById('addColor');
-            const categoryDisplay = document.getElementById('addCategoryDisplay');
             const inchDisplay = document.getElementById('addInchDisplay');
+            const resolutionDisplay = document.getElementById('addResolutionDisplay');
             
             if (!selectedPN) {
                 colorSelect.innerHTML = '<option value="">色を選択...</option>';
-                categoryDisplay.value = '';
                 inchDisplay.value = '';
+                resolutionDisplay.value = '';
                 return;
             }
             
@@ -1493,11 +1498,53 @@
             colorSelect.innerHTML = '<option value="">色を選択...</option>' + 
                 colors.map(c => `<option value="${c}">${c}</option>`).join('');
             
-            // 種別・インチを自動入力
+            // インチ・解像度を自動入力
             if (product) {
-                categoryDisplay.value = product.category;
                 inchDisplay.value = product.inch ? product.inch + 'インチ' : '';
+                resolutionDisplay.value = product.resolution || '';
             }
+        }
+
+        // 製品マスタの種別一覧を取得
+        function getMasterCategories() {
+            const categories = new Set();
+            productMaster.forEach(p => {
+                if (p.category) categories.add(p.category);
+            });
+            return Array.from(categories).sort();
+        }
+
+        // 種別選択時の処理
+        function onMasterCategorySelect() {
+            const categorySelect = document.getElementById('addMasterCategory');
+            const selectedCategory = categorySelect.value;
+            const pnSelect = document.getElementById('addPN');
+            const colorSelect = document.getElementById('addColor');
+            const inchDisplay = document.getElementById('addInchDisplay');
+            const resolutionDisplay = document.getElementById('addResolutionDisplay');
+            
+            // リセット
+            colorSelect.innerHTML = '<option value="">色を選択...</option>';
+            inchDisplay.value = '';
+            resolutionDisplay.value = '';
+            
+            if (!selectedCategory) {
+                pnSelect.innerHTML = '<option value="">まず種別を選択してください</option>';
+                return;
+            }
+            
+            // 選択された種別の型番一覧を取得（重複除去）
+            const pnMap = new Map();
+            productMaster.filter(p => p.category === selectedCategory).forEach(p => {
+                if (!pnMap.has(p.pn)) {
+                    pnMap.set(p.pn, p);
+                }
+            });
+            const pns = Array.from(pnMap.values());
+            
+            // 型番ドロップダウンを更新
+            pnSelect.innerHTML = '<option value="">型番を選択...</option>' + 
+                pns.map(p => `<option value="${p.pn}">${p.pn}${p.inch ? ` (${p.inch}")` : ''}</option>`).join('');
         }
 
         function submitAddInventory() {
