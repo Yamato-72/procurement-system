@@ -1302,17 +1302,63 @@
             modal.id = 'bulkShipModal';
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-sm mx-4">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
                         <h3 class="text-lg font-bold mb-4 dark:text-white">一括出庫（${inStockItems.length}件）</h3>
-                        <div class="mb-4">
-                            <label class="block text-sm font-semibold mb-1 dark:text-slate-300">出庫先案件番号</label>
-                            <input type="text" id="bulkShipProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="AD-1700">
+                        
+                        <div class="space-y-4">
+                            <!-- 出庫方法 -->
+                            <div>
+                                <label class="block text-sm font-semibold mb-2 dark:text-slate-300">出庫方法</label>
+                                <div class="flex gap-4">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="bulkShipMethod" value="delivery" checked onchange="toggleBulkShipMethod()">
+                                        <span class="dark:text-white">📦 配送</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="bulkShipMethod" value="pickup" onchange="toggleBulkShipMethod()">
+                                        <span class="dark:text-white">🤝 引渡し</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 配送の場合 -->
+                            <div id="bulkDeliveryFields">
+                                <div class="mb-3">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">配送業者</label>
+                                    <select id="bulkShipCarrier" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                        ${CARRIERS.map(c => `<option value="${c}">${c}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">送り状番号</label>
+                                    <input type="text" id="bulkShipTrackingNo" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="追跡番号を入力">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">届け先</label>
+                                    <input type="text" id="bulkShipDestination" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="会社名・担当者・住所など">
+                                </div>
+                            </div>
+
+                            <!-- 引渡しの場合 -->
+                            <div id="bulkPickupFields" class="hidden">
+                                <div class="mb-3">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">引渡し先</label>
+                                    <input type="text" id="bulkShipPickupTo" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="施工業者名など">
+                                </div>
+                            </div>
+
+                            <!-- 共通 -->
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">出庫先案件番号 <span class="text-red-500">*</span></label>
+                                <input type="text" id="bulkShipProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="AD-1700">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">出庫日</label>
+                                <input type="date" id="bulkShipDate" value="${today}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                            </div>
                         </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-semibold mb-1 dark:text-slate-300">出庫日</label>
-                            <input type="date" id="bulkShipDate" value="${today}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                        </div>
-                        <div class="flex gap-2">
+                        
+                        <div class="flex gap-2 mt-6">
                             <button onclick="submitBulkShip()" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">出庫</button>
                             <button onclick="closeModal('bulkShipModal')" class="flex-1 px-4 py-2 bg-slate-300 dark:bg-slate-600 text-slate-700 dark:text-white rounded-lg hover:bg-slate-400">キャンセル</button>
                         </div>
@@ -1322,9 +1368,16 @@
             document.body.appendChild(modal);
         }
 
+        function toggleBulkShipMethod() {
+            const method = document.querySelector('input[name="bulkShipMethod"]:checked').value;
+            document.getElementById('bulkDeliveryFields').classList.toggle('hidden', method !== 'delivery');
+            document.getElementById('bulkPickupFields').classList.toggle('hidden', method !== 'pickup');
+        }
+
         function submitBulkShip() {
             const shipProject = document.getElementById('bulkShipProject').value.trim();
             const shipDate = document.getElementById('bulkShipDate').value;
+            const method = document.querySelector('input[name="bulkShipMethod"]:checked').value;
             
             if (!shipProject) {
                 alert('出庫先案件番号を入力してください');
@@ -1339,9 +1392,19 @@
             inStockItems.forEach(id => {
                 const item = inventory.find(i => i.id === id);
                 if (item) {
-                    item.status = '出庫済';
                     item.shipProject = shipProject;
                     item.shipDate = shipDate;
+                    item.shipMethod = method;
+
+                    if (method === 'delivery') {
+                        item.shipCarrier = document.getElementById('bulkShipCarrier').value;
+                        item.shipTrackingNo = document.getElementById('bulkShipTrackingNo').value.trim();
+                        item.shipDestination = document.getElementById('bulkShipDestination').value.trim();
+                        item.status = '発送済';
+                    } else {
+                        item.shipPickupTo = document.getElementById('bulkShipPickupTo').value.trim();
+                        item.status = '引渡済';
+                    }
                 }
             });
             
