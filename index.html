@@ -394,6 +394,11 @@
                     ['ID', 'サプライヤー名', 'デポジット回数', 'デポジット率'],
                     ...suppliers.map(s => [s.id, s.name, s.depositCount, JSON.stringify(s.depositRates)])
                 ];
+                // まずクリアしてから書き込み（削除された行も反映）
+                await gapi.client.sheets.spreadsheets.values.clear({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: 'サプライヤー!A:Z'
+                });
                 await gapi.client.sheets.spreadsheets.values.update({
                     spreadsheetId: SPREADSHEET_ID,
                     range: 'サプライヤー!A1',
@@ -419,6 +424,11 @@
                         JSON.stringify(p.expenses || [])
                     ])
                 ];
+                // まずクリアしてから書き込み（削除された行も反映）
+                await gapi.client.sheets.spreadsheets.values.clear({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '案件!A:Z'
+                });
                 await gapi.client.sheets.spreadsheets.values.update({
                     spreadsheetId: SPREADSHEET_ID,
                     range: '案件!A1',
