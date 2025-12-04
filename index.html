@@ -450,16 +450,19 @@
         // 在庫シートに追加する関数
         async function addToInventory(serial, category, productName, projectNumber, orderDate, quantity) {
             try {
+                // 案件番号を分解
+                const parsed = parseProjectNumberString(projectNumber);
+                
                 // 既存の在庫データを取得
                 let existingInventory = [];
                 try {
                     const response = await gapi.client.sheets.spreadsheets.values.get({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫!A2:L',
+                        range: '在庫!A2:P',
                     });
                     existingInventory = response.result.values || [];
                 } catch (e) {
-                    // シートがない場合は新規作成
+                    // シートがない場合は新規作成（新形式16列）
                     await gapi.client.sheets.spreadsheets.batchUpdate({
                         spreadsheetId: SPREADSHEET_ID,
                         resource: {
@@ -472,15 +475,15 @@
                     });
                     await gapi.client.sheets.spreadsheets.values.update({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫!A1:L1',
+                        range: '在庫!A1:P1',
                         valueInputOption: 'RAW',
                         resource: {
-                            values: [['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '取得日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考']]
+                            values: [['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所']]
                         }
                     });
                 }
 
-                // 追加するデータを作成
+                // 追加するデータを作成（新形式16列）
                 const baseSerial = serial.replace(/\(.*\)/, ''); // YS0554(1-4) → YS0554
                 const newRows = [];
                 
@@ -492,21 +495,25 @@
                         itemSerial,                        // Serial
                         category,                          // 種別
                         productName,                       // 製品名
-                        projectNumber,                     // 発注案件
+                        parsed.prefix,                     // 発注接頭辞
+                        padProjectNumber(parsed.number),   // 発注番号（4桁ゼロパディング）
                         orderDate,                         // 発注日
-                        '',                                // 取得日（入庫時に入力）
+                        '',                                // 入庫日
                         '入庫待ち',                        // ステータス
                         '',                                // 出庫日
-                        '',                                // 出庫先案件
+                        '',                                // 出庫接頭辞
+                        '',                                // 出庫番号
                         '',                                // 取得金
-                        ''                                 // 備考
+                        '',                                // 備考
+                        '',                                // 棚番
+                        ''                                 // 保管場所
                     ]);
                 }
 
                 // 在庫シートに追加
                 await gapi.client.sheets.spreadsheets.values.append({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫!A:L',
+                    range: '在庫!A:P',
                     valueInputOption: 'RAW',
                     insertDataOption: 'INSERT_ROWS',
                     resource: {
@@ -562,10 +569,15 @@
             if (el) el.textContent = msg;
         }
 
-        // 案件番号の表示用フォーマット（例: AD-1681）
+        // 案件番号の表示用フォーマット（例: AD-0001）4桁ゼロパディング
         function formatProjectNumber(project) {
             if (!project) return '';
-            return `${project.projectPrefix || 'AD'}-${project.projectNumber || 0}`;
+            const prefix = project.projectPrefix || 'AD';
+            const number = project.projectNumber || 0;
+            // 4桁以下は4桁ゼロパディング、5桁以上はそのまま
+            const numStr = String(number);
+            const paddedNum = numStr.length <= 4 ? numStr.padStart(4, '0') : numStr;
+            return `${prefix}-${paddedNum}`;
         }
 
         // 案件番号文字列からprefix/numberを分解
@@ -581,6 +593,12 @@
                 return { prefix: 'AD', number: parseInt(numMatch[1]) };
             }
             return { prefix: 'AD', number: 0 };
+        }
+
+        // 番号を4桁ゼロパディング（保存用）
+        function padProjectNumber(num) {
+            const numStr = String(num || 0);
+            return numStr.length <= 4 ? numStr.padStart(4, '0') : numStr;
         }
 
         function formatJPY(amount) {
@@ -1114,7 +1132,7 @@
             const categoryIndex = prompt(
                 `種別を選択してください（番号入力）:\n\n` +
                 categories.map((c, i) => `${i + 1}. ${c}`).join('\n') +
-                `\n\n案件: ${project.projectNumber}\n製品: ${project.productName}\n数量: ${project.quantity || 1}台`
+                `\n\n案件: ${formatProjectNumber(project)}\n製品: ${project.productName}\n数量: ${project.quantity || 1}台`
             );
             
             if (!categoryIndex) return;
@@ -1141,11 +1159,11 @@
                 try {
                     const response = await gapi.client.sheets.spreadsheets.values.get({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫!A2:L',
+                        range: '在庫!A2:P',
                     });
                     existingInventory = response.result.values || [];
                 } catch (e) {
-                    // シートがない場合は新規作成
+                    // シートがない場合は新規作成（新形式16列）
                     await gapi.client.sheets.spreadsheets.batchUpdate({
                         spreadsheetId: SPREADSHEET_ID,
                         resource: {
@@ -1158,10 +1176,10 @@
                     });
                     await gapi.client.sheets.spreadsheets.values.update({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫!A1:L1',
+                        range: '在庫!A1:P1',
                         valueInputOption: 'RAW',
                         resource: {
-                            values: [['ID', 'Serial', '種別', '製品名', '発注案件', '発注日', '取得日', 'ステータス', '出庫日', '出庫先案件', '取得金(税込)', '備考']]
+                            values: [['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所']]
                         }
                     });
                 }
@@ -1170,7 +1188,7 @@
                 const existingSerials = existingInventory.map(row => row[1]);
                 const baseSerial = serial.replace(/\(.*\)/, ''); // YS0554(1-4) → YS0554
                 
-                // 追加するデータを作成
+                // 追加するデータを作成（新形式16列）
                 const newRows = [];
                 const today = new Date().toISOString().split('T')[0];
                 
@@ -1187,14 +1205,18 @@
                         itemSerial,                        // Serial
                         category,                          // 種別
                         project.productName,               // 製品名
-                        project.projectNumber,             // 発注案件
+                        project.projectPrefix || 'AD',     // 発注接頭辞
+                        padProjectNumber(project.projectNumber), // 発注番号（4桁ゼロパディング）
                         today,                             // 発注日
-                        '',                                // 取得日（入庫時に入力）
+                        '',                                // 入庫日
                         '入庫待ち',                        // ステータス
                         '',                                // 出庫日
-                        '',                                // 出庫先案件
+                        '',                                // 出庫接頭辞
+                        '',                                // 出庫番号
                         '',                                // 取得金
-                        ''                                 // 備考
+                        '',                                // 備考
+                        '',                                // 棚番
+                        ''                                 // 保管場所
                     ]);
                 }
 
@@ -1207,7 +1229,7 @@
                 // 在庫シートに追加
                 await gapi.client.sheets.spreadsheets.values.append({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫!A:L',
+                    range: '在庫!A:P',
                     valueInputOption: 'RAW',
                     insertDataOption: 'INSERT_ROWS',
                     resource: {
@@ -1268,7 +1290,14 @@
                         <h3 style="font-size:18px;font-weight:bold;margin-bottom:16px;">新規案件登録</h3>
                         <div style="margin-bottom:12px;">
                             <label style="display:block;font-size:14px;margin-bottom:4px;">案件番号</label>
-                            <input type="text" id="modalProjectNumber" placeholder="例: AD-0001" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                            <div style="display:flex;gap:8px;">
+                                <select id="modalProjectPrefix" style="width:80px;padding:8px;border:1px solid #ccc;border-radius:6px;">
+                                    <option value="AD">AD</option>
+                                    <option value="SP">SP</option>
+                                </select>
+                                <input type="text" id="modalProjectNumber" placeholder="0001" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                            </div>
+                            <p style="font-size:12px;color:#666;margin-top:4px;">4桁の番号を入力（例: 0001）</p>
                         </div>
                         <div style="margin-bottom:12px;">
                             <label style="display:block;font-size:14px;margin-bottom:4px;">サプライヤー</label>
@@ -1325,7 +1354,8 @@
         }
 
         async function submitProjectForm() {
-            const projectNumber = document.getElementById('modalProjectNumber').value;
+            const projectPrefix = document.getElementById('modalProjectPrefix').value;
+            const projectNumber = document.getElementById('modalProjectNumber').value.trim();
             const supplierId = document.getElementById('modalSupplierId').value;
             const productName = document.getElementById('modalProductName').value;
             const totalAmount = document.getElementById('modalTotalAmount').value;
@@ -1343,8 +1373,11 @@
                 return;
             }
             
+            // 接頭辞と番号を結合して渡す
+            const projectNumberFull = `${projectPrefix}-${projectNumber}`;
+            
             showStatus('登録中...');
-            await addProject(projectNumber, supplierId, productName, totalAmount, quantity, workingDays, category);
+            await addProject(projectNumberFull, supplierId, productName, totalAmount, quantity, workingDays, category);
             closeProjectModal();
             showStatus('');
             renderMain();
@@ -1354,7 +1387,7 @@
         function generateInvoiceText(project) {
             const pickupDateDisplay = project.pickupDate ? project.pickupDate.replace(/-/g, '/') : '未設定';
             
-            let text = `PJ番号：${project.projectNumber}\n`;
+            let text = `PJ番号：${formatProjectNumber(project)}\n`;
             text += `Serial：${project.serial || ''}\n`;
             text += `集荷予定日：${pickupDateDisplay}\n\n`;
             
@@ -1514,23 +1547,31 @@
             try {
                 showStatus('在庫シートを更新中...');
                 
-                // 在庫データを取得
+                // 新しい案件番号を分解
+                const newParsed = parseProjectNumberString(newProjectNumber);
+                
+                // 在庫データを取得（新形式16列）
                 const response = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫!A2:N',
+                    range: '在庫!A2:P',
                 });
                 const rows = response.result.values || [];
                 
                 let updateCount = 0;
                 
                 rows.forEach((row, index) => {
-                    const itemProjectNumber = row[4] || ''; // 発注案件（E列）
+                    // 新形式: 接頭辞（E列）+ 番号（F列）を結合して比較
+                    const itemProjectNumber = formatProjectNumber({
+                        projectPrefix: row[4] || '',
+                        projectNumber: row[5] || ''
+                    });
                     const itemSerial = row[1] || ''; // Serial（B列）
                     
                     // 旧案件番号に一致する場合
                     if (itemProjectNumber === oldProjectNumber) {
-                        // 案件番号を更新
-                        row[4] = newProjectNumber;
+                        // 案件番号を更新（新形式：接頭辞・番号を別々に）
+                        row[4] = newParsed.prefix;
+                        row[5] = padProjectNumber(newParsed.number);
                         
                         // Serialも変更されていれば更新
                         if (oldSerial !== newSerial && itemSerial.startsWith(oldSerial.split('(')[0])) {
@@ -1548,7 +1589,7 @@
                 if (updateCount > 0) {
                     await gapi.client.sheets.spreadsheets.values.update({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫!A2:N',
+                        range: '在庫!A2:P',
                         valueInputOption: 'RAW',
                         resource: { values: rows }
                     });
@@ -1600,7 +1641,14 @@
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">新しい案件番号 <span class="text-red-500">*</span></label>
-                                <input type="text" id="templateProjectNumber" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="AD-1800">
+                                <div class="flex gap-2">
+                                    <select id="templateProjectPrefix" class="w-20 px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                        <option value="AD" ${(project.projectPrefix || 'AD') === 'AD' ? 'selected' : ''}>AD</option>
+                                        <option value="SP" ${project.projectPrefix === 'SP' ? 'selected' : ''}>SP</option>
+                                    </select>
+                                    <input type="text" id="templateProjectNumber" class="flex-1 px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="0001">
+                                </div>
+                                <p class="text-xs text-slate-500 mt-1">4桁の番号を入力</p>
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">製品名</label>
@@ -1629,6 +1677,7 @@
             const original = projects.find(p => p.id === originalProjectId);
             if (!original) return;
 
+            const projectPrefix = document.getElementById('templateProjectPrefix').value;
             const projectNumber = document.getElementById('templateProjectNumber').value.trim();
             const productName = document.getElementById('templateProductName').value.trim();
             const totalAmount = document.getElementById('templateTotalAmount').value;
@@ -1639,8 +1688,11 @@
                 return;
             }
 
+            // 接頭辞と番号を結合
+            const projectNumberFull = `${projectPrefix}-${projectNumber}`;
+
             // 元の案件と同じサプライヤー・Working Daysで新規作成
-            await addProject(projectNumber, original.supplierId, productName, totalAmount, quantity, original.workingDays || 30, null);
+            await addProject(projectNumberFull, original.supplierId, productName, totalAmount, quantity, original.workingDays || 30, null);
             
             closeModal('templateModal');
             renderMain();
@@ -1858,7 +1910,7 @@
             
             const hasPaidDeposits = (project.depositSchedule || []).some(d => d.paid);
             
-            let confirmMessage = `案件「${project.projectNumber}」を削除しますか？\n\n製品: ${project.productName}`;
+            let confirmMessage = `案件「${formatProjectNumber(project)}」を削除しますか？\n\n製品: ${project.productName}`;
             if (hasPaidDeposits) {
                 confirmMessage += '\n\n⚠️ この案件には支払い済みの記録があります。';
             }
@@ -1886,7 +1938,7 @@
                 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4">
                         <h3 class="text-xl font-bold mb-4 dark:text-white">📦 諸費用を追加</h3>
-                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-4">案件: ${project.projectNumber}</p>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-4">案件: ${formatProjectNumber(project)}</p>
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">費用種別 <span class="text-red-500">*</span></label>
