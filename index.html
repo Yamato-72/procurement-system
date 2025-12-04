@@ -38,6 +38,7 @@
         const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';
         const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly';
         const PARENT_FOLDER_ID = '1EvObQiCJgxJCzd_kQJ1PNbOUMD5P-Zxp';
+        const IMPORT_PERMIT_FOLDER_ID = '1YELi1u_fn1NiH09P_CONfBlUNQ_DtjwL'; // 輸入許可書フォルダ
 
         let tokenClient;
         let gapiInited = false;
@@ -50,6 +51,7 @@
         let expandedProjects = {}; // 案件カードの展開状態
         let lastUpdated = null; // 最終更新日時
         let isDarkMode = localStorage.getItem('darkMode') === 'true'; // ダークモード状態
+        let processedPermitFiles = []; // 処理済み輸入許可書ファイルID
         
         // フィルタ状態
         let projectFilter = {
@@ -591,7 +593,9 @@
                                             <span class="sm:hidden">🛠️</span>
                                         </button>
                                         <div id="toolsMenu" class="hidden absolute right-0 mt-2 w-52 bg-white dark:bg-slate-800 rounded-lg shadow-lg border dark:border-slate-700 z-50">
-                                            <button onclick="showImportPermitModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white rounded-t-lg font-semibold text-orange-600 dark:text-orange-400">📄 輸入許可書読込</button>
+                                            <button onclick="syncImportPermits()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white rounded-t-lg font-semibold text-orange-600 dark:text-orange-400">🔄 輸入許可書を同期</button>
+                                            <button onclick="showImportPermitModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white text-orange-600 dark:text-orange-400">📄 PDFを手動で読込</button>
+                                            <hr class="border-slate-200 dark:border-slate-700">
                                             <button onclick="showSupplierSummary()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📊 サプライヤー別集計</button>
                                             <button onclick="showExchangeSimulator()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">💱 為替計算</button>
                                             <button onclick="exportCSV()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white rounded-b-lg">📥 CSV出力</button>
@@ -1777,7 +1781,222 @@
             renderMain();
         }
 
-        // 8. 輸入許可書PDF読込
+        // 8. 輸入許可書ドライブ同期
+        async function syncImportPermits() {
+            toggleToolsMenu();
+            
+            const modal = document.createElement('div');
+            modal.id = 'syncPermitModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+                        <h3 class="text-xl font-bold mb-4 dark:text-white">🔄 輸入許可書フォルダを同期</h3>
+                        
+                        <div id="syncLoading" class="text-center py-8">
+                            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-600 mx-auto mb-3"></div>
+                            <p class="text-slate-600 dark:text-slate-400">ドライブをスキャン中...</p>
+                        </div>
+                        
+                        <div id="syncResult" class="hidden">
+                            <div id="syncFileList" class="space-y-2 mb-4 max-h-96 overflow-y-auto">
+                            </div>
+                            <div id="syncSummary" class="bg-slate-100 dark:bg-slate-700 rounded-lg p-4 mb-4">
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-3">
+                            <button onclick="closeModal('syncPermitModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">閉じる</button>
+                            <button id="syncProcessBtn" onclick="processSelectedPermits()" class="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 hidden">選択したファイルを取込</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // ドライブをスキャン
+            await scanPermitFolder();
+        }
+
+        let permitFilesToProcess = [];
+
+        async function scanPermitFolder() {
+            try {
+                const response = await gapi.client.drive.files.list({
+                    q: `'${IMPORT_PERMIT_FOLDER_ID}' in parents and mimeType = 'application/pdf' and trashed = false`,
+                    fields: 'files(id, name, createdTime, webViewLink)',
+                    orderBy: 'createdTime desc',
+                    pageSize: 50
+                });
+                
+                const files = response.result.files || [];
+                document.getElementById('syncLoading').classList.add('hidden');
+                document.getElementById('syncResult').classList.remove('hidden');
+                
+                if (files.length === 0) {
+                    document.getElementById('syncFileList').innerHTML = `
+                        <p class="text-center text-slate-500 dark:text-slate-400 py-4">PDFファイルが見つかりません</p>
+                    `;
+                    document.getElementById('syncSummary').innerHTML = `
+                        <p class="text-sm text-slate-600 dark:text-slate-400">
+                            📁 フォルダにPDFを追加してください<br>
+                            <span class="text-xs">ファイル名形式: <code class="bg-slate-200 dark:bg-slate-600 px-1 rounded">YYMMDD_輸入許可書_AD-XXXX.pdf</code></span>
+                        </p>
+                    `;
+                    return;
+                }
+                
+                // 処理済みかどうかをチェック
+                permitFilesToProcess = files.map(file => {
+                    const projectNumber = extractProjectNumberFromFileName(file.name);
+                    const matchedProject = projectNumber ? projects.find(p => 
+                        p.projectNumber.toUpperCase() === projectNumber.toUpperCase()
+                    ) : null;
+                    
+                    // すでに処理済みかチェック（案件の諸費用に同じファイル名の備考があるか）
+                    const alreadyProcessed = matchedProject && (matchedProject.expenses || []).some(e => 
+                        e.note && e.note.includes(file.name)
+                    );
+                    
+                    return {
+                        ...file,
+                        projectNumber,
+                        matchedProject,
+                        alreadyProcessed,
+                        selected: !alreadyProcessed && matchedProject
+                    };
+                });
+                
+                // ファイルリスト表示
+                const listEl = document.getElementById('syncFileList');
+                listEl.innerHTML = permitFilesToProcess.map((file, idx) => `
+                    <div class="flex items-center gap-3 p-3 rounded-lg border ${file.alreadyProcessed ? 'bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600' : file.matchedProject ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700'}">
+                        <input type="checkbox" id="syncFile${idx}" ${file.selected ? 'checked' : ''} ${file.alreadyProcessed ? 'disabled' : ''} class="rounded" onchange="updateSyncSummary()">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium dark:text-white truncate">${file.name}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">
+                                ${file.alreadyProcessed ? '✓ 取込済み' : file.matchedProject ? `→ ${file.matchedProject.projectNumber}` : '⚠️ 案件不明'}
+                            </p>
+                        </div>
+                        <a href="${file.webViewLink}" target="_blank" class="text-blue-600 hover:text-blue-800 text-xs">開く</a>
+                    </div>
+                `).join('');
+                
+                updateSyncSummary();
+                
+            } catch (error) {
+                console.error('ドライブスキャンエラー:', error);
+                document.getElementById('syncLoading').innerHTML = `
+                    <p class="text-red-600">エラー: ${error.message}</p>
+                `;
+            }
+        }
+
+        function updateSyncSummary() {
+            const selectedCount = permitFilesToProcess.filter((f, idx) => {
+                const cb = document.getElementById(`syncFile${idx}`);
+                return cb && cb.checked && !f.alreadyProcessed;
+            }).length;
+            
+            const processedCount = permitFilesToProcess.filter(f => f.alreadyProcessed).length;
+            const unmatchedCount = permitFilesToProcess.filter(f => !f.matchedProject && !f.alreadyProcessed).length;
+            
+            document.getElementById('syncSummary').innerHTML = `
+                <div class="flex flex-wrap gap-4 text-sm">
+                    <span class="text-slate-600 dark:text-slate-400">📄 全${permitFilesToProcess.length}件</span>
+                    <span class="text-emerald-600">✓ 取込済み ${processedCount}件</span>
+                    <span class="text-amber-600">⚠️ 案件不明 ${unmatchedCount}件</span>
+                    <span class="text-orange-600 font-semibold">選択中 ${selectedCount}件</span>
+                </div>
+            `;
+            
+            const btn = document.getElementById('syncProcessBtn');
+            if (selectedCount > 0) {
+                btn.classList.remove('hidden');
+                btn.textContent = `選択した ${selectedCount} 件を取込`;
+            } else {
+                btn.classList.add('hidden');
+            }
+        }
+
+        async function processSelectedPermits() {
+            const selectedFiles = permitFilesToProcess.filter((f, idx) => {
+                const cb = document.getElementById(`syncFile${idx}`);
+                return cb && cb.checked && !f.alreadyProcessed && f.matchedProject;
+            });
+            
+            if (selectedFiles.length === 0) return;
+            
+            document.getElementById('syncProcessBtn').disabled = true;
+            document.getElementById('syncProcessBtn').textContent = '処理中...';
+            
+            let successCount = 0;
+            let errorCount = 0;
+            
+            for (const file of selectedFiles) {
+                try {
+                    // PDFをダウンロードして解析
+                    const pdfData = await downloadDriveFile(file.id);
+                    const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+                    
+                    let fullText = '';
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const textContent = await page.getTextContent();
+                        const pageText = textContent.items.map(item => item.str).join(' ');
+                        fullText += pageText + '\n';
+                    }
+                    
+                    const parsedData = parseImportPermit(fullText);
+                    const project = file.matchedProject;
+                    
+                    if (!project.expenses) {
+                        project.expenses = [];
+                    }
+                    
+                    const permitDate = parsedData.permitDate || new Date().toISOString().split('T')[0];
+                    
+                    // 諸費用を追加
+                    parsedData.expenses.forEach((exp, idx) => {
+                        project.expenses.push({
+                            id: Date.now() + idx,
+                            type: exp.type,
+                            amountJPY: exp.amount,
+                            payee: exp.type === '国際運賃' || exp.type === '保険料' ? 'フォワーダー' : '税関',
+                            paidDate: permitDate,
+                            note: `${file.name} より自動取込`
+                        });
+                    });
+                    
+                    successCount++;
+                } catch (error) {
+                    console.error(`ファイル処理エラー: ${file.name}`, error);
+                    errorCount++;
+                }
+            }
+            
+            await saveData();
+            closeModal('syncPermitModal');
+            renderMain();
+            
+            alert(`取込完了！\n成功: ${successCount}件\n${errorCount > 0 ? `エラー: ${errorCount}件` : ''}`);
+        }
+
+        async function downloadDriveFile(fileId) {
+            const response = await gapi.client.drive.files.get({
+                fileId: fileId,
+                alt: 'media'
+            });
+            
+            // レスポンスをArrayBufferに変換
+            const text = response.body;
+            const bytes = new Uint8Array(text.length);
+            for (let i = 0; i < text.length; i++) {
+                bytes[i] = text.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        // 9. 手動PDF読込モーダル
         function showImportPermitModal() {
             toggleToolsMenu();
             
