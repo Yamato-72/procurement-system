@@ -46,7 +46,6 @@
         let showSupplierSection = false; // サプライヤー管理の折りたたみ状態
         let expandedProjects = {}; // 案件カードの展開状態
         let lastUpdated = null; // 最終更新日時
-        let lastUpdated = null; // 最終更新日時
         let isDarkMode = localStorage.getItem('darkMode') === 'true'; // ダークモード状態
 
         // ダークモード初期化
@@ -551,6 +550,16 @@
 
             const lastUpdatedText = lastUpdated ? lastUpdated.toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'}) : '-';
             
+            // アラート計算
+            const pendingPayments = projects.filter(p => (p.depositSchedule || []).some(d => !d.paid)).length;
+            const upcomingPickups = projects.filter(p => {
+                if (!p.pickupDate) return false;
+                const pickup = new Date(p.pickupDate);
+                const today = new Date();
+                const diff = (pickup - today) / (1000 * 60 * 60 * 24);
+                return diff >= 0 && diff <= 7;
+            }).length;
+            
             document.getElementById('app').innerHTML = `
                 <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
                     <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
@@ -584,31 +593,20 @@
                     </header>
                     <main class="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
                         <!-- アラート -->
-                        ${(() => {
-                            const pendingPayments = projects.filter(p => (p.depositSchedule || []).some(d => !d.paid)).length;
-                            const upcomingPickups = projects.filter(p => {
-                                if (!p.pickupDate) return false;
-                                const pickup = new Date(p.pickupDate);
-                                const today = new Date();
-                                const diff = (pickup - today) / (1000 * 60 * 60 * 24);
-                                return diff >= 0 && diff <= 7;
-                            }).length;
-                            if (pendingPayments === 0 && upcomingPickups === 0) return '';
-                            return `
-                                <div class="flex flex-wrap gap-2 mb-4">
-                                    ${pendingPayments > 0 ? `
-                                        <span class="flex items-center gap-1 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 text-xs sm:text-sm rounded-lg border border-amber-300 dark:border-amber-700">
-                                            💰 支払待ち ${pendingPayments}件
-                                        </span>
-                                    ` : ''}
-                                    ${upcomingPickups > 0 ? `
-                                        <span class="flex items-center gap-1 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs sm:text-sm rounded-lg border border-blue-300 dark:border-blue-700">
-                                            🚚 集荷予定（7日以内） ${upcomingPickups}件
-                                        </span>
-                                    ` : ''}
-                                </div>
-                            `;
-                        })()}
+                        ${(pendingPayments > 0 || upcomingPickups > 0) ? `
+                            <div class="flex flex-wrap gap-2 mb-4">
+                                ${pendingPayments > 0 ? `
+                                    <span class="flex items-center gap-1 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 text-xs sm:text-sm rounded-lg border border-amber-300 dark:border-amber-700">
+                                        💰 支払待ち ${pendingPayments}件
+                                    </span>
+                                ` : ''}
+                                ${upcomingPickups > 0 ? `
+                                    <span class="flex items-center gap-1 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs sm:text-sm rounded-lg border border-blue-300 dark:border-blue-700">
+                                        🚚 集荷予定（7日以内） ${upcomingPickups}件
+                                    </span>
+                                ` : ''}
+                            </div>
+                        ` : ''}
                         
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-6 mb-4 sm:mb-8">
                             <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm border dark:border-slate-700">
