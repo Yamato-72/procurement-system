@@ -1150,19 +1150,19 @@
                         <!-- クイックフィルタ -->
                         <div class="flex flex-wrap items-center gap-2 mb-3 sm:mb-4">
                             <span class="text-slate-400" title="ショートカット">⚡</span>
-                            <button onclick="quickFilter('multi')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.category === 'マルチディスプレイ' ? 'bg-purple-500 text-white' : 'bg-purple-50 text-purple-600 hover:bg-purple-100'}">
+                            <button onclick="quickFilter('multi')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.category === 'マルチディスプレイ' ? 'bg-slate-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'}">
                                 マルチ
                             </button>
-                            <button onclick="quickFilter('blackboard')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.category === 'STUDIA' ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
+                            <button onclick="quickFilter('blackboard')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.category === 'STUDIA' ? 'bg-slate-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'}">
                                 STUDIA
                             </button>
-                            <button onclick="quickFilter('outdoor')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.category === '屋外' ? 'bg-orange-500 text-white' : 'bg-orange-50 text-orange-600 hover:bg-orange-100'}">
+                            <button onclick="quickFilter('outdoor')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.category === '屋外' ? 'bg-slate-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'}">
                                 屋外
                             </button>
-                            <button onclick="quickFilter('tokyo')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.location === '東京' ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-600 hover:bg-rose-100'}">
+                            <button onclick="quickFilter('tokyo')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.location === '東京' ? 'bg-slate-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'}">
                                 東京
                             </button>
-                            <button onclick="quickFilter('osaka')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.location === '大阪' ? 'bg-teal-500 text-white' : 'bg-teal-50 text-teal-600 hover:bg-teal-100 dark:bg-teal-900/30 dark:text-teal-400'}">
+                            <button onclick="quickFilter('osaka')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.location === '大阪' ? 'bg-slate-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'}">
                                 大阪
                             </button>
                         </div>
@@ -1264,7 +1264,7 @@
                                             一覧
                                         </button>
                                     </div>
-                                    ${hasActiveFilters() ? '<span class="text-xs text-amber-600 dark:text-amber-400">フィルタ中は一覧表示</span>' : ''}
+                                    ${hasActiveFilters() ? '<span class="text-xs text-slate-400">フィルタ中</span>' : ''}
                                 </div>
                                 <button onclick="showArchiveModal()" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">アーカイブ</button>
                             </div>
@@ -1302,8 +1302,8 @@
                                                         <td class="px-3 py-2 text-xs dark:text-slate-300">${item.productName}</td>
                                                         <td class="px-3 py-2 text-center text-xs font-semibold text-purple-600 dark:text-purple-400">${item.shelfNo || '-'}</td>
                                                         <td class="px-3 py-2 text-center">
-                                                            ${item.location === '東京' ? '<span class="px-1.5 py-0.5 rounded text-xs font-semibold bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-300">東京</span>' : ''}
-                                                            ${item.location === '大阪' ? '<span class="px-1.5 py-0.5 rounded text-xs font-semibold bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-300">大阪</span>' : ''}
+                                                            ${item.location === '東京' ? '<span class="text-xs text-slate-500 dark:text-slate-400">東京</span>' : ''}
+                                                            ${item.location === '大阪' ? '<span class="text-xs text-slate-500 dark:text-slate-400">大阪</span>' : ''}
                                                             ${!item.location ? '-' : ''}
                                                         </td>
                                                         <td class="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">${item.receiveDate || '-'}</td>
@@ -1390,8 +1390,8 @@
                                                                         <td class="px-3 py-2 text-xs text-right font-semibold dark:text-white">${item.costJPY ? '¥' + Number(item.costJPY).toLocaleString() : '-'}</td>
                                                                         <td class="px-3 py-2">
                                                                             <span class="px-2 py-0.5 rounded text-xs font-semibold ${getStatusClass(item.status)}">${item.status}</span>
-                                                                            ${item.location === '東京' ? '<span class="ml-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-600">東京</span>' : ''}
-                                                                            ${item.location === '大阪' ? '<span class="ml-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-teal-100 text-teal-600">大阪</span>' : ''}
+                                                                            ${item.location === '東京' ? '<span class="ml-1 text-xs text-slate-500">東京</span>' : ''}
+                                                                            ${item.location === '大阪' ? '<span class="ml-1 text-xs text-slate-500">大阪</span>' : ''}
                                                                         </td>
                                                                         <td class="px-3 py-2 text-xs">${formatProjectNumber(item.shipPrefix, item.shipNumber) || '-'}</td>
                                                                         <td class="px-3 py-2 text-center" onclick="event.stopPropagation()">
@@ -1427,8 +1427,8 @@
                                                                     </div>
                                                                     <div class="flex items-center gap-1">
                                                                         ${item.shelfNo ? `<span class="px-1.5 py-0.5 rounded text-xs font-semibold bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">棚${item.shelfNo}</span>` : ''}
-                                                                        ${item.location === '東京' ? '<span class="px-1.5 py-0.5 rounded text-xs font-semibold bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-300">東京</span>' : ''}
-                                                                        ${item.location === '大阪' ? '<span class="px-1.5 py-0.5 rounded text-xs font-semibold bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-300">大阪</span>' : ''}
+                                                                        ${item.location === '東京' ? '<span class="text-xs text-slate-500 dark:text-slate-400">東京</span>' : ''}
+                                                                        ${item.location === '大阪' ? '<span class="text-xs text-slate-500 dark:text-slate-400">大阪</span>' : ''}
                                                                         <span class="px-2 py-0.5 rounded text-xs font-semibold ${getStatusClass(item.status)}">${item.status}</span>
                                                                     </div>
                                                                 </div>
