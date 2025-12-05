@@ -78,6 +78,14 @@
             return { prefix: '', number: '' };
         }
 
+        // ステータス正規化（後方互換：発送済・引渡済 → 出庫済）
+        function normalizeStatus(status) {
+            if (status === '発送済' || status === '引渡済') {
+                return '出庫済';
+            }
+            return status;
+        }
+
         // ダークモード初期化
         if (isDarkMode) {
             document.documentElement.classList.add('dark');
@@ -107,7 +115,7 @@
         ];
 
         // ステータスリスト
-        const STATUSES = ['入庫待ち', '在庫中', '発送済', '引渡済', '不具合'];
+        const STATUSES = ['入庫待ち', '在庫中', '出庫済', '不具合'];
 
         // 保管場所リスト
         const LOCATIONS = ['蓮田', '東京', '大阪'];
@@ -306,7 +314,7 @@
                                 orderNumber: orderNumber,
                                 orderDate: row[5] || '',
                                 receiveDate: row[6] || '',
-                                status: row[7] || '入庫待ち',
+                                status: normalizeStatus(row[7] || '入庫待ち'),
                                 shipDate: row[8] || '',
                                 shipPrefix: '',
                                 shipNumber: '',
@@ -327,7 +335,7 @@
                             orderNumber: row[5] || '',
                             orderDate: row[6] || '',
                             receiveDate: row[7] || '',
-                            status: row[8] || '入庫待ち',
+                            status: normalizeStatus(row[8] || '入庫待ち'),
                             shipDate: row[9] || '',
                             shipPrefix: row[10] || '',
                             shipNumber: row[11] || '',
@@ -363,7 +371,7 @@
                                 orderNumber: parsed.number,
                                 orderDate: row[5] || '',
                                 receiveDate: row[6] || '',
-                                status: row[7] || '',
+                                status: normalizeStatus(row[7] || ''),
                                 shipDate: row[8] || '',
                                 shipPrefix: '',
                                 shipNumber: '',
@@ -384,7 +392,7 @@
                             orderNumber: row[5] || '',
                             orderDate: row[6] || '',
                             receiveDate: row[7] || '',
-                            status: row[8] || '',
+                            status: normalizeStatus(row[8] || ''),
                             shipDate: row[9] || '',
                             shipPrefix: row[10] || '',
                             shipNumber: row[11] || '',
@@ -876,7 +884,7 @@
             });
 
             // ソート
-            const sortValue = currentFilters.sort || 'orderDate-desc';
+            const sortValue = currentFilters.sort || 'project-asc';
             const parts = sortValue.split('-');
             const sortKey = parts[0];
             const sortOrder = parts[1] || 'desc';
@@ -887,22 +895,31 @@
                     case 'orderDate':
                         valA = a.orderDate || '9999';
                         valB = b.orderDate || '9999';
-                        break;
+                        return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
                     case 'serial':
                         valA = a.serial || '';
                         valB = b.serial || '';
-                        break;
+                        return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
                     case 'project':
-                        valA = formatProjectNumber(a.orderPrefix, a.orderNumber);
-                        valB = formatProjectNumber(b.orderPrefix, b.orderNumber);
-                        break;
+                        // AD優先、次にSP、番号は数値順
+                        const prefixA = (a.orderPrefix || 'AD').toUpperCase();
+                        const prefixB = (b.orderPrefix || 'AD').toUpperCase();
+                        const numA = parseInt(a.orderNumber) || 0;
+                        const numB = parseInt(b.orderNumber) || 0;
+                        
+                        // まず接頭辞で比較（AD < SP）
+                        if (prefixA !== prefixB) {
+                            const prefixCompare = prefixA.localeCompare(prefixB);
+                            return sortOrder === 'asc' ? prefixCompare : -prefixCompare;
+                        }
+                        // 同じ接頭辞なら番号で比較
+                        const numCompare = numA - numB;
+                        return sortOrder === 'asc' ? numCompare : -numCompare;
                     default:
                         valA = a.orderDate || '9999';
                         valB = b.orderDate || '9999';
+                        return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
                 }
-                
-                let comparison = valA.localeCompare(valB);
-                return sortOrder === 'asc' ? comparison : -comparison;
             });
 
             return result;
@@ -938,8 +955,7 @@
                 waiting: inventory.filter(i => i.status === '入庫待ち').length,
                 inStock: inStockItems.length,
                 inStockValue: inStockValue,
-                shipped: inventory.filter(i => i.status === '発送済' || i.status === '出庫済').length,
-                handedOver: inventory.filter(i => i.status === '引渡済').length,
+                shipped: inventory.filter(i => i.status === '出庫済').length,
                 issue: inventory.filter(i => i.status === '不具合').length,
                 noShelf: noShelfCount,
                 tokyo: tokyoCount,
@@ -952,8 +968,6 @@
                 case '入庫待ち': return 'bg-amber-100 text-amber-700';
                 case '在庫中': return 'bg-emerald-100 text-emerald-700';
                 case '出庫済': return 'bg-blue-100 text-blue-700';
-                case '発送済': return 'bg-blue-100 text-blue-700';
-                case '引渡済': return 'bg-indigo-100 text-indigo-700';
                 case '不具合': return 'bg-red-100 text-red-700';
                 default: return 'bg-slate-100 text-slate-700';
             }
@@ -1123,10 +1137,10 @@
                                 <div class="w-1/3 sm:w-auto">
                                     <label class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 block mb-1">並び替え</label>
                                     <select id="filterSort" onchange="applyFilters()" class="w-full sm:w-auto px-2 sm:px-3 py-1.5 sm:py-2 text-sm border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg">
+                                        <option value="project-asc" ${!currentFilters.sort || currentFilters.sort === 'project-asc' ? 'selected' : ''}>案件順</option>
                                         <option value="orderDate-desc" ${currentFilters.sort === 'orderDate-desc' ? 'selected' : ''}>新しい順</option>
                                         <option value="orderDate-asc" ${currentFilters.sort === 'orderDate-asc' ? 'selected' : ''}>古い順</option>
                                         <option value="serial-asc" ${currentFilters.sort === 'serial-asc' ? 'selected' : ''}>Serial順</option>
-                                        <option value="project-asc" ${currentFilters.sort === 'project-asc' ? 'selected' : ''}>案件順</option>
                                     </select>
                                 </div>
                                 <button onclick="clearFilters()" class="px-3 py-1.5 sm:py-2 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-white text-sm rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500">クリア</button>
@@ -1682,10 +1696,10 @@
                         item.shipCarrier = document.getElementById('bulkShipCarrier').value;
                         item.shipTrackingNo = document.getElementById('bulkShipTrackingNo').value.trim();
                         item.shipDestination = document.getElementById('bulkShipDestination').value.trim();
-                        item.status = '発送済';
+                        item.status = '出庫済';
                     } else {
                         item.shipPickupTo = document.getElementById('bulkShipPickupTo').value.trim();
-                        item.status = '引渡済';
+                        item.status = '出庫済';
                     }
                 }
             });
@@ -2219,10 +2233,10 @@
                 item.shipCarrier = document.getElementById('shipCarrier').value;
                 item.shipTrackingNo = document.getElementById('shipTrackingNo').value.trim();
                 item.shipDestination = document.getElementById('shipDestination').value.trim();
-                item.status = '発送済';
+                item.status = '出庫済';
             } else {
                 item.shipPickupTo = document.getElementById('shipPickupTo').value.trim();
-                item.status = '引渡済';
+                item.status = '出庫済';
             }
             
             saveData();
@@ -2290,7 +2304,7 @@
                                         <td class="py-2 text-slate-500 dark:text-slate-400">取得金（税込）</td>
                                         <td class="py-2 dark:text-white font-semibold">${item.costJPY ? '¥' + Number(item.costJPY).toLocaleString() : '-'}</td>
                                     </tr>
-                                    ${item.status === '発送済' || item.status === '引渡済' || item.status === '出庫済' ? `
+                                    ${item.status === '出庫済' ? `
                                     <tr class="border-b border-slate-200 dark:border-slate-600">
                                         <td class="py-2 text-slate-500 dark:text-slate-400">出庫日</td>
                                         <td class="py-2 dark:text-white">${item.shipDate || '-'}</td>
