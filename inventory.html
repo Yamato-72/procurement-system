@@ -49,6 +49,8 @@
         let bulkSelectMode = false; // 一括選択モード
         let selectedItems = new Set(); // 選択されたアイテムID
         let productMaster = []; // 製品マスタデータ
+        let suppliers = []; // サプライヤーマスタ
+        let projects = []; // 案件データ（重複チェック用）
         
         // 複数人利用対応
         let autoReloadInterval = null;
@@ -349,6 +351,41 @@
                     console.log('在庫シートがないため新規作成します');
                     inventory = [];
                     await createInventorySheet();
+                }
+
+                // サプライヤーシートを読み込み（調達連携用）
+                try {
+                    const supplierResponse = await gapi.client.sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: 'サプライヤー!A2:D',
+                    });
+                    const supplierRows = supplierResponse.result.values || [];
+                    suppliers = supplierRows.map(row => ({
+                        id: parseInt(row[0] || Date.now()),
+                        name: row[1] || '',
+                        depositCount: parseInt(row[2] || 2),
+                        depositRates: JSON.parse(row[3] || '[50,50]')
+                    }));
+                } catch (e) {
+                    console.log('サプライヤーシートの読み込みに失敗しました', e);
+                    suppliers = [];
+                }
+
+                // 案件シートを読み込み（重複チェック用）
+                try {
+                    const projectResponse = await gapi.client.sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: '案件!A2:C',
+                    });
+                    const projectRows = projectResponse.result.values || [];
+                    projects = projectRows.map(row => ({
+                        id: row[0] || '',
+                        prefix: row[1] || 'AD',
+                        number: row[2] || ''
+                    }));
+                } catch (e) {
+                    console.log('案件シートの読み込みに失敗しました', e);
+                    projects = [];
                 }
 
                 // アーカイブシートを読み込み
@@ -1903,7 +1940,15 @@
                             
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">発注案件番号</label>
-                                <input type="text" id="addOrderProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="AD-1682">
+                                <input type="text" id="addOrderProject" oninput="onOrderProjectInput()" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="AD-1682">
+                                <p id="projectStatusMsg" class="text-xs mt-1 hidden"></p>
+                            </div>
+                            <div id="supplierSelectRow" class="hidden">
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">サプライヤー <span class="text-red-500">*</span></label>
+                                <select id="addSupplier" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                    <option value="">選択してください</option>
+                                    ${suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                                </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">発注日</label>
@@ -1948,6 +1993,43 @@
                 manualBtn.className = 'flex-1 px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white';
                 masterFields.classList.add('hidden');
                 manualFields.classList.remove('hidden');
+            }
+        }
+
+        // 既存案件かどうかをチェック
+        function findExistingProject(prefix, number) {
+            if (!number) return null;
+            return projects.find(p => 
+                p.prefix.toUpperCase() === prefix.toUpperCase() && 
+                String(p.number) === String(number)
+            );
+        }
+
+        // 案件番号入力時の処理
+        function onOrderProjectInput() {
+            const orderProject = document.getElementById('addOrderProject').value.trim();
+            const supplierRow = document.getElementById('supplierSelectRow');
+            const projectStatusMsg = document.getElementById('projectStatusMsg');
+            
+            const parsed = parseProjectNumberString(orderProject);
+            
+            if (parsed.number) {
+                const existing = findExistingProject(parsed.prefix, parsed.number);
+                
+                if (existing) {
+                    // 既存案件 → サプライヤー選択不要
+                    supplierRow.classList.add('hidden');
+                    projectStatusMsg.innerHTML = '<span class="text-emerald-600 dark:text-emerald-400">✓ 既存案件に追加します</span>';
+                    projectStatusMsg.classList.remove('hidden');
+                } else {
+                    // 新規案件 → サプライヤー選択必須
+                    supplierRow.classList.remove('hidden');
+                    projectStatusMsg.innerHTML = '<span class="text-amber-600 dark:text-amber-400">新規案件として調達管理に登録されます</span>';
+                    projectStatusMsg.classList.remove('hidden');
+                }
+            } else {
+                supplierRow.classList.add('hidden');
+                projectStatusMsg.classList.add('hidden');
             }
         }
 
@@ -2021,7 +2103,7 @@
                 pns.map(p => `<option value="${p.pn}">${p.pn}${p.inch ? ` (${p.inch}")` : ''}</option>`).join('');
         }
 
-        function submitAddInventory() {
+        async function submitAddInventory() {
             let serial = document.getElementById('addSerial').value.trim();
             const orderProjectInput = document.getElementById('addOrderProject').value.trim();
             const orderDate = document.getElementById('addOrderDate').value;
@@ -2029,6 +2111,20 @@
             const note = document.getElementById('addNote').value.trim();
             
             const parsedOrder = parseProjectNumberString(orderProjectInput);
+            
+            // 既存案件かどうかをチェック
+            const existingProject = parsedOrder.number ? findExistingProject(parsedOrder.prefix, parsedOrder.number) : null;
+            
+            // 新規案件の場合のみサプライヤー必須
+            let supplierId = null;
+            if (parsedOrder.number && !existingProject) {
+                const supplierSelect = document.getElementById('addSupplier');
+                supplierId = supplierSelect ? supplierSelect.value : '';
+                if (!supplierId) {
+                    alert('新規案件の場合はサプライヤーの選択が必須です');
+                    return;
+                }
+            }
             
             let category, productName;
             
@@ -2083,8 +2179,64 @@
             }
 
             saveData();
+            
+            // 新規案件の場合のみ調達シートにも追加
+            if (parsedOrder.number && supplierId && !existingProject) {
+                await addToProcurement(parsedOrder, supplierId, productName, serial, quantity, orderDate, category);
+            }
+            
             closeModal('addModal');
             renderMain();
+        }
+        
+        // 調達シートに案件を追加（未払い状態で登録）
+        async function addToProcurement(parsedOrder, supplierId, productName, serial, quantity, orderDate, category) {
+            try {
+                const supplier = suppliers.find(s => s.id === parseInt(supplierId));
+                const depositSchedule = supplier ? supplier.depositRates.map((rate, idx) => ({
+                    depositNumber: idx + 1,
+                    percentage: rate,
+                    amountUSD: 0, // 金額未定
+                    paid: false,
+                    paidDate: null,
+                    exchangeRate: null,
+                    amountJPY: null
+                })) : [];
+                
+                const serialDisplay = quantity > 1 ? `${serial}(1-${quantity})` : serial;
+                
+                // 案件シートに追加
+                const newRow = [
+                    Date.now().toString(),                    // ID
+                    parsedOrder.prefix || 'AD',               // 接頭辞
+                    parsedOrder.number,                       // 番号
+                    supplierId,                               // サプライヤーID
+                    productName,                              // 製品名
+                    0,                                        // 総額USD（未定）
+                    JSON.stringify(depositSchedule),          // デポジット予定
+                    serialDisplay,                            // Serial
+                    quantity,                                 // 数量
+                    30,                                       // WorkingDays（デフォルト）
+                    '',                                       // 集荷予定日（未定）
+                    orderDate,                                // 発注日
+                    '[]'                                      // 諸費用
+                ];
+                
+                await gapi.client.sheets.spreadsheets.values.append({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '案件!A:M',
+                    valueInputOption: 'RAW',
+                    insertDataOption: 'INSERT_ROWS',
+                    resource: {
+                        values: [newRow]
+                    }
+                });
+                
+                console.log('調達シートに案件を追加しました:', parsedOrder.prefix + '-' + parsedOrder.number);
+            } catch (e) {
+                console.error('調達シートへの追加に失敗しました:', e);
+                // エラーでも在庫追加は成功しているので続行
+            }
         }
 
         // 入庫モーダル

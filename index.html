@@ -36,7 +36,7 @@
     <script>
         const CLIENT_ID = '47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
         const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';
-        const INVENTORY_SPREADSHEET_ID = '1YnEJ5LEYBwZJ2zDYnjUpkpjnB2naHFVAtPdzcv81nvI'; // 在庫管理・製品マスタ
+        const PRODUCT_MASTER_ID = '1YnEJ5LEYBwZJ2zDYnjUpkpjnB2naHFVAtPdzcv81nvI'; // 製品マスタ
         const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly';
         const PARENT_FOLDER_ID = '1EvObQiCJgxJCzd_kQJ1PNbOUMD5P-Zxp';
         const IMPORT_PERMIT_FOLDER_ID = '1YELi1u_fn1NiH09P_CONfBlUNQ_DtjwL'; // 輸入許可書フォルダ
@@ -412,7 +412,7 @@
                 for (const sheet of PRODUCT_MASTER_SHEETS) {
                     try {
                         const response = await gapi.client.sheets.spreadsheets.values.get({
-                            spreadsheetId: INVENTORY_SPREADSHEET_ID,  // 製品マスタは在庫管理シートにある
+                            spreadsheetId: PRODUCT_MASTER_ID,  // 製品マスタ
                             range: `${sheet.name}!A1:Z`,
                         });
                         
