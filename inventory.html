@@ -32,7 +32,7 @@
 
     <script>
         const CLIENT_ID = '47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
-        const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';
+        const SPREADSHEET_ID = '1YnEJ5LEYBwZJ2zDYnjUpkpjnB2naHFVAtPdzcv81nvI';
         const PRODUCT_MASTER_ID = '1YnEJ5LEYBwZJ2zDYnjUpkpjnB2naHFVAtPdzcv81nvI'; // 製品マスタ
         const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly';
         const PARENT_FOLDER_ID = '1EvObQiCJgxJCzd_kQJ1PNbOUMD5P-Zxp';
@@ -262,17 +262,17 @@
 
         function renderSignIn() {
             document.getElementById('app').innerHTML = `
-                <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-100">
-                    <div class="bg-white p-10 rounded-2xl shadow-xl max-w-md w-full mx-4">
+                <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+                    <div class="bg-white dark:bg-slate-800 p-10 rounded-2xl shadow-xl max-w-md w-full mx-4">
                         <div class="text-center">
-                            <div class="w-20 h-20 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                                <svg class="w-10 h-10 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                                <svg class="w-10 h-10 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                                 </svg>
                             </div>
-                            <h1 class="text-3xl font-bold text-slate-800 mb-2">在庫管理システム</h1>
-                            <p class="text-slate-500 mb-8">入出庫・棚卸し管理</p>
-                            <button onclick="handleAuthClick()" class="w-full flex items-center justify-center gap-3 bg-white border-2 border-slate-200 text-slate-700 px-6 py-4 rounded-xl font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all">
+                            <h1 class="text-3xl font-bold text-slate-800 dark:text-white mb-2">在庫管理システム</h1>
+                            <p class="text-slate-500 dark:text-slate-400 mb-8">入出庫・棚卸し管理</p>
+                            <button onclick="handleAuthClick()" class="w-full flex items-center justify-center gap-3 bg-white dark:bg-slate-700 border-2 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-white px-6 py-4 rounded-xl font-semibold hover:bg-slate-50 dark:hover:bg-slate-600 hover:border-slate-300 transition-all">
                                 <svg class="w-6 h-6" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
                                 Googleでログイン
                             </button>
@@ -781,6 +781,11 @@
                     ])
                 ];
                 
+                // まずクリアしてから書き込み（削除された行も反映）
+                await gapi.client.sheets.spreadsheets.values.clear({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '在庫!A:Z'
+                });
                 await gapi.client.sheets.spreadsheets.values.update({
                     spreadsheetId: SPREADSHEET_ID,
                     range: '在庫!A1',
@@ -810,6 +815,11 @@
                     ])
                 ];
                 
+                // まずクリアしてから書き込み（削除された行も反映）
+                await gapi.client.sheets.spreadsheets.values.clear({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '在庫アーカイブ!A:Z'
+                });
                 await gapi.client.sheets.spreadsheets.values.update({
                     spreadsheetId: SPREADSHEET_ID,
                     range: '在庫アーカイブ!A1',
@@ -1185,7 +1195,7 @@
                                         </div>
                                     </div>
                                     <div class="mt-3 flex flex-wrap gap-2">
-                                        <button onclick="quickFilter('noShelf')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.noShelf ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+                                        <button onclick="quickFilter('noShelf')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.noShelf ? 'bg-amber-600 text-white border-amber-600' : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'}">
                                             ⚠️ 棚未設定のみ
                                         </button>
                                     </div>
@@ -1202,16 +1212,16 @@
                         </div>
 
                         <!-- 在庫リスト -->
-                        <div class="bg-white rounded-lg sm:rounded-xl shadow-sm border overflow-hidden">
-                            <div class="p-3 sm:p-4 border-b bg-slate-50 flex justify-between items-center">
-                                <h2 class="font-bold text-sm sm:text-base text-slate-900">在庫一覧（${filtered.length}件）</h2>
-                                <button onclick="showArchiveModal()" class="text-xs sm:text-sm text-slate-600 hover:text-slate-800">アーカイブ</button>
+                        <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl shadow-sm border dark:border-slate-700 overflow-hidden">
+                            <div class="p-3 sm:p-4 border-b dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 flex justify-between items-center">
+                                <h2 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white">在庫一覧（${filtered.length}件）</h2>
+                                <button onclick="showArchiveModal()" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">アーカイブ</button>
                             </div>
                             
                             <!-- 案件ごと折りたたみ表示 -->
                             <div>
                                 ${filtered.length === 0 ? `
-                                    <div class="px-4 py-8 text-center text-slate-500 text-sm">データがありません</div>
+                                    <div class="px-4 py-8 text-center text-slate-500 dark:text-slate-400 text-sm">データがありません</div>
                                 ` : (() => {
                                     const groups = groupByProject(filtered);
                                     return Object.keys(groups).map(project => {
@@ -1225,57 +1235,57 @@
                                         };
                                         const folderUrl = folderCache[project] || null;
                                         return `
-                                            <div class="border-b last:border-b-0">
-                                                <div onclick="toggleProject('${project}')" class="p-3 sm:p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 active:bg-slate-100">
+                                            <div class="border-b dark:border-slate-700 last:border-b-0">
+                                                <div onclick="toggleProject('${project}')" class="p-3 sm:p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 active:bg-slate-100 dark:active:bg-slate-600">
                                                     <div class="flex items-center gap-2 sm:gap-3">
                                                         <span class="text-slate-400">${isExpanded ? '▼' : '▶'}</span>
-                                                        <span class="font-semibold text-blue-600 text-sm sm:text-base">${project}</span>
-                                                        <span class="text-xs sm:text-sm text-slate-500">(${items.length}件)</span>
+                                                        <span class="font-semibold text-blue-600 dark:text-blue-400 text-sm sm:text-base">${project}</span>
+                                                        <span class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">(${items.length}件)</span>
                                                         ${folderUrl ? `
                                                             <a href="${folderUrl}" target="_blank" onclick="event.stopPropagation()" class="text-blue-500 hover:text-blue-700" title="Googleドライブを開く">
                                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
                                                             </a>
                                                         ` : (project !== '未設定' ? `
-                                                            <span class="text-slate-300" title="フォルダ未検出">
+                                                            <span class="text-slate-300 dark:text-slate-600" title="フォルダ未検出">
                                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
                                                             </span>
                                                         ` : '')}
                                                     </div>
                                                     <div class="flex gap-1 sm:gap-2">
-                                                        ${statusCounts.waiting > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700">待${statusCounts.waiting}</span>` : ''}
-                                                        ${statusCounts.inStock > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-emerald-100 text-emerald-700">庫${statusCounts.inStock}</span>` : ''}
-                                                        ${statusCounts.shipped > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-700">出${statusCounts.shipped}</span>` : ''}
-                                                        ${statusCounts.issue > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-red-100 text-red-700">不${statusCounts.issue}</span>` : ''}
+                                                        ${statusCounts.waiting > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">待${statusCounts.waiting}</span>` : ''}
+                                                        ${statusCounts.inStock > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">庫${statusCounts.inStock}</span>` : ''}
+                                                        ${statusCounts.shipped > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">出${statusCounts.shipped}</span>` : ''}
+                                                        ${statusCounts.issue > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">不${statusCounts.issue}</span>` : ''}
                                                     </div>
                                                 </div>
                                                 ${isExpanded ? `
                                                     <!-- PC: テーブル表示 -->
-                                                    <div class="hidden md:block bg-slate-50 border-t">
+                                                    <div class="hidden md:block bg-slate-50 dark:bg-slate-700/30 border-t dark:border-slate-700">
                                                         <table class="w-full">
-                                                            <thead class="bg-slate-100">
+                                                            <thead class="bg-slate-100 dark:bg-slate-700">
                                                                 <tr>
                                                                     ${bulkSelectMode ? `<th class="px-2 py-2 text-center w-8"><input type="checkbox" onclick="toggleSelectAll('${project}')" class="w-4 h-4 rounded"></th>` : ''}
-                                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">Serial</th>
-                                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">種別</th>
-                                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">製品名</th>
-                                                                    <th class="px-3 py-2 text-center text-xs font-semibold text-slate-700">棚番</th>
-                                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">入庫日</th>
-                                                                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-700">原価(税込)</th>
-                                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">ステータス</th>
-                                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700">出庫先</th>
-                                                                    <th class="px-3 py-2 text-center text-xs font-semibold text-slate-700">操作</th>
+                                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">Serial</th>
+                                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">種別</th>
+                                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">製品名</th>
+                                                                    <th class="px-3 py-2 text-center text-xs font-semibold text-slate-700 dark:text-slate-300">棚番</th>
+                                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">入庫日</th>
+                                                                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-700 dark:text-slate-300">原価(税込)</th>
+                                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">ステータス</th>
+                                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">出庫先</th>
+                                                                    <th class="px-3 py-2 text-center text-xs font-semibold text-slate-700 dark:text-slate-300">操作</th>
                                                                 </tr>
                                                             </thead>
-                                                            <tbody class="divide-y bg-white">
+                                                            <tbody class="divide-y dark:divide-slate-700 bg-white dark:bg-slate-800">
                                                                 ${items.map(item => `
-                                                                    <tr onclick="showDetailModal('${item.id}')" class="hover:bg-slate-50 cursor-pointer ${selectedItems.has(item.id) ? 'bg-amber-50' : ''}">
+                                                                    <tr onclick="showDetailModal('${item.id}')" class="hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer ${selectedItems.has(item.id) ? 'bg-amber-50 dark:bg-amber-900/30' : ''}">
                                                                         ${bulkSelectMode ? `<td class="px-2 py-2 text-center" onclick="event.stopPropagation()"><input type="checkbox" ${selectedItems.has(item.id) ? 'checked' : ''} onclick="toggleSelectItem('${item.id}')" class="w-4 h-4 rounded"></td>` : ''}
-                                                                        <td class="px-3 py-2 font-mono font-semibold text-sm text-slate-900">${item.serial}</td>
-                                                                        <td class="px-3 py-2 text-xs text-slate-600">${item.category}</td>
-                                                                        <td class="px-3 py-2 text-xs">${item.productName}</td>
-                                                                        <td class="px-3 py-2 text-center text-xs font-semibold text-purple-600">${item.shelfNo || '-'}</td>
-                                                                        <td class="px-3 py-2 text-xs text-slate-600">${item.receiveDate || '-'}</td>
-                                                                        <td class="px-3 py-2 text-xs text-right font-semibold">${item.costJPY ? '¥' + Number(item.costJPY).toLocaleString() : '-'}</td>
+                                                                        <td class="px-3 py-2 font-mono font-semibold text-sm text-slate-900 dark:text-white">${item.serial}</td>
+                                                                        <td class="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">${item.category}</td>
+                                                                        <td class="px-3 py-2 text-xs dark:text-slate-300">${item.productName}</td>
+                                                                        <td class="px-3 py-2 text-center text-xs font-semibold text-purple-600 dark:text-purple-400">${item.shelfNo || '-'}</td>
+                                                                        <td class="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">${item.receiveDate || '-'}</td>
+                                                                        <td class="px-3 py-2 text-xs text-right font-semibold dark:text-white">${item.costJPY ? '¥' + Number(item.costJPY).toLocaleString() : '-'}</td>
                                                                         <td class="px-3 py-2">
                                                                             <span class="px-2 py-0.5 rounded text-xs font-semibold ${getStatusClass(item.status)}">${item.status}</span>
                                                                             ${item.location === '東京' ? '<span class="ml-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-600">東京</span>' : ''}
@@ -1302,26 +1312,26 @@
                                                         </table>
                                                     </div>
                                                     <!-- スマホ: カード表示 -->
-                                                    <div class="md:hidden bg-slate-50">
+                                                    <div class="md:hidden bg-slate-50 dark:bg-slate-700/30">
                                                         ${items.map(item => `
-                                                            <div onclick="showDetailModal('${item.id}')" class="p-3 border-t border-slate-200 cursor-pointer hover:bg-slate-50 ${selectedItems.has(item.id) ? 'bg-amber-50' : ''}">
+                                                            <div onclick="showDetailModal('${item.id}')" class="p-3 border-t border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 ${selectedItems.has(item.id) ? 'bg-amber-50 dark:bg-amber-900/30' : ''}">
                                                                 <div class="flex justify-between items-start mb-2">
                                                                     <div class="flex items-center gap-2">
                                                                         ${bulkSelectMode ? `<input type="checkbox" ${selectedItems.has(item.id) ? 'checked' : ''} onclick="event.stopPropagation();toggleSelectItem('${item.id}')" class="w-4 h-4 rounded">` : ''}
                                                                         <div>
-                                                                            <p class="font-mono font-bold text-sm text-slate-900">${item.serial}</p>
-                                                                            <p class="text-xs text-slate-500">${item.category}</p>
+                                                                            <p class="font-mono font-bold text-sm text-slate-900 dark:text-white">${item.serial}</p>
+                                                                            <p class="text-xs text-slate-500 dark:text-slate-400">${item.category}</p>
                                                                         </div>
                                                                     </div>
                                                                     <div class="flex items-center gap-1">
-                                                                        ${item.shelfNo ? `<span class="px-1.5 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-700">棚${item.shelfNo}</span>` : ''}
-                                                                        ${item.location === '東京' ? '<span class="px-1.5 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-600">東京</span>' : ''}
-                                                                        ${item.location === '大阪' ? '<span class="px-1.5 py-0.5 rounded text-xs font-semibold bg-teal-100 text-teal-600">大阪</span>' : ''}
+                                                                        ${item.shelfNo ? `<span class="px-1.5 py-0.5 rounded text-xs font-semibold bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">棚${item.shelfNo}</span>` : ''}
+                                                                        ${item.location === '東京' ? '<span class="px-1.5 py-0.5 rounded text-xs font-semibold bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-300">東京</span>' : ''}
+                                                                        ${item.location === '大阪' ? '<span class="px-1.5 py-0.5 rounded text-xs font-semibold bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-300">大阪</span>' : ''}
                                                                         <span class="px-2 py-0.5 rounded text-xs font-semibold ${getStatusClass(item.status)}">${item.status}</span>
                                                                     </div>
                                                                 </div>
-                                                                <p class="text-xs text-slate-800 mb-1">${item.productName}</p>
-                                                                <div class="flex justify-between items-center text-xs text-slate-500 mb-2">
+                                                                <p class="text-xs text-slate-800 dark:text-slate-300 mb-1">${item.productName}</p>
+                                                                <div class="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 mb-2">
                                                                     <span>入庫: ${item.receiveDate || '-'}</span>
                                                                     <span>原価: ${item.costJPY ? '¥' + Number(item.costJPY).toLocaleString() : '-'}</span>
                                                                 </div>
@@ -1332,7 +1342,7 @@
                                                                     ${item.status === '在庫中' ? `
                                                                         <button onclick="showShipModal('${item.id}')" class="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button>
                                                                     ` : ''}
-                                                                    <button onclick="editItem('${item.id}')" class="px-3 py-1.5 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">編集</button>
+                                                                    <button onclick="editItem('${item.id}')" class="px-3 py-1.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-white text-xs rounded hover:bg-slate-300 dark:hover:bg-slate-500">編集</button>
                                                                     ${item.status === '出庫済' ? `
                                                                         <button onclick="archiveItem('${item.id}')" class="px-3 py-1.5 bg-slate-500 text-white text-xs rounded hover:bg-slate-600">保管</button>
                                                                     ` : ''}
@@ -2087,7 +2097,7 @@
             modal.id = 'receiveModal';
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4">
                         <h3 class="text-xl font-bold mb-4">入庫処理</h3>
                         <p class="text-sm text-slate-600 mb-2">Serial: <span class="font-mono font-semibold">${item.serial}</span></p>
                         <p class="text-sm text-slate-600 mb-4">${item.productName}</p>
@@ -2815,7 +2825,7 @@
             modal.id = 'archiveModal';
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div class="bg-white rounded-xl p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-xl font-bold">アーカイブ一覧（${archivedInventory.length}件）</h3>
                             <button onclick="closeModal('archiveModal')" class="text-slate-500 hover:text-slate-700 text-2xl">&times;</button>
