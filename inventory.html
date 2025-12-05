@@ -51,6 +51,7 @@
         let productMaster = []; // 製品マスタデータ
         let suppliers = []; // サプライヤーマスタ
         let projects = []; // 案件データ（重複チェック用）
+        let viewMode = 'group'; // 表示モード: 'group'（グループ表示） or 'flat'（フラット表示）
         
         // 複数人利用対応
         let autoReloadInterval = null;
@@ -1253,15 +1254,77 @@
                         <!-- 在庫リスト -->
                         <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl shadow-sm border dark:border-slate-700 overflow-hidden">
                             <div class="p-3 sm:p-4 border-b dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 flex justify-between items-center">
-                                <h2 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white">在庫一覧（${filtered.length}件）</h2>
+                                <div class="flex items-center gap-3">
+                                    <h2 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white">在庫一覧（${filtered.length}件）</h2>
+                                    <div class="flex rounded-lg overflow-hidden border dark:border-slate-600">
+                                        <button onclick="setViewMode('group')" class="px-2 py-1 text-xs ${(hasActiveFilters() ? 'flat' : viewMode) === 'group' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'}">
+                                            グループ
+                                        </button>
+                                        <button onclick="setViewMode('flat')" class="px-2 py-1 text-xs ${(hasActiveFilters() ? 'flat' : viewMode) === 'flat' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'}">
+                                            一覧
+                                        </button>
+                                    </div>
+                                    ${hasActiveFilters() ? '<span class="text-xs text-amber-600 dark:text-amber-400">フィルタ中は一覧表示</span>' : ''}
+                                </div>
                                 <button onclick="showArchiveModal()" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">アーカイブ</button>
                             </div>
                             
-                            <!-- 案件ごと折りたたみ表示 -->
+                            <!-- 在庫表示エリア -->
                             <div>
                                 ${filtered.length === 0 ? `
                                     <div class="px-4 py-8 text-center text-slate-500 dark:text-slate-400 text-sm">データがありません</div>
+                                ` : (hasActiveFilters() || viewMode === 'flat') ? `
+                                    <!-- フラット表示（テーブル） -->
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full">
+                                            <thead class="bg-slate-100 dark:bg-slate-700">
+                                                <tr>
+                                                    ${bulkSelectMode ? '<th class="px-2 py-2 text-center w-8"><input type="checkbox" onclick="toggleSelectAllFlat()" class="w-4 h-4 rounded"></th>' : ''}
+                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">Serial</th>
+                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">案件</th>
+                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">種別</th>
+                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">製品名</th>
+                                                    <th class="px-3 py-2 text-center text-xs font-semibold text-slate-700 dark:text-slate-300">棚番</th>
+                                                    <th class="px-3 py-2 text-center text-xs font-semibold text-slate-700 dark:text-slate-300">場所</th>
+                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">入庫日</th>
+                                                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-700 dark:text-slate-300">原価</th>
+                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">ステータス</th>
+                                                    <th class="px-3 py-2 text-center text-xs font-semibold text-slate-700 dark:text-slate-300">操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y dark:divide-slate-700">
+                                                ${filtered.map(item => `
+                                                    <tr onclick="showDetailModal('${item.id}')" class="hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer ${selectedItems.has(item.id) ? 'bg-amber-50 dark:bg-amber-900/30' : ''}">
+                                                        ${bulkSelectMode ? `<td class="px-2 py-2 text-center" onclick="event.stopPropagation()"><input type="checkbox" ${selectedItems.has(item.id) ? 'checked' : ''} onclick="toggleSelectItem('${item.id}')" class="w-4 h-4 rounded"></td>` : ''}
+                                                        <td class="px-3 py-2 font-mono font-semibold text-sm text-slate-900 dark:text-white">${item.serial}</td>
+                                                        <td class="px-3 py-2 text-xs text-blue-600 dark:text-blue-400 font-semibold">${formatProjectNumber(item.orderPrefix, item.orderNumber) || '-'}</td>
+                                                        <td class="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">${item.category}</td>
+                                                        <td class="px-3 py-2 text-xs dark:text-slate-300">${item.productName}</td>
+                                                        <td class="px-3 py-2 text-center text-xs font-semibold text-purple-600 dark:text-purple-400">${item.shelfNo || '-'}</td>
+                                                        <td class="px-3 py-2 text-center">
+                                                            ${item.location === '東京' ? '<span class="px-1.5 py-0.5 rounded text-xs font-semibold bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-300">東京</span>' : ''}
+                                                            ${item.location === '大阪' ? '<span class="px-1.5 py-0.5 rounded text-xs font-semibold bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-300">大阪</span>' : ''}
+                                                            ${!item.location ? '-' : ''}
+                                                        </td>
+                                                        <td class="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">${item.receiveDate || '-'}</td>
+                                                        <td class="px-3 py-2 text-xs text-right font-semibold dark:text-white">${item.costJPY ? '¥' + Number(item.costJPY).toLocaleString() : '-'}</td>
+                                                        <td class="px-3 py-2">
+                                                            <span class="px-2 py-0.5 rounded text-xs font-semibold ${getStatusClass(item.status)}">${item.status}</span>
+                                                        </td>
+                                                        <td class="px-3 py-2 text-center" onclick="event.stopPropagation()">
+                                                            <div class="flex gap-1 justify-center">
+                                                                ${item.status === '入庫待ち' ? `<button onclick="showReceiveModal('${item.id}')" class="px-2 py-1 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700">入庫</button>` : ''}
+                                                                ${item.status === '在庫中' ? `<button onclick="showShipModal('${item.id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button>` : ''}
+                                                                <button onclick="editItem('${item.id}')" class="px-2 py-1 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-white text-xs rounded hover:bg-slate-300 dark:hover:bg-slate-500">編集</button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                `).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 ` : (() => {
+                                    // グループ表示
                                     const groups = groupByProject(filtered);
                                     return Object.keys(groups).map(project => {
                                         const items = groups[project];
@@ -1445,6 +1508,19 @@
                 projectItems.forEach(i => selectedItems.delete(i.id));
             } else {
                 projectItems.forEach(i => selectedItems.add(i.id));
+            }
+            renderMain();
+        }
+        
+        // フラット表示での全選択
+        function toggleSelectAllFlat() {
+            const filtered = getFilteredInventory();
+            const allSelected = filtered.every(i => selectedItems.has(i.id));
+            
+            if (allSelected) {
+                filtered.forEach(i => selectedItems.delete(i.id));
+            } else {
+                filtered.forEach(i => selectedItems.add(i.id));
             }
             renderMain();
         }
@@ -1797,6 +1873,33 @@
             };
             expandedProjects = {};
             showDetailFilters = false;
+            viewMode = 'group'; // フィルタクリア時はグループ表示に戻す
+            renderMain();
+        }
+
+        // フィルタがアクティブかどうか判定
+        function hasActiveFilters() {
+            return currentFilters.category || 
+                   currentFilters.status || 
+                   currentFilters.search ||
+                   currentFilters.shelfNo ||
+                   currentFilters.receiveDateFrom ||
+                   currentFilters.receiveDateTo ||
+                   currentFilters.shipProject ||
+                   currentFilters.costRange ||
+                   currentFilters.noShelf ||
+                   currentFilters.location;
+        }
+        
+        // 表示モード切り替え
+        function toggleViewMode() {
+            viewMode = viewMode === 'group' ? 'flat' : 'group';
+            renderMain();
+        }
+        
+        // 表示モード設定
+        function setViewMode(mode) {
+            viewMode = mode;
             renderMain();
         }
 
