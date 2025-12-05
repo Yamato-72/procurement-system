@@ -1067,7 +1067,9 @@
                                         <div id="reportMenu" class="hidden absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border dark:border-slate-700 z-50">
                                             <button onclick="exportCSV()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white rounded-t-lg">📥 CSV出力</button>
                                             <button onclick="printInventoryList()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">🖨️ 棚卸しリスト印刷</button>
-                                            <button onclick="showMonthlyReport()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white rounded-b-lg">📈 月次在庫レポート</button>
+                                            <button onclick="showMonthlyReport()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📈 月次在庫レポート</button>
+                                            <div class="border-t dark:border-slate-600"></div>
+                                            <button onclick="showImportToProcurementModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white rounded-b-lg">📤 調達にインポート</button>
                                         </div>
                                     </div>
                                     <a href="index.html" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-blue-600 text-white text-xs sm:text-sm rounded-lg hover:bg-blue-700">調達</a>
@@ -2236,6 +2238,247 @@
             } catch (e) {
                 console.error('調達シートへの追加に失敗しました:', e);
                 // エラーでも在庫追加は成功しているので続行
+            }
+        }
+
+        // 在庫にあって調達にない案件をリストアップ
+        function getMissingProjects() {
+            // 在庫の案件番号をグループ化
+            const inventoryProjects = {};
+            inventory.forEach(item => {
+                if (!item.orderPrefix || !item.orderNumber) return;
+                const key = `${item.orderPrefix}-${item.orderNumber}`;
+                if (!inventoryProjects[key]) {
+                    inventoryProjects[key] = {
+                        prefix: item.orderPrefix,
+                        number: item.orderNumber,
+                        items: [],
+                        totalCost: 0,
+                        orderDate: item.orderDate || ''
+                    };
+                }
+                inventoryProjects[key].items.push(item);
+                if (item.costJPY) {
+                    inventoryProjects[key].totalCost += parseFloat(item.costJPY) || 0;
+                }
+                // 発注日があれば更新（最初に見つかったものを使う）
+                if (!inventoryProjects[key].orderDate && item.orderDate) {
+                    inventoryProjects[key].orderDate = item.orderDate;
+                }
+            });
+            
+            // 調達にない案件だけ抽出
+            const missing = [];
+            Object.keys(inventoryProjects).forEach(key => {
+                const proj = inventoryProjects[key];
+                const exists = findExistingProject(proj.prefix, proj.number);
+                if (!exists) {
+                    // 製品名をまとめる（ユニークなもの）
+                    const productNames = [...new Set(proj.items.map(i => i.productName))];
+                    missing.push({
+                        key,
+                        prefix: proj.prefix,
+                        number: proj.number,
+                        productNames,
+                        quantity: proj.items.length,
+                        totalCost: proj.totalCost,
+                        orderDate: proj.orderDate
+                    });
+                }
+            });
+            
+            // 番号順にソート
+            missing.sort((a, b) => {
+                if (a.prefix !== b.prefix) return a.prefix.localeCompare(b.prefix);
+                return parseInt(a.number) - parseInt(b.number);
+            });
+            
+            return missing;
+        }
+
+        // 調達インポートモーダル表示
+        function showImportToProcurementModal() {
+            // メニューを閉じる
+            document.getElementById('reportMenu').classList.add('hidden');
+            
+            const missing = getMissingProjects();
+            
+            if (missing.length === 0) {
+                alert('調達に未登録の案件はありません');
+                return;
+            }
+            
+            const modal = document.createElement('div');
+            modal.id = 'importModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+                        <h3 class="text-xl font-bold mb-2 dark:text-white">調達にインポート</h3>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">在庫に登録済みで調達に未登録の案件: ${missing.length}件</p>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-slate-100 dark:bg-slate-700">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left">
+                                            <input type="checkbox" id="importSelectAll" onchange="toggleImportSelectAll()" checked class="rounded">
+                                        </th>
+                                        <th class="px-3 py-2 text-left dark:text-white">案件番号</th>
+                                        <th class="px-3 py-2 text-left dark:text-white">製品名</th>
+                                        <th class="px-3 py-2 text-center dark:text-white">数量</th>
+                                        <th class="px-3 py-2 text-right dark:text-white">取得金計</th>
+                                        <th class="px-3 py-2 text-left dark:text-white">サプライヤー</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y dark:divide-slate-600">
+                                    ${missing.map((p, idx) => `
+                                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                            <td class="px-3 py-2">
+                                                <input type="checkbox" id="importCheck_${idx}" data-index="${idx}" checked class="import-checkbox rounded">
+                                            </td>
+                                            <td class="px-3 py-2 font-mono font-semibold dark:text-white">${p.prefix}-${p.number}</td>
+                                            <td class="px-3 py-2 dark:text-slate-300">${p.productNames.length > 2 ? p.productNames.slice(0, 2).join(', ') + '...' : p.productNames.join(', ')}</td>
+                                            <td class="px-3 py-2 text-center dark:text-slate-300">${p.quantity}</td>
+                                            <td class="px-3 py-2 text-right dark:text-slate-300">${p.totalCost ? '¥' + p.totalCost.toLocaleString() : '-'}</td>
+                                            <td class="px-3 py-2">
+                                                <select id="importSupplier_${idx}" class="w-full px-2 py-1 border rounded dark:bg-slate-700 dark:border-slate-600 dark:text-white text-sm">
+                                                    <option value="">選択...</option>
+                                                    ${suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                                                </select>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="mt-4 p-3 bg-amber-50 dark:bg-amber-900/30 rounded-lg">
+                            <p class="text-sm text-amber-700 dark:text-amber-400">
+                                ⚠️ サプライヤー未選択の案件はスキップされます<br>
+                                💰 取得金がある案件は「支払済み」として登録されます
+                            </p>
+                        </div>
+                        
+                        <div class="flex gap-3 mt-6">
+                            <button onclick="closeModal('importModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
+                            <button onclick="submitImportToProcurement()" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">インポート実行</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        // 全選択/全解除
+        function toggleImportSelectAll() {
+            const selectAll = document.getElementById('importSelectAll').checked;
+            document.querySelectorAll('.import-checkbox').forEach(cb => {
+                cb.checked = selectAll;
+            });
+        }
+        
+        // インポート実行
+        async function submitImportToProcurement() {
+            const missing = getMissingProjects();
+            const toImport = [];
+            
+            // チェックされた案件を収集
+            missing.forEach((p, idx) => {
+                const checkbox = document.getElementById(`importCheck_${idx}`);
+                const supplierSelect = document.getElementById(`importSupplier_${idx}`);
+                
+                if (checkbox && checkbox.checked && supplierSelect && supplierSelect.value) {
+                    toImport.push({
+                        ...p,
+                        supplierId: supplierSelect.value
+                    });
+                }
+            });
+            
+            if (toImport.length === 0) {
+                alert('インポートする案件を選択し、サプライヤーを設定してください');
+                return;
+            }
+            
+            if (!confirm(`${toImport.length}件の案件を調達に登録します。よろしいですか？`)) {
+                return;
+            }
+            
+            try {
+                showStatus('インポート中...');
+                
+                const rows = toImport.map(p => {
+                    const supplier = suppliers.find(s => s.id === parseInt(p.supplierId));
+                    
+                    // 取得金がある場合は支払済みとして登録
+                    let depositSchedule;
+                    if (p.totalCost > 0) {
+                        depositSchedule = [{
+                            depositNumber: 1,
+                            percentage: 100,
+                            amountUSD: 0,
+                            paid: true,
+                            paidDate: p.orderDate || null,
+                            exchangeRate: null,
+                            amountJPY: p.totalCost
+                        }];
+                    } else {
+                        // 取得金がない場合はサプライヤーのデポジット設定を使用
+                        depositSchedule = supplier ? supplier.depositRates.map((rate, idx) => ({
+                            depositNumber: idx + 1,
+                            percentage: rate,
+                            amountUSD: 0,
+                            paid: false,
+                            paidDate: null,
+                            exchangeRate: null,
+                            amountJPY: null
+                        })) : [];
+                    }
+                    
+                    const serialDisplay = p.quantity > 1 ? `(${p.quantity}台)` : '';
+                    
+                    return [
+                        Date.now().toString() + '-' + p.number,  // ID
+                        p.prefix,                                  // 接頭辞
+                        p.number,                                  // 番号
+                        p.supplierId,                             // サプライヤーID
+                        p.productNames.join(', '),                // 製品名
+                        0,                                        // 総額USD
+                        JSON.stringify(depositSchedule),          // デポジット予定
+                        serialDisplay,                            // Serial
+                        p.quantity,                               // 数量
+                        30,                                       // WorkingDays
+                        '',                                       // 集荷予定日
+                        p.orderDate || '',                        // 発注日
+                        '[]'                                      // 諸費用
+                    ];
+                });
+                
+                await gapi.client.sheets.spreadsheets.values.append({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '案件!A:M',
+                    valueInputOption: 'RAW',
+                    insertDataOption: 'INSERT_ROWS',
+                    resource: {
+                        values: rows
+                    }
+                });
+                
+                // projects配列を更新
+                toImport.forEach(p => {
+                    projects.push({
+                        id: Date.now().toString() + '-' + p.number,
+                        prefix: p.prefix,
+                        number: p.number
+                    });
+                });
+                
+                closeModal('importModal');
+                showStatus(`${toImport.length}件の案件を調達に登録しました`, 'success');
+                
+            } catch (e) {
+                console.error('インポートに失敗しました:', e);
+                alert('インポートに失敗しました: ' + e.message);
             }
         }
 

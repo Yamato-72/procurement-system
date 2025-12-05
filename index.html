@@ -660,7 +660,7 @@
             }
         }
 
-        function markPaymentPaid(projectId, depositNumber, paidDate, exchangeRate) {
+        async function markPaymentPaid(projectId, depositNumber, paidDate, exchangeRate) {
             const project = projects.find(p => p.id === projectId);
             if (project) {
                 const deposit = project.depositSchedule.find(d => d.depositNumber === depositNumber);
@@ -670,7 +670,68 @@
                     deposit.exchangeRate = parseFloat(exchangeRate);
                     deposit.amountJPY = deposit.amountUSD * parseFloat(exchangeRate);
                     saveData();
+                    
+                    // 全支払い完了かチェック
+                    const allPaid = project.depositSchedule.every(d => d.paid);
+                    if (allPaid) {
+                        await updateInventoryCost(project);
+                    }
                 }
+            }
+        }
+        
+        // 在庫の取得金を更新
+        async function updateInventoryCost(project) {
+            try {
+                // 製品代（デポジット合計）のみ。諸費用は含めない
+                const depositTotal = project.depositSchedule.reduce((sum, d) => sum + (d.amountJPY || 0), 0);
+                
+                // 1台あたりの取得金
+                const quantity = project.quantity || 1;
+                const costPerUnit = Math.round(depositTotal / quantity);
+                
+                if (costPerUnit <= 0) return;
+                
+                // 在庫シートから該当アイテムを取得
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '在庫!A2:P',
+                });
+                const rows = response.result.values || [];
+                
+                // 案件番号が一致する行を探す
+                const projectPrefix = project.projectPrefix || 'AD';
+                const projectNumber = String(project.projectNumber).padStart(4, '0');
+                const updates = [];
+                
+                rows.forEach((row, idx) => {
+                    const rowPrefix = row[4] || '';
+                    const rowNumber = String(row[5] || '').padStart(4, '0');
+                    
+                    if (rowPrefix.toUpperCase() === projectPrefix.toUpperCase() && rowNumber === projectNumber) {
+                        // 行番号（1始まり、ヘッダー分+1）
+                        const rowNum = idx + 2;
+                        updates.push({
+                            range: `在庫!M${rowNum}`,
+                            values: [[costPerUnit]]
+                        });
+                    }
+                });
+                
+                if (updates.length > 0) {
+                    await gapi.client.sheets.spreadsheets.values.batchUpdate({
+                        spreadsheetId: SPREADSHEET_ID,
+                        resource: {
+                            valueInputOption: 'RAW',
+                            data: updates
+                        }
+                    });
+                    console.log(`在庫取得金を更新しました: ${projectPrefix}-${projectNumber} → ¥${costPerUnit.toLocaleString()} × ${updates.length}台`);
+                    showStatus(`在庫の取得金を更新しました: ¥${costPerUnit.toLocaleString()}/台`);
+                    setTimeout(() => showStatus(''), 3000);
+                }
+            } catch (e) {
+                console.error('在庫取得金の更新に失敗しました:', e);
             }
         }
         
@@ -1243,7 +1304,7 @@
             
             if (!exchangeRate) return;
             
-            markPaymentPaid(projectId, depositNumber, paidDate, exchangeRate);
+            await markPaymentPaid(projectId, depositNumber, paidDate, exchangeRate);
             renderMain();
         }
 
