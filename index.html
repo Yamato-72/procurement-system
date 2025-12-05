@@ -1409,102 +1409,120 @@
             renderMain();
         }
 
+        // 連続登録用の一時データ
+        let pendingItems = [];
+
         function showAddProjectForm() {
             if (suppliers.length === 0) {
                 alert('先にサプライヤーを登録してください');
                 return;
             }
             
+            // 一時データをリセット
+            pendingItems = [];
+            
             // モーダルダイアログを作成
             const modal = document.createElement('div');
             modal.id = 'projectModal';
             modal.innerHTML = `
                 <div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;">
-                    <div style="background:white;padding:24px;border-radius:12px;width:500px;max-width:90%;max-height:90vh;overflow-y:auto;">
-                        <h3 style="font-size:18px;font-weight:bold;margin-bottom:16px;">新規案件登録</h3>
+                    <div style="background:white;padding:24px;border-radius:12px;width:550px;max-width:95%;max-height:90vh;overflow-y:auto;">
+                        <h3 style="font-size:18px;font-weight:bold;margin-bottom:16px;">新規案件登録（連続登録モード）</h3>
                         
-                        <!-- 1. 案件番号 -->
-                        <div style="margin-bottom:12px;">
-                            <label style="display:block;font-size:14px;margin-bottom:4px;">案件番号</label>
-                            <div style="display:flex;gap:8px;">
-                                <select id="modalProjectPrefix" style="width:80px;padding:8px;border:1px solid #ccc;border-radius:6px;">
-                                    <option value="AD">AD</option>
-                                    <option value="SP">SP</option>
-                                </select>
-                                <input type="text" id="modalProjectNumber" placeholder="0001" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                        <!-- 案件基本情報（固定） -->
+                        <div style="background:#f8fafc;padding:12px;border-radius:8px;margin-bottom:16px;">
+                            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                                <div style="flex:1;min-width:150px;">
+                                    <label style="display:block;font-size:12px;color:#666;margin-bottom:4px;">案件番号</label>
+                                    <div style="display:flex;gap:4px;">
+                                        <select id="modalProjectPrefix" style="width:70px;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:14px;">
+                                            <option value="AD">AD</option>
+                                            <option value="SP">SP</option>
+                                        </select>
+                                        <input type="text" id="modalProjectNumber" placeholder="0001" style="width:80px;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:14px;">
+                                    </div>
+                                </div>
+                                <div style="flex:1;min-width:150px;">
+                                    <label style="display:block;font-size:12px;color:#666;margin-bottom:4px;">サプライヤー</label>
+                                    <select id="modalSupplierId" onchange="filterProductBySupplier()" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:14px;">
+                                        <option value="">-- 選択 --</option>
+                                        ${suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div style="flex:1;min-width:100px;">
+                                    <label style="display:block;font-size:12px;color:#666;margin-bottom:4px;">Working Days</label>
+                                    <input type="number" id="modalWorkingDays" value="30" min="1" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:14px;">
+                                </div>
                             </div>
-                            <p style="font-size:12px;color:#666;margin-top:4px;">4桁の番号を入力（例: 0001）</p>
                         </div>
                         
-                        <!-- 2. サプライヤー -->
-                        <div style="margin-bottom:12px;">
-                            <label style="display:block;font-size:14px;margin-bottom:4px;">サプライヤー</label>
-                            <select id="modalSupplierId" onchange="filterProductBySupplier()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
-                                <option value="">-- 選択 --</option>
-                                ${suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
-                            </select>
+                        <!-- 製品入力エリア -->
+                        <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:12px;">
+                            <div style="display:flex;gap:8px;margin-bottom:8px;">
+                                <div style="flex:1;">
+                                    <label style="display:block;font-size:12px;color:#666;margin-bottom:2px;">種別</label>
+                                    <select id="modalCategory" onchange="filterProductByCategory()" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px;">
+                                        <option value="">-- 選択 --</option>
+                                        <option value="屋内">屋内</option>
+                                        <option value="屋外">屋外</option>
+                                        <option value="マルチディスプレイ">マルチディスプレイ</option>
+                                        <option value="LEDビジョン">LEDビジョン</option>
+                                        <option value="STUDIA">STUDIA</option>
+                                        <option value="マトリクス">マトリクス</option>
+                                        <option value="OPS">OPS</option>
+                                        <option value="メディアプレーヤー">メディアプレーヤー</option>
+                                        <option value="スタンド/金具">スタンド/金具</option>
+                                        <option value="周辺機器">周辺機器</option>
+                                    </select>
+                                </div>
+                                <div style="flex:1;">
+                                    <label style="display:block;font-size:12px;color:#666;margin-bottom:2px;">数量</label>
+                                    <input type="number" id="modalQuantity" value="1" min="1" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px;">
+                                </div>
+                                <div style="flex:1;">
+                                    <label style="display:block;font-size:12px;color:#666;margin-bottom:2px;">金額(USD)</label>
+                                    <input type="number" id="modalTotalAmount" placeholder="0" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px;">
+                                </div>
+                            </div>
+                            
+                            <div style="margin-bottom:8px;">
+                                <label style="display:block;font-size:12px;color:#666;margin-bottom:2px;">型式検索</label>
+                                <input type="text" id="modalProductSearch" placeholder="型番で検索..." 
+                                       oninput="filterProductList()"
+                                       style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px;">
+                            </div>
+                            
+                            <div style="margin-bottom:8px;">
+                                <select id="modalProductSelect" onchange="onProductSelect(this.value)" 
+                                        style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px;" size="4">
+                                    <option value="">-- 型式を選択 --</option>
+                                </select>
+                                <p style="font-size:11px;color:#666;margin-top:2px;" id="productMasterCount">サプライヤー・種別で絞り込み可能</p>
+                            </div>
+                            
+                            <div style="margin-bottom:8px;">
+                                <label style="display:block;font-size:12px;color:#666;margin-bottom:2px;">製品名（手動入力可）</label>
+                                <input type="text" id="modalProductName" placeholder="型式選択で自動入力" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px;">
+                            </div>
+                            
+                            <button onclick="addPendingItem()" style="width:100%;padding:8px;border:none;border-radius:4px;background:#10b981;color:white;cursor:pointer;font-size:14px;">
+                                ＋ この製品を追加
+                            </button>
                         </div>
                         
-                        <!-- 3. 種別 -->
-                        <div style="margin-bottom:12px;">
-                            <label style="display:block;font-size:14px;margin-bottom:4px;">種別</label>
-                            <select id="modalCategory" onchange="filterProductByCategory()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
-                                <option value="">-- 選択 --</option>
-                                <option value="屋内">屋内</option>
-                                <option value="屋外">屋外</option>
-                                <option value="マルチディスプレイ">マルチディスプレイ</option>
-                                <option value="LEDビジョン">LEDビジョン</option>
-                                <option value="STUDIA">STUDIA</option>
-                                <option value="マトリクス">マトリクス</option>
-                                <option value="OPS">OPS</option>
-                                <option value="メディアプレーヤー">メディアプレーヤー</option>
-                                <option value="スタンド/金具">スタンド/金具</option>
-                                <option value="周辺機器">周辺機器</option>
-                            </select>
+                        <!-- 追加済み明細一覧 -->
+                        <div id="pendingItemsList" style="margin-bottom:16px;">
+                            <p style="font-size:12px;color:#666;text-align:center;">製品を追加してください</p>
                         </div>
                         
-                        <!-- 4. 型式（製品マスタから選択） -->
-                        <div style="margin-bottom:12px;">
-                            <label style="display:block;font-size:14px;margin-bottom:4px;">型式（マスタから選択）</label>
-                            <input type="text" id="modalProductSearch" placeholder="型番で検索..." 
-                                   oninput="filterProductList()"
-                                   style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;margin-bottom:4px;">
-                            <select id="modalProductSelect" onchange="onProductSelect(this.value)" 
-                                    style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;" size="5">
-                                <option value="">-- 型式を選択 --</option>
-                            </select>
-                            <p style="font-size:12px;color:#666;margin-top:4px;" id="productMasterCount">サプライヤー・種別で絞り込み可能</p>
-                        </div>
-                        
-                        <!-- 5. 製品名（手動入力も可） -->
-                        <div style="margin-bottom:12px;">
-                            <label style="display:block;font-size:14px;margin-bottom:4px;">製品名</label>
-                            <input type="text" id="modalProductName" placeholder="型式選択で自動入力、または手動入力" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
-                        </div>
-                        
-                        <!-- 6. 総額 -->
-                        <div style="margin-bottom:12px;">
-                            <label style="display:block;font-size:14px;margin-bottom:4px;">総額 (USD)</label>
-                            <input type="number" id="modalTotalAmount" placeholder="例: 10000" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
-                        </div>
-                        
-                        <!-- 7. 数量 -->
-                        <div style="margin-bottom:12px;">
-                            <label style="display:block;font-size:14px;margin-bottom:4px;">数量（枝番用）</label>
-                            <input type="number" id="modalQuantity" value="1" min="1" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
-                            <p style="font-size:12px;color:#666;margin-top:4px;">1の場合: YS0554、4の場合: YS0554(1-4)</p>
-                        </div>
-                        
-                        <!-- 8. Working Days -->
-                        <div style="margin-bottom:16px;">
-                            <label style="display:block;font-size:14px;margin-bottom:4px;">Working Days（営業日数）</label>
-                            <input type="number" id="modalWorkingDays" value="30" min="1" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
-                            <p style="font-size:12px;color:#666;margin-top:4px;">登録日から集荷予定日までの営業日数</p>
+                        <!-- 合計表示 -->
+                        <div id="pendingTotal" style="background:#f1f5f9;padding:8px 12px;border-radius:4px;margin-bottom:16px;display:none;">
+                            <span style="font-weight:bold;">合計:</span> <span id="pendingTotalAmount">$0</span>
                         </div>
                         
                         <div style="display:flex;gap:8px;justify-content:flex-end;">
                             <button onclick="closeProjectModal()" style="padding:8px 16px;border:1px solid #ccc;border-radius:6px;background:white;cursor:pointer;">キャンセル</button>
-                            <button onclick="submitProjectForm()" style="padding:8px 16px;border:none;border-radius:6px;background:#2563eb;color:white;cursor:pointer;">登録</button>
+                            <button onclick="submitProjectForm()" id="submitBtn" style="padding:8px 16px;border:none;border-radius:6px;background:#2563eb;color:white;cursor:pointer;" disabled>登録（0件）</button>
                         </div>
                     </div>
                 </div>
@@ -1513,6 +1531,87 @@
             
             // モーダル表示時に製品リストを初期表示
             setTimeout(() => filterProductList(), 100);
+        }
+        
+        // 製品を一時リストに追加
+        function addPendingItem() {
+            const category = document.getElementById('modalCategory').value;
+            const productName = document.getElementById('modalProductName').value.trim();
+            const quantity = parseInt(document.getElementById('modalQuantity').value) || 1;
+            const totalAmount = parseFloat(document.getElementById('modalTotalAmount').value) || 0;
+            
+            if (!category) {
+                alert('種別を選択してください');
+                return;
+            }
+            if (!productName) {
+                alert('製品名を入力または選択してください');
+                return;
+            }
+            if (totalAmount <= 0) {
+                alert('金額を入力してください');
+                return;
+            }
+            
+            pendingItems.push({
+                category,
+                productName,
+                quantity,
+                totalAmount
+            });
+            
+            // 入力欄をリセット（種別以外）
+            document.getElementById('modalProductName').value = '';
+            document.getElementById('modalQuantity').value = '1';
+            document.getElementById('modalTotalAmount').value = '';
+            document.getElementById('modalProductSearch').value = '';
+            filterProductList();
+            
+            renderPendingItems();
+        }
+        
+        // 一時リストから削除
+        function removePendingItem(index) {
+            pendingItems.splice(index, 1);
+            renderPendingItems();
+        }
+        
+        // 一時リストを表示
+        function renderPendingItems() {
+            const listEl = document.getElementById('pendingItemsList');
+            const totalEl = document.getElementById('pendingTotal');
+            const totalAmountEl = document.getElementById('pendingTotalAmount');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            if (pendingItems.length === 0) {
+                listEl.innerHTML = '<p style="font-size:12px;color:#666;text-align:center;">製品を追加してください</p>';
+                totalEl.style.display = 'none';
+                submitBtn.disabled = true;
+                submitBtn.textContent = '登録（0件）';
+                return;
+            }
+            
+            let total = 0;
+            listEl.innerHTML = pendingItems.map((item, i) => {
+                total += item.totalAmount;
+                return `
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px;background:#f8fafc;border-radius:4px;margin-bottom:4px;">
+                        <div style="flex:1;">
+                            <span style="font-size:13px;font-weight:500;">${item.productName}</span>
+                            <span style="font-size:12px;color:#666;margin-left:8px;">${item.category} × ${item.quantity}</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="font-size:13px;font-weight:500;">$${item.totalAmount.toLocaleString()}</span>
+                            <button onclick="removePendingItem(${i})" style="padding:2px 6px;border:none;background:#ef4444;color:white;border-radius:4px;cursor:pointer;font-size:12px;">×</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            totalEl.style.display = 'block';
+            totalAmountEl.textContent = `$${total.toLocaleString()}`;
+            submitBtn.disabled = false;
+            submitBtn.textContent = `登録（${pendingItems.length}件）`;
         }
         
         // サプライヤー・種別で製品リストをフィルタ
@@ -1621,35 +1720,51 @@
         function closeProjectModal() {
             const modal = document.getElementById('projectModal');
             if (modal) modal.remove();
+            pendingItems = [];
         }
 
         async function submitProjectForm() {
             const projectPrefix = document.getElementById('modalProjectPrefix').value;
             const projectNumber = document.getElementById('modalProjectNumber').value.trim();
             const supplierId = document.getElementById('modalSupplierId').value;
-            const productName = document.getElementById('modalProductName').value;
-            const totalAmount = document.getElementById('modalTotalAmount').value;
-            const quantity = parseInt(document.getElementById('modalQuantity').value) || 1;
             const workingDays = parseInt(document.getElementById('modalWorkingDays').value) || 30;
-            const category = document.getElementById('modalCategory').value;
             
-            if (!projectNumber || !supplierId || !totalAmount) {
-                alert('案件番号、サプライヤー、総額は必須です');
+            if (!projectNumber) {
+                alert('案件番号を入力してください');
                 return;
             }
-
-            if (!category) {
-                alert('種別を選択してください（在庫管理に必要です）');
+            if (!supplierId) {
+                alert('サプライヤーを選択してください');
+                return;
+            }
+            if (pendingItems.length === 0) {
+                alert('製品を追加してください');
                 return;
             }
             
-            // 接頭辞と番号を結合して渡す
+            showStatus(`登録中... (0/${pendingItems.length})`);
+            
+            // 接頭辞と番号を結合
             const projectNumberFull = `${projectPrefix}-${projectNumber}`;
             
-            showStatus('登録中...');
-            await addProject(projectNumberFull, supplierId, productName, totalAmount, quantity, workingDays, category);
+            // 各製品を順番に登録
+            for (let i = 0; i < pendingItems.length; i++) {
+                const item = pendingItems[i];
+                showStatus(`登録中... (${i + 1}/${pendingItems.length})`);
+                await addProject(
+                    projectNumberFull, 
+                    supplierId, 
+                    item.productName, 
+                    item.totalAmount, 
+                    item.quantity, 
+                    workingDays, 
+                    item.category
+                );
+            }
+            
             closeProjectModal();
-            showStatus('');
+            showStatus(`${pendingItems.length}件の製品を登録しました`);
+            setTimeout(() => showStatus(''), 3000);
             renderMain();
         }
 
