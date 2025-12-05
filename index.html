@@ -1509,6 +1509,9 @@
                 </div>
             `;
             document.body.appendChild(modal);
+            
+            // モーダル表示時に製品リストを初期表示
+            setTimeout(() => filterProductList(), 100);
         }
         
         // サプライヤー・種別で製品リストをフィルタ
@@ -1520,18 +1523,20 @@
             
             if (!select) return;
             
+            console.log('filterProductList called:', { productMasterCount: productMaster.length, supplierId, category, searchText });
+            
             const search = searchText.toLowerCase();
             
             // サプライヤー名を取得
             const supplier = suppliers.find(s => s.id === parseInt(supplierId));
             const supplierName = supplier?.name?.toLowerCase() || '';
             
-            // カテゴリマッピング
+            // カテゴリマッピング（選択肢 → マスタの値）
             const categoryMap = {
                 '屋内': ['屋内'],
                 '屋外': ['屋外'],
                 'マルチディスプレイ': ['マルチディスプレイ'],
-                'LEDビジョン': ['屋外LED', 'LEDビジョン'],
+                'LEDビジョン': ['屋外LED', '屋内LED', 'LEDビジョン'],
                 'STUDIA': ['STUDIA'],
                 'マトリクス': ['マトリクス'],
                 'OPS': ['OPS'],
@@ -1542,27 +1547,35 @@
             const matchCategories = category ? (categoryMap[category] || [category]) : [];
             
             let filtered = productMaster.filter(p => {
-                // サプライヤーフィルタ
-                if (supplierName && !p.supplier.toLowerCase().includes(supplierName) && 
-                    !supplierName.includes(p.supplier.toLowerCase())) {
-                    return false;
+                // サプライヤーフィルタ（選択されている場合のみ）
+                if (supplierId && supplierName) {
+                    const pSupplier = p.supplier.toLowerCase();
+                    if (!pSupplier.includes(supplierName) && !supplierName.includes(pSupplier)) {
+                        return false;
+                    }
                 }
                 
-                // 種別フィルタ
-                if (matchCategories.length > 0 && !matchCategories.some(c => 
-                    p.category.includes(c) || c.includes(p.category)
-                )) {
-                    return false;
+                // 種別フィルタ（選択されている場合のみ）
+                if (category && matchCategories.length > 0) {
+                    const pCategory = p.category || '';
+                    const matched = matchCategories.some(c => pCategory === c);
+                    if (!matched) {
+                        return false;
+                    }
                 }
                 
                 // テキスト検索
-                if (search && !p.pnFull.toLowerCase().includes(search) && 
-                    !p.pn.toLowerCase().includes(search)) {
-                    return false;
+                if (search) {
+                    if (!p.pnFull.toLowerCase().includes(search) && 
+                        !p.pn.toLowerCase().includes(search)) {
+                        return false;
+                    }
                 }
                 
                 return true;
             });
+            
+            console.log('filtered count:', filtered.length);
             
             // 最大50件
             filtered = filtered.slice(0, 50);
@@ -1575,7 +1588,11 @@
             // 件数表示を更新
             const countEl = document.getElementById('productMasterCount');
             if (countEl) {
-                countEl.textContent = `${filtered.length}件表示（全${productMaster.length}件）`;
+                if (productMaster.length === 0) {
+                    countEl.textContent = '製品マスタを読み込み中...';
+                } else {
+                    countEl.textContent = `${filtered.length}件表示（全${productMaster.length}件）`;
+                }
             }
         }
         
