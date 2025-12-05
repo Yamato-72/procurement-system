@@ -1421,6 +1421,8 @@
                 <div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;">
                     <div style="background:white;padding:24px;border-radius:12px;width:500px;max-width:90%;max-height:90vh;overflow-y:auto;">
                         <h3 style="font-size:18px;font-weight:bold;margin-bottom:16px;">新規案件登録</h3>
+                        
+                        <!-- 1. 案件番号 -->
                         <div style="margin-bottom:12px;">
                             <label style="display:block;font-size:14px;margin-bottom:4px;">案件番号</label>
                             <div style="display:flex;gap:8px;">
@@ -1432,63 +1434,73 @@
                             </div>
                             <p style="font-size:12px;color:#666;margin-top:4px;">4桁の番号を入力（例: 0001）</p>
                         </div>
-                        <div style="margin-bottom:12px;">
-                            <label style="display:block;font-size:14px;margin-bottom:4px;">製品（マスタから選択）</label>
-                            <input type="text" id="modalProductSearch" placeholder="型番または製品名で検索..." 
-                                   oninput="filterProductList(this.value)"
-                                   style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;margin-bottom:4px;">
-                            <select id="modalProductSelect" onchange="onProductSelect(this.value)" 
-                                    style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;" size="5">
-                                <option value="">-- 製品を選択 --</option>
-                                ${productMaster.slice(0, 50).map(p => 
-                                    `<option value="${p.pnFull}" data-supplier="${p.supplier}" data-category="${p.category}">${p.pnFull} (${p.supplier})</option>`
-                                ).join('')}
-                            </select>
-                            <p style="font-size:12px;color:#666;margin-top:4px;">検索で絞り込み可能。${productMaster.length}件のマスタ登録あり</p>
-                        </div>
-                        <div style="margin-bottom:12px;">
-                            <label style="display:block;font-size:14px;margin-bottom:4px;">製品名（手動入力も可）</label>
-                            <input type="text" id="modalProductName" placeholder="製品名を入力" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
-                        </div>
+                        
+                        <!-- 2. サプライヤー -->
                         <div style="margin-bottom:12px;">
                             <label style="display:block;font-size:14px;margin-bottom:4px;">サプライヤー</label>
-                            <select id="modalSupplierId" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                            <select id="modalSupplierId" onchange="filterProductBySupplier()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
                                 <option value="">-- 選択 --</option>
                                 ${suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
                             </select>
                         </div>
+                        
+                        <!-- 3. 種別 -->
                         <div style="margin-bottom:12px;">
-                            <label style="display:block;font-size:14px;margin-bottom:4px;">種別（在庫管理用）</label>
-                            <select id="modalCategory" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
-                                <option value="">選択してください</option>
-                                <option value="マルチディスプレイ">マルチディスプレイ</option>
-                                <option value="屋外">屋外</option>
+                            <label style="display:block;font-size:14px;margin-bottom:4px;">種別</label>
+                            <select id="modalCategory" onchange="filterProductByCategory()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                                <option value="">-- 選択 --</option>
                                 <option value="屋内">屋内</option>
+                                <option value="屋外">屋外</option>
+                                <option value="マルチディスプレイ">マルチディスプレイ</option>
                                 <option value="LEDビジョン">LEDビジョン</option>
-                                <option value="電子黒板">電子黒板</option>
+                                <option value="STUDIA">STUDIA</option>
                                 <option value="マトリクス">マトリクス</option>
+                                <option value="OPS">OPS</option>
                                 <option value="メディアプレーヤー">メディアプレーヤー</option>
                                 <option value="スタンド/金具">スタンド/金具</option>
                                 <option value="周辺機器">周辺機器</option>
-                                <option value="STUDIA">STUDIA</option>
-                                <option value="OPS">OPS</option>
                             </select>
-                            <p style="font-size:12px;color:#666;margin-top:4px;">製品選択時に自動設定されます</p>
                         </div>
+                        
+                        <!-- 4. 型式（製品マスタから選択） -->
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;">型式（マスタから選択）</label>
+                            <input type="text" id="modalProductSearch" placeholder="型番で検索..." 
+                                   oninput="filterProductList()"
+                                   style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;margin-bottom:4px;">
+                            <select id="modalProductSelect" onchange="onProductSelect(this.value)" 
+                                    style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;" size="5">
+                                <option value="">-- 型式を選択 --</option>
+                            </select>
+                            <p style="font-size:12px;color:#666;margin-top:4px;" id="productMasterCount">サプライヤー・種別で絞り込み可能</p>
+                        </div>
+                        
+                        <!-- 5. 製品名（手動入力も可） -->
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;">製品名</label>
+                            <input type="text" id="modalProductName" placeholder="型式選択で自動入力、または手動入力" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                        </div>
+                        
+                        <!-- 6. 総額 -->
                         <div style="margin-bottom:12px;">
                             <label style="display:block;font-size:14px;margin-bottom:4px;">総額 (USD)</label>
                             <input type="number" id="modalTotalAmount" placeholder="例: 10000" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
                         </div>
+                        
+                        <!-- 7. 数量 -->
                         <div style="margin-bottom:12px;">
                             <label style="display:block;font-size:14px;margin-bottom:4px;">数量（枝番用）</label>
                             <input type="number" id="modalQuantity" value="1" min="1" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
                             <p style="font-size:12px;color:#666;margin-top:4px;">1の場合: YS0554、4の場合: YS0554(1-4)</p>
                         </div>
+                        
+                        <!-- 8. Working Days -->
                         <div style="margin-bottom:16px;">
                             <label style="display:block;font-size:14px;margin-bottom:4px;">Working Days（営業日数）</label>
                             <input type="number" id="modalWorkingDays" value="30" min="1" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
                             <p style="font-size:12px;color:#666;margin-top:4px;">登録日から集荷予定日までの営業日数</p>
                         </div>
+                        
                         <div style="display:flex;gap:8px;justify-content:flex-end;">
                             <button onclick="closeProjectModal()" style="padding:8px 16px;border:1px solid #ccc;border-radius:6px;background:white;cursor:pointer;">キャンセル</button>
                             <button onclick="submitProjectForm()" style="padding:8px 16px;border:none;border-radius:6px;background:#2563eb;color:white;cursor:pointer;">登録</button>
@@ -1499,22 +1511,82 @@
             document.body.appendChild(modal);
         }
         
-        // 製品リストをフィルタ
-        function filterProductList(searchText) {
+        // サプライヤー・種別で製品リストをフィルタ
+        function filterProductList() {
+            const searchText = document.getElementById('modalProductSearch')?.value || '';
+            const supplierId = document.getElementById('modalSupplierId')?.value;
+            const category = document.getElementById('modalCategory')?.value;
             const select = document.getElementById('modalProductSelect');
+            
+            if (!select) return;
+            
             const search = searchText.toLowerCase();
             
-            const filtered = productMaster.filter(p => 
-                p.pnFull.toLowerCase().includes(search) ||
-                p.pn.toLowerCase().includes(search) ||
-                p.supplier.toLowerCase().includes(search) ||
-                p.category.toLowerCase().includes(search)
-            ).slice(0, 50);
+            // サプライヤー名を取得
+            const supplier = suppliers.find(s => s.id === parseInt(supplierId));
+            const supplierName = supplier?.name?.toLowerCase() || '';
             
-            select.innerHTML = '<option value="">-- 製品を選択 --</option>' + 
+            // カテゴリマッピング
+            const categoryMap = {
+                '屋内': ['屋内'],
+                '屋外': ['屋外'],
+                'マルチディスプレイ': ['マルチディスプレイ'],
+                'LEDビジョン': ['屋外LED', 'LEDビジョン'],
+                'STUDIA': ['STUDIA'],
+                'マトリクス': ['マトリクス'],
+                'OPS': ['OPS'],
+                'メディアプレーヤー': ['メディアプレーヤー'],
+                'スタンド/金具': ['スタンド/金具'],
+                '周辺機器': ['周辺機器', 'LEDコントローラー']
+            };
+            const matchCategories = category ? (categoryMap[category] || [category]) : [];
+            
+            let filtered = productMaster.filter(p => {
+                // サプライヤーフィルタ
+                if (supplierName && !p.supplier.toLowerCase().includes(supplierName) && 
+                    !supplierName.includes(p.supplier.toLowerCase())) {
+                    return false;
+                }
+                
+                // 種別フィルタ
+                if (matchCategories.length > 0 && !matchCategories.some(c => 
+                    p.category.includes(c) || c.includes(p.category)
+                )) {
+                    return false;
+                }
+                
+                // テキスト検索
+                if (search && !p.pnFull.toLowerCase().includes(search) && 
+                    !p.pn.toLowerCase().includes(search)) {
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            // 最大50件
+            filtered = filtered.slice(0, 50);
+            
+            select.innerHTML = '<option value="">-- 型式を選択 --</option>' + 
                 filtered.map(p => 
-                    `<option value="${p.pnFull}" data-supplier="${p.supplier}" data-category="${p.category}">${p.pnFull} (${p.supplier})</option>`
+                    `<option value="${p.pnFull}">${p.pnFull}</option>`
                 ).join('');
+            
+            // 件数表示を更新
+            const countEl = document.getElementById('productMasterCount');
+            if (countEl) {
+                countEl.textContent = `${filtered.length}件表示（全${productMaster.length}件）`;
+            }
+        }
+        
+        // サプライヤー変更時
+        function filterProductBySupplier() {
+            filterProductList();
+        }
+        
+        // 種別変更時
+        function filterProductByCategory() {
+            filterProductList();
         }
         
         // 製品選択時の処理
@@ -1526,39 +1598,6 @@
             
             // 製品名を設定
             document.getElementById('modalProductName').value = pnFull;
-            
-            // サプライヤーを自動選択
-            const supplierSelect = document.getElementById('modalSupplierId');
-            const supplier = suppliers.find(s => 
-                s.name.toLowerCase().includes(product.supplier.toLowerCase()) ||
-                product.supplier.toLowerCase().includes(s.name.toLowerCase())
-            );
-            if (supplier) {
-                supplierSelect.value = supplier.id;
-            }
-            
-            // 種別を自動選択
-            const categorySelect = document.getElementById('modalCategory');
-            const categoryMap = {
-                '屋内': '屋内',
-                '屋外': '屋外',
-                '屋外LED': 'LEDビジョン',
-                'マルチディスプレイ': 'マルチディスプレイ',
-                'マトリクス': 'マトリクス',
-                'STUDIA': 'STUDIA',
-                'OPS': 'OPS',
-                'メディアプレーヤー': 'メディアプレーヤー',
-                'スタンド/金具': 'スタンド/金具',
-                '周辺機器': '周辺機器',
-                'LEDコントローラー': '周辺機器'
-            };
-            const mappedCategory = categoryMap[product.category] || product.category;
-            for (let opt of categorySelect.options) {
-                if (opt.value === mappedCategory || opt.value === product.category) {
-                    categorySelect.value = opt.value;
-                    break;
-                }
-            }
         }
 
         function closeProjectModal() {
