@@ -47,12 +47,27 @@
         let accessToken = null;
         let suppliers = [];
         let projects = [];
+        let productMaster = []; // 製品マスタ
         let nextSerial = 554; // YS0554から開始
         let showSupplierSection = false; // サプライヤー管理の折りたたみ状態
         let expandedProjects = {}; // 案件カードの展開状態
         let lastUpdated = null; // 最終更新日時
         let isDarkMode = localStorage.getItem('darkMode') === 'true'; // ダークモード状態
         let processedPermitFiles = []; // 処理済み輸入許可書ファイルID
+        
+        // 製品マスタのシート一覧
+        const PRODUCT_MASTER_SHEETS = [
+            { name: 'LCD', category: 'ディスプレイ' },
+            { name: 'LED', category: 'LEDビジョン' },
+            { name: 'LED_others', category: 'LEDコントローラー' },
+            { name: 'matrix-switcher', category: 'マトリクス' },
+            { name: 'TVwall_controller', category: 'マルチディスプレイ' },
+            { name: 'STUDIA', category: 'STUDIA' },
+            { name: 'OPS', category: 'OPS' },
+            { name: 'dongle', category: '周辺機器' },
+            { name: 'e-board_stand', category: 'スタンド・什器' },
+            { name: 'player', category: 'メディアプレーヤー' }
+        ];
         
         // フィルタ状態
         let projectFilter = {
@@ -379,9 +394,77 @@
                 
                 // フォルダURLを非同期で取得
                 loadFolderUrls();
+                
+                // 製品マスタを非同期で読み込み
+                loadProductMaster();
             } catch (err) {
                 console.error('読み込みエラー:', err);
                 showStatus('読み込みエラー: ' + err.message);
+            }
+        }
+        
+        // 製品マスタを読み込む
+        async function loadProductMaster() {
+            try {
+                productMaster = [];
+                
+                for (const sheet of PRODUCT_MASTER_SHEETS) {
+                    try {
+                        const response = await gapi.client.sheets.spreadsheets.values.get({
+                            spreadsheetId: SPREADSHEET_ID,
+                            range: `${sheet.name}!A1:Z`,
+                        });
+                        
+                        const rows = response.result.values || [];
+                        if (rows.length < 2) continue;
+                        
+                        const headers = rows[0];
+                        const pnFullIndex = headers.indexOf('pn_full');
+                        const pnIndex = headers.indexOf('pn');
+                        const typeIndex = headers.indexOf('type');
+                        const categoryIndex = headers.indexOf('category');
+                        const supplierIndex = headers.indexOf('supplier');
+                        const isActiveIndex = headers.indexOf('is_active');
+                        const inchIndex = headers.indexOf('inch');
+                        
+                        for (let i = 1; i < rows.length; i++) {
+                            const row = rows[i];
+                            const isActive = isActiveIndex >= 0 ? row[isActiveIndex] : 'TRUE';
+                            
+                            // is_active が FALSE なら スキップ
+                            if (isActive === 'FALSE' || isActive === false) continue;
+                            
+                            const pnFull = pnFullIndex >= 0 ? row[pnFullIndex] : '';
+                            const pn = pnIndex >= 0 ? row[pnIndex] : '';
+                            
+                            if (!pnFull && !pn) continue;
+                            
+                            productMaster.push({
+                                pn: pn || '',
+                                pnFull: pnFull || pn || '',
+                                type: typeIndex >= 0 ? row[typeIndex] : '',
+                                category: categoryIndex >= 0 ? row[categoryIndex] : sheet.category,
+                                supplier: supplierIndex >= 0 ? row[supplierIndex] : '',
+                                inch: inchIndex >= 0 ? row[inchIndex] : '',
+                                sheetName: sheet.name
+                            });
+                        }
+                    } catch (e) {
+                        console.log(`シート ${sheet.name} の読み込みスキップ:`, e.message);
+                    }
+                }
+                
+                // 重複を除去（pn_fullベース）
+                const seen = new Set();
+                productMaster = productMaster.filter(p => {
+                    if (seen.has(p.pnFull)) return false;
+                    seen.add(p.pnFull);
+                    return true;
+                });
+                
+                console.log(`製品マスタ読み込み完了: ${productMaster.length}件`);
+            } catch (err) {
+                console.error('製品マスタ読み込みエラー:', err);
             }
         }
 
@@ -657,11 +740,11 @@
 
         function renderSignIn() {
             document.getElementById('app').innerHTML = `
-                <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 flex items-center justify-center p-6">
-                    <div class="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
-                        <h1 class="text-3xl font-bold text-slate-900 mb-2">調達管理システム</h1>
-                        <p class="text-slate-600 mb-6">デジタルサイネージ プロジェクト管理</p>
-                        <p class="text-slate-700 mb-6">Google Sheetsと連携してデータを保存します。<br>Googleアカウントでサインインしてください。</p>
+                <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-6">
+                    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+                        <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-2">調達管理システム</h1>
+                        <p class="text-slate-600 dark:text-slate-400 mb-6">デジタルサイネージ プロジェクト管理</p>
+                        <p class="text-slate-700 dark:text-slate-300 mb-6">Google Sheetsと連携してデータを保存します。<br>Googleアカウントでサインインしてください。</p>
                         <button onclick="handleAuthClick()" class="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">Googleでサインイン</button>
                     </div>
                 </div>`;
@@ -866,7 +949,7 @@
                                                 <div class="flex-1">
                                                     <div class="flex items-center gap-2 mb-1 flex-wrap">
                                                         <span class="text-slate-400">${isExpanded ? '▼' : '▶'}</span>
-                                                        <h3 class="font-bold text-base sm:text-xl text-slate-900">${formatProjectNumber(p)}</h3>
+                                                        <h3 class="font-bold text-base sm:text-xl text-slate-900 dark:text-white">${formatProjectNumber(p)}</h3>
                                                         <span class="px-2 py-0.5 text-xs rounded-full ${projectStatus.color}">${projectStatus.icon} ${projectStatus.status}</span>
                                                         <button onclick="event.stopPropagation();editProjectDetails(${p.id})" class="p-1 text-slate-400 hover:text-blue-600" title="編集">
                                                             <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
@@ -882,18 +965,18 @@
                                                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2z"/></svg>
                                                             </a>
                                                         ` : `
-                                                            <span class="text-slate-300" title="フォルダ未検出">
+                                                            <span class="text-slate-300 dark:text-slate-600" title="フォルダ未検出">
                                                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2z"/></svg>
                                                             </span>
                                                         `}
                                                     </div>
-                                                    <p class="text-xs sm:text-sm text-slate-700 ml-6">${p.productName}</p>
+                                                    <p class="text-xs sm:text-sm text-slate-700 dark:text-slate-300 ml-6">${p.productName}</p>
                                                     ${!isExpanded ? `
-                                                        <p class="text-xs text-slate-500 ml-6">${supplier?.name || ''} / $${(p.totalAmount || 0).toLocaleString()} / 集荷: ${pickupDateDisplay}</p>
+                                                        <p class="text-xs text-slate-500 dark:text-slate-400 ml-6">${supplier?.name || ''} / $${(p.totalAmount || 0).toLocaleString()} / 集荷: ${pickupDateDisplay}</p>
                                                     ` : ''}
                                                 </div>
                                                 <div class="text-right">
-                                                    <p class="text-sm sm:text-lg font-bold text-slate-900">${formatJPY(totalPaid)}</p>
+                                                    <p class="text-sm sm:text-lg font-bold text-slate-900 dark:text-white">${formatJPY(totalPaid)}</p>
                                                     <p class="text-xs sm:text-sm ${paidCount === (p.depositSchedule || []).length ? 'text-green-600 font-semibold' : 'text-amber-600 font-semibold'}">
                                                         ${paidCount}/${(p.depositSchedule || []).length}回
                                                     </p>
@@ -921,12 +1004,12 @@
                                                 </div>
                                                 
                                                 ${nextPayment ? `
-                                                    <div class="bg-white border-2 border-amber-400 rounded-lg p-3 sm:p-4 mb-3">
-                                                        <p class="text-xs sm:text-sm font-semibold text-amber-700 mb-2">📋 次回支払予定</p>
+                                                    <div class="bg-white dark:bg-slate-700 border-2 border-amber-400 dark:border-amber-500 rounded-lg p-3 sm:p-4 mb-3">
+                                                        <p class="text-xs sm:text-sm font-semibold text-amber-700 dark:text-amber-300 mb-2">📋 次回支払予定</p>
                                                         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                                                             <div>
-                                                                <p class="font-bold text-sm sm:text-lg text-slate-900">第${nextPayment.depositNumber}回: $${(nextPayment.amountUSD || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                                                                <p class="text-xs sm:text-sm text-slate-600">(${nextPayment.percentage}%)</p>
+                                                                <p class="font-bold text-sm sm:text-lg text-slate-900 dark:text-white">第${nextPayment.depositNumber}回: $${(nextPayment.amountUSD || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                                                                <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400">(${nextPayment.percentage}%)</p>
                                                             </div>
                                                             <button onclick="event.stopPropagation();markPaymentComplete(${p.id}, ${nextPayment.depositNumber})" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-600 text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-emerald-700">
                                                                 支払完了
@@ -934,27 +1017,27 @@
                                                         </div>
                                                     </div>
                                                 ` : `
-                                                    <div class="bg-white border-2 border-green-400 rounded-lg p-3 sm:p-4 mb-3">
-                                                        <p class="text-green-700 text-xs sm:text-sm font-semibold text-center">✓ すべての支払いが完了</p>
-                                                        ${unitPrice ? `<p class="text-green-600 text-xs sm:text-sm text-center mt-1">単価: ${formatJPY(unitPrice)}</p>` : ''}
+                                                    <div class="bg-white dark:bg-slate-700 border-2 border-green-400 dark:border-green-500 rounded-lg p-3 sm:p-4 mb-3">
+                                                        <p class="text-green-700 dark:text-green-300 text-xs sm:text-sm font-semibold text-center">✓ すべての支払いが完了</p>
+                                                        ${unitPrice ? `<p class="text-green-600 dark:text-green-400 text-xs sm:text-sm text-center mt-1">単価: ${formatJPY(unitPrice)}</p>` : ''}
                                                     </div>
                                                 `}
                                                 
-                                                <div class="bg-slate-50 rounded-lg p-3 sm:p-4">
-                                                    <p class="text-xs sm:text-sm font-semibold text-slate-700 mb-2 sm:mb-3">支払履歴</p>
+                                                <div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 sm:p-4">
+                                                    <p class="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 sm:mb-3">支払履歴</p>
                                                     <div class="space-y-2">
                                                         ${(p.depositSchedule || []).map(dep => `
-                                                            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 sm:p-3 ${dep.paid ? 'bg-green-100 border border-green-300' : 'bg-white border border-slate-200'} rounded">
+                                                            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 sm:p-3 ${dep.paid ? 'bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700' : 'bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500'} rounded">
                                                                 <div class="flex-1">
-                                                                    <span class="font-semibold text-xs sm:text-sm text-slate-900">第${dep.depositNumber}回</span>
-                                                                    <span class="text-xs sm:text-sm text-slate-600 ml-2 sm:ml-3">$${(dep.amountUSD || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${dep.percentage}%)</span>
+                                                                    <span class="font-semibold text-xs sm:text-sm text-slate-900 dark:text-white">第${dep.depositNumber}回</span>
+                                                                    <span class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 ml-2 sm:ml-3">$${(dep.amountUSD || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${dep.percentage}%)</span>
                                                                     ${dep.paid ? `
-                                                                        <div class="text-xs text-slate-600 mt-1">
+                                                                        <div class="text-xs text-slate-600 dark:text-slate-400 mt-1">
                                                                             ${dep.paidDate} | ¥${dep.exchangeRate} | ${formatJPY(dep.amountJPY)}
                                                                         </div>
                                                                     ` : ''}
                                                                 </div>
-                                                                <span class="px-2 sm:px-3 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-semibold ${dep.paid ? 'bg-green-600 text-white' : 'bg-slate-300 text-slate-600'}">
+                                                                <span class="px-2 sm:px-3 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-semibold ${dep.paid ? 'bg-green-600 text-white' : 'bg-slate-300 dark:bg-slate-500 text-slate-600 dark:text-slate-200'}">
                                                                     ${dep.paid ? '完了' : '未払'}
                                                                 </span>
                                                             </div>
@@ -1336,7 +1419,7 @@
             modal.id = 'projectModal';
             modal.innerHTML = `
                 <div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;">
-                    <div style="background:white;padding:24px;border-radius:12px;width:450px;max-width:90%;max-height:90vh;overflow-y:auto;">
+                    <div style="background:white;padding:24px;border-radius:12px;width:500px;max-width:90%;max-height:90vh;overflow-y:auto;">
                         <h3 style="font-size:18px;font-weight:bold;margin-bottom:16px;">新規案件登録</h3>
                         <div style="margin-bottom:12px;">
                             <label style="display:block;font-size:14px;margin-bottom:4px;">案件番号</label>
@@ -1350,14 +1433,47 @@
                             <p style="font-size:12px;color:#666;margin-top:4px;">4桁の番号を入力（例: 0001）</p>
                         </div>
                         <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;">製品（マスタから選択）</label>
+                            <input type="text" id="modalProductSearch" placeholder="型番または製品名で検索..." 
+                                   oninput="filterProductList(this.value)"
+                                   style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;margin-bottom:4px;">
+                            <select id="modalProductSelect" onchange="onProductSelect(this.value)" 
+                                    style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;" size="5">
+                                <option value="">-- 製品を選択 --</option>
+                                ${productMaster.slice(0, 50).map(p => 
+                                    `<option value="${p.pnFull}" data-supplier="${p.supplier}" data-category="${p.category}">${p.pnFull} (${p.supplier})</option>`
+                                ).join('')}
+                            </select>
+                            <p style="font-size:12px;color:#666;margin-top:4px;">検索で絞り込み可能。${productMaster.length}件のマスタ登録あり</p>
+                        </div>
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;">製品名（手動入力も可）</label>
+                            <input type="text" id="modalProductName" placeholder="製品名を入力" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                        </div>
+                        <div style="margin-bottom:12px;">
                             <label style="display:block;font-size:14px;margin-bottom:4px;">サプライヤー</label>
                             <select id="modalSupplierId" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                                <option value="">-- 選択 --</option>
                                 ${suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
                             </select>
                         </div>
                         <div style="margin-bottom:12px;">
-                            <label style="display:block;font-size:14px;margin-bottom:4px;">製品名</label>
-                            <input type="text" id="modalProductName" placeholder="製品名を入力" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;">種別（在庫管理用）</label>
+                            <select id="modalCategory" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
+                                <option value="">選択してください</option>
+                                <option value="マルチディスプレイ">マルチディスプレイ</option>
+                                <option value="屋外">屋外</option>
+                                <option value="屋内">屋内</option>
+                                <option value="LEDビジョン">LEDビジョン</option>
+                                <option value="電子黒板">電子黒板</option>
+                                <option value="マトリクス">マトリクス</option>
+                                <option value="メディアプレーヤー">メディアプレーヤー</option>
+                                <option value="スタンド/金具">スタンド/金具</option>
+                                <option value="周辺機器">周辺機器</option>
+                                <option value="STUDIA">STUDIA</option>
+                                <option value="OPS">OPS</option>
+                            </select>
+                            <p style="font-size:12px;color:#666;margin-top:4px;">製品選択時に自動設定されます</p>
                         </div>
                         <div style="margin-bottom:12px;">
                             <label style="display:block;font-size:14px;margin-bottom:4px;">総額 (USD)</label>
@@ -1373,21 +1489,6 @@
                             <input type="number" id="modalWorkingDays" value="30" min="1" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
                             <p style="font-size:12px;color:#666;margin-top:4px;">登録日から集荷予定日までの営業日数</p>
                         </div>
-                        <div style="margin-bottom:16px;">
-                            <label style="display:block;font-size:14px;margin-bottom:4px;">種別（在庫管理用）</label>
-                            <select id="modalCategory" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;">
-                                <option value="">選択してください</option>
-                                <option value="マルチディスプレイ">マルチディスプレイ</option>
-                                <option value="屋外">屋外</option>
-                                <option value="屋内">屋内</option>
-                                <option value="電子黒板">電子黒板</option>
-                                <option value="マトリクス">マトリクス</option>
-                                <option value="メディアプレーヤー">メディアプレーヤー</option>
-                                <option value="スタンド/金具">スタンド/金具</option>
-                                <option value="周辺機器">周辺機器</option>
-                            </select>
-                            <p style="font-size:12px;color:#666;margin-top:4px;">選択すると在庫シートに自動追加されます</p>
-                        </div>
                         <div style="display:flex;gap:8px;justify-content:flex-end;">
                             <button onclick="closeProjectModal()" style="padding:8px 16px;border:1px solid #ccc;border-radius:6px;background:white;cursor:pointer;">キャンセル</button>
                             <button onclick="submitProjectForm()" style="padding:8px 16px;border:none;border-radius:6px;background:#2563eb;color:white;cursor:pointer;">登録</button>
@@ -1396,6 +1497,68 @@
                 </div>
             `;
             document.body.appendChild(modal);
+        }
+        
+        // 製品リストをフィルタ
+        function filterProductList(searchText) {
+            const select = document.getElementById('modalProductSelect');
+            const search = searchText.toLowerCase();
+            
+            const filtered = productMaster.filter(p => 
+                p.pnFull.toLowerCase().includes(search) ||
+                p.pn.toLowerCase().includes(search) ||
+                p.supplier.toLowerCase().includes(search) ||
+                p.category.toLowerCase().includes(search)
+            ).slice(0, 50);
+            
+            select.innerHTML = '<option value="">-- 製品を選択 --</option>' + 
+                filtered.map(p => 
+                    `<option value="${p.pnFull}" data-supplier="${p.supplier}" data-category="${p.category}">${p.pnFull} (${p.supplier})</option>`
+                ).join('');
+        }
+        
+        // 製品選択時の処理
+        function onProductSelect(pnFull) {
+            if (!pnFull) return;
+            
+            const product = productMaster.find(p => p.pnFull === pnFull);
+            if (!product) return;
+            
+            // 製品名を設定
+            document.getElementById('modalProductName').value = pnFull;
+            
+            // サプライヤーを自動選択
+            const supplierSelect = document.getElementById('modalSupplierId');
+            const supplier = suppliers.find(s => 
+                s.name.toLowerCase().includes(product.supplier.toLowerCase()) ||
+                product.supplier.toLowerCase().includes(s.name.toLowerCase())
+            );
+            if (supplier) {
+                supplierSelect.value = supplier.id;
+            }
+            
+            // 種別を自動選択
+            const categorySelect = document.getElementById('modalCategory');
+            const categoryMap = {
+                '屋内': '屋内',
+                '屋外': '屋外',
+                '屋外LED': 'LEDビジョン',
+                'マルチディスプレイ': 'マルチディスプレイ',
+                'マトリクス': 'マトリクス',
+                'STUDIA': 'STUDIA',
+                'OPS': 'OPS',
+                'メディアプレーヤー': 'メディアプレーヤー',
+                'スタンド/金具': 'スタンド/金具',
+                '周辺機器': '周辺機器',
+                'LEDコントローラー': '周辺機器'
+            };
+            const mappedCategory = categoryMap[product.category] || product.category;
+            for (let opt of categorySelect.options) {
+                if (opt.value === mappedCategory || opt.value === product.category) {
+                    categorySelect.value = opt.value;
+                    break;
+                }
+            }
         }
 
         function closeProjectModal() {
