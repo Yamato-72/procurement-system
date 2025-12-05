@@ -2435,37 +2435,13 @@
         }
 
         // 6. 案件削除機能
-        async function deleteProject(projectId) {
+        function deleteProject(projectId) {
             const project = projects.find(p => p.id === projectId);
             if (!project) return;
             
             const hasPaidDeposits = (project.depositSchedule || []).some(d => d.paid);
-            const projectNumber = formatProjectNumber(project);
             
-            // 在庫に該当アイテムがあるかチェック
-            let inventoryCount = 0;
-            try {
-                const response = await gapi.client.sheets.spreadsheets.values.get({
-                    spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫!A2:P',
-                });
-                const rows = response.result.values || [];
-                const projectPrefix = project.projectPrefix || 'AD';
-                const projectNum = String(project.projectNumber).padStart(4, '0');
-                
-                inventoryCount = rows.filter(row => {
-                    const rowPrefix = (row[4] || '').toUpperCase();
-                    const rowNumber = String(row[5] || '').padStart(4, '0');
-                    return rowPrefix === projectPrefix.toUpperCase() && rowNumber === projectNum;
-                }).length;
-            } catch (e) {
-                console.log('在庫チェックに失敗:', e);
-            }
-            
-            let confirmMessage = `案件「${projectNumber}」を削除しますか？\n\n製品: ${project.productName}`;
-            if (inventoryCount > 0) {
-                confirmMessage += `\n\n📦 在庫 ${inventoryCount}件も削除されます`;
-            }
+            let confirmMessage = `案件「${formatProjectNumber(project)}」を削除しますか？\n\n製品: ${project.productName}`;
             if (hasPaidDeposits) {
                 confirmMessage += '\n\n⚠️ この案件には支払い済みの記録があります。';
             }
@@ -2477,24 +2453,26 @@
                 if (!confirm('本当に削除してよろしいですか？\n支払い履歴も削除されます。')) return;
             }
             
-            // 在庫からも削除
-            if (inventoryCount > 0) {
-                await deleteInventoryByProject(project);
-            }
-            
             projects = projects.filter(p => p.id !== projectId);
             saveData();
             renderMain();
-            
-            if (inventoryCount > 0) {
-                showStatus(`案件と在庫 ${inventoryCount}件を削除しました`);
-                setTimeout(() => showStatus(''), 3000);
-            }
         }
         
         // 在庫シートから該当案件のアイテムを削除
         async function deleteInventoryByProject(project) {
             try {
+                // シートIDを取得
+                const sheetMeta = await gapi.client.sheets.spreadsheets.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                });
+                const inventorySheet = sheetMeta.result.sheets.find(s => s.properties.title === '在庫');
+                if (!inventorySheet) {
+                    console.error('在庫シートが見つかりません');
+                    return;
+                }
+                const sheetId = inventorySheet.properties.sheetId;
+                
+                // 在庫データを取得
                 const response = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: SPREADSHEET_ID,
                     range: '在庫!A2:P',
@@ -2504,29 +2482,38 @@
                 const projectPrefix = (project.projectPrefix || 'AD').toUpperCase();
                 const projectNum = String(project.projectNumber).padStart(4, '0');
                 
-                // 該当案件以外を残す
-                const remaining = rows.filter(row => {
+                // 削除対象の行番号を収集（1始まり、ヘッダー行の次から）
+                const rowsToDelete = [];
+                rows.forEach((row, idx) => {
                     const rowPrefix = (row[4] || '').toUpperCase();
                     const rowNumber = String(row[5] || '').padStart(4, '0');
-                    return !(rowPrefix === projectPrefix && rowNumber === projectNum);
+                    if (rowPrefix === projectPrefix && rowNumber === projectNum) {
+                        rowsToDelete.push(idx + 2); // idx=0 → 行2（ヘッダーが行1）
+                    }
                 });
                 
-                // シートをクリアして書き直し
-                await gapi.client.sheets.spreadsheets.values.clear({
+                if (rowsToDelete.length === 0) return;
+                
+                // 後ろの行から削除（降順ソート）※前から消すと行番号がずれるため
+                rowsToDelete.sort((a, b) => b - a);
+                
+                const requests = rowsToDelete.map(rowNum => ({
+                    deleteDimension: {
+                        range: {
+                            sheetId: sheetId,
+                            dimension: 'ROWS',
+                            startIndex: rowNum - 1, // 0始まりに変換
+                            endIndex: rowNum        // 1行だけ削除
+                        }
+                    }
+                }));
+                
+                await gapi.client.sheets.spreadsheets.batchUpdate({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫!A2:P'
+                    resource: { requests }
                 });
                 
-                if (remaining.length > 0) {
-                    await gapi.client.sheets.spreadsheets.values.update({
-                        spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫!A2:P',
-                        valueInputOption: 'RAW',
-                        resource: { values: remaining }
-                    });
-                }
-                
-                console.log(`在庫から ${rows.length - remaining.length}件を削除しました`);
+                console.log(`在庫から ${rowsToDelete.length}件を削除しました（行単位削除）`);
             } catch (e) {
                 console.error('在庫削除に失敗:', e);
             }

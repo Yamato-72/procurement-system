@@ -2243,25 +2243,25 @@
 
         // 在庫にあって調達にない案件をリストアップ
         function getMissingProjects() {
-            // 在庫の案件番号をグループ化
+            // 案件番号 × 製品名 でグループ化
             const inventoryProjects = {};
             inventory.forEach(item => {
                 if (!item.orderPrefix || !item.orderNumber) return;
-                const key = `${item.orderPrefix}-${item.orderNumber}`;
+                const key = `${item.orderPrefix}-${item.orderNumber}|${item.productName}`;
                 if (!inventoryProjects[key]) {
                     inventoryProjects[key] = {
                         prefix: item.orderPrefix,
                         number: item.orderNumber,
-                        items: [],
+                        productName: item.productName,
+                        serials: [],
                         totalCost: 0,
                         orderDate: item.orderDate || ''
                     };
                 }
-                inventoryProjects[key].items.push(item);
+                inventoryProjects[key].serials.push(item.serial);
                 if (item.costJPY) {
                     inventoryProjects[key].totalCost += parseFloat(item.costJPY) || 0;
                 }
-                // 発注日があれば更新（最初に見つかったものを使う）
                 if (!inventoryProjects[key].orderDate && item.orderDate) {
                     inventoryProjects[key].orderDate = item.orderDate;
                 }
@@ -2273,27 +2273,63 @@
                 const proj = inventoryProjects[key];
                 const exists = findExistingProject(proj.prefix, proj.number);
                 if (!exists) {
-                    // 製品名をまとめる（ユニークなもの）
-                    const productNames = [...new Set(proj.items.map(i => i.productName))];
+                    // Serialをまとめる（例: YS0554-1, YS0554-2 → YS0554(1-2)）
+                    const serialDisplay = formatSerialRange(proj.serials);
                     missing.push({
                         key,
                         prefix: proj.prefix,
                         number: proj.number,
-                        productNames,
-                        quantity: proj.items.length,
+                        productName: proj.productName,
+                        serialDisplay,
+                        quantity: proj.serials.length,
                         totalCost: proj.totalCost,
                         orderDate: proj.orderDate
                     });
                 }
             });
             
-            // 番号順にソート
+            // 番号順 → 製品名順にソート
             missing.sort((a, b) => {
                 if (a.prefix !== b.prefix) return a.prefix.localeCompare(b.prefix);
-                return parseInt(a.number) - parseInt(b.number);
+                if (a.number !== b.number) return parseInt(a.number) - parseInt(b.number);
+                return a.productName.localeCompare(b.productName);
             });
             
             return missing;
+        }
+        
+        // Serial配列をまとめて表示用にフォーマット
+        function formatSerialRange(serials) {
+            if (serials.length === 0) return '';
+            if (serials.length === 1) return serials[0];
+            
+            // ベース部分と枝番を分離（例: YS0554-1 → base: YS0554, num: 1）
+            const parsed = serials.map(s => {
+                const match = s.match(/^(.+)-(\d+)$/);
+                if (match) {
+                    return { base: match[1], num: parseInt(match[2]), original: s };
+                }
+                return { base: s, num: null, original: s };
+            });
+            
+            // ベースが全部同じかチェック
+            const bases = [...new Set(parsed.map(p => p.base))];
+            if (bases.length === 1 && parsed.every(p => p.num !== null)) {
+                // 全部同じベースで枝番あり → まとめる
+                const nums = parsed.map(p => p.num).sort((a, b) => a - b);
+                const base = bases[0];
+                
+                // 連番かチェック
+                const isConsecutive = nums.every((n, i) => i === 0 || n === nums[i-1] + 1);
+                if (isConsecutive && nums.length > 1) {
+                    return `${base}(${nums[0]}-${nums[nums.length-1]})`;
+                } else {
+                    return `${base}(${nums.join(',')})`;
+                }
+            }
+            
+            // バラバラなら最初のものだけ表示
+            return serials.length > 2 ? `${serials[0]} 他${serials.length - 1}件` : serials.join(', ');
         }
 
         // 調達インポートモーダル表示
@@ -2324,7 +2360,7 @@
                                             <input type="checkbox" id="importSelectAll" onchange="toggleImportSelectAll()" checked class="rounded">
                                         </th>
                                         <th class="px-3 py-2 text-left dark:text-white">案件番号</th>
-                                        <th class="px-3 py-2 text-left dark:text-white">製品名</th>
+                                        <th class="px-3 py-2 text-left dark:text-white">製品名 / Serial</th>
                                         <th class="px-3 py-2 text-center dark:text-white">数量</th>
                                         <th class="px-3 py-2 text-right dark:text-white">取得金計</th>
                                         <th class="px-3 py-2 text-left dark:text-white">サプライヤー</th>
@@ -2337,7 +2373,10 @@
                                                 <input type="checkbox" id="importCheck_${idx}" data-index="${idx}" checked class="import-checkbox rounded">
                                             </td>
                                             <td class="px-3 py-2 font-mono font-semibold dark:text-white">${p.prefix}-${p.number}</td>
-                                            <td class="px-3 py-2 dark:text-slate-300">${p.productNames.length > 2 ? p.productNames.slice(0, 2).join(', ') + '...' : p.productNames.join(', ')}</td>
+                                            <td class="px-3 py-2 dark:text-slate-300">
+                                                <div>${p.productName}</div>
+                                                <div class="text-xs text-slate-400 font-mono">${p.serialDisplay}</div>
+                                            </td>
                                             <td class="px-3 py-2 text-center dark:text-slate-300">${p.quantity}</td>
                                             <td class="px-3 py-2 text-right dark:text-slate-300">${p.totalCost ? '¥' + p.totalCost.toLocaleString() : '-'}</td>
                                             <td class="px-3 py-2">
@@ -2435,17 +2474,15 @@
                         })) : [];
                     }
                     
-                    const serialDisplay = p.quantity > 1 ? `(${p.quantity}台)` : '';
-                    
                     return [
-                        Date.now().toString() + '-' + p.number,  // ID
+                        Date.now().toString() + '-' + p.number + '-' + idx,  // ID（ユニークにするためidxも付加）
                         p.prefix,                                  // 接頭辞
                         p.number,                                  // 番号
                         p.supplierId,                             // サプライヤーID
-                        p.productNames.join(', '),                // 製品名
+                        p.productName,                            // 製品名
                         0,                                        // 総額USD
                         JSON.stringify(depositSchedule),          // デポジット予定
-                        serialDisplay,                            // Serial
+                        p.serialDisplay,                          // Serial
                         p.quantity,                               // 数量
                         30,                                       // WorkingDays
                         '',                                       // 集荷予定日
