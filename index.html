@@ -394,6 +394,9 @@
                 setTimeout(() => showStatus(''), 2000);
                 renderMain();
                 
+                // URLパラメータで案件指定があれば該当案件へスクロール
+                checkUrlParams();
+                
                 // フォルダURLを非同期で取得
                 loadFolderUrls();
                 
@@ -1179,6 +1182,9 @@
                                                         </button>
                                                         <button onclick="event.stopPropagation();deleteProject(${p.id})" class="p-1 text-slate-400 hover:text-red-600" title="削除">
                                                             <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        </button>
+                                                        <button onclick="event.stopPropagation();openInventoryForProject('${formatProjectNumber(p)}')" class="p-1 text-slate-400 hover:text-emerald-600" title="在庫を見る">
+                                                            <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
                                                         </button>
                                                         ${folderCache[formatProjectNumber(p)] ? `
                                                             <a href="${folderCache[formatProjectNumber(p)]}" target="_blank" onclick="event.stopPropagation()" class="text-blue-600 hover:text-blue-800" title="Driveを開く">
@@ -2585,6 +2591,48 @@
             projectFilter.supplier = document.getElementById('filterSupplier').value;
             projectFilter.hideArchived = document.getElementById('filterHideArchived').checked;
             renderMain();
+        }
+
+        // 在庫画面へジャンプ（案件でフィルタ）
+        function openInventoryForProject(projectNumber) {
+            window.open(`inventory.html?project=${encodeURIComponent(projectNumber)}`, '_blank');
+        }
+        
+        // URLパラメータをチェックして該当案件へスクロール
+        function checkUrlParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectParam = urlParams.get('project');
+            
+            if (projectParam) {
+                // 案件番号をパース
+                const match = projectParam.match(/^([A-Z]+)-(\d+)$/i);
+                if (match) {
+                    const prefix = match[1].toUpperCase();
+                    const number = parseInt(match[2]);
+                    
+                    // 該当案件を検索
+                    const project = projects.find(p => 
+                        p.projectPrefix === prefix && p.projectNumber === number
+                    );
+                    
+                    if (project) {
+                        // 案件カードを展開してスクロール
+                        setTimeout(() => {
+                            expandedProjects[project.id] = true;
+                            renderMain();
+                            setTimeout(() => {
+                                scrollToProject(project.id);
+                            }, 100);
+                        }, 300);
+                    } else {
+                        showStatus(`案件 ${projectParam} が見つかりません`);
+                        setTimeout(() => showStatus(''), 3000);
+                    }
+                }
+                
+                // URLパラメータをクリア（履歴を汚さない）
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
         }
 
         // 6. 案件削除機能
