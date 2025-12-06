@@ -10,289 +10,283 @@
     <script src="https://apis.google.com/js/api.js"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap');
-        * { font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600&display=swap');
         
-        /* Notion風ベース */
-        body { background: #ffffff; }
-        .dark body { background: #191919; }
+        :root {
+            --text-primary: rgb(55, 53, 47);
+            --text-secondary: rgba(55, 53, 47, 0.65);
+            --text-tertiary: rgba(55, 53, 47, 0.45);
+            --bg-primary: #ffffff;
+            --bg-hover: rgba(55, 53, 47, 0.08);
+            --bg-active: rgba(55, 53, 47, 0.16);
+            --border: rgba(55, 53, 47, 0.09);
+        }
         
-        /* ホバーエフェクト */
-        .hover-bg { transition: background-color 0.15s ease; }
-        .hover-bg:hover { background-color: rgba(55, 53, 47, 0.04); }
-        .dark .hover-bg:hover { background-color: rgba(255, 255, 255, 0.03); }
+        .dark {
+            --text-primary: rgba(255, 255, 255, 0.9);
+            --text-secondary: rgba(255, 255, 255, 0.6);
+            --text-tertiary: rgba(255, 255, 255, 0.4);
+            --bg-primary: #191919;
+            --bg-hover: rgba(255, 255, 255, 0.055);
+            --bg-active: rgba(255, 255, 255, 0.1);
+            --border: rgba(255, 255, 255, 0.094);
+        }
         
-        /* セクション */
-        .section { padding: 12px 14px; border-radius: 4px; }
+        * { font-family: 'Noto Sans JP', ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif; }
+        body { background: var(--bg-primary); color: var(--text-primary); }
         
-        /* インラインアイコン */
-        .icon-box { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
+        .text-secondary { color: var(--text-secondary); }
+        .text-tertiary { color: var(--text-tertiary); }
+        .border-default { border-color: var(--border); }
+        
+        .hoverable { 
+            transition: background 80ms ease-in; 
+            border-radius: 4px;
+        }
+        .hoverable:hover { background: var(--bg-hover); }
+        
+        .clickable {
+            cursor: pointer;
+            transition: background 80ms ease-in;
+            border-radius: 4px;
+        }
+        .clickable:hover { background: var(--bg-hover); }
+        .clickable:active { background: var(--bg-active); }
         
         /* タイムライン */
-        .timeline-item { position: relative; padding-left: 20px; }
-        .timeline-item::before { content: ''; position: absolute; left: 5px; top: 20px; bottom: -4px; width: 1px; background: #e5e5e5; }
-        .dark .timeline-item::before { background: #333; }
-        .timeline-item:last-child::before { display: none; }
-        .timeline-dot { position: absolute; left: 0; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: #e5e5e5; }
-        .dark .timeline-dot { background: #444; }
-        .timeline-dot.active { background: #2383e2; }
+        .tl-line { width: 2px; background: var(--border); }
         
-        /* チャット */
-        .chat-bubble { max-width: 85%; padding: 8px 12px; border-radius: 8px; font-size: 14px; }
-        .chat-user { background: #f1f1f0; margin-left: auto; }
-        .chat-ai { background: transparent; border: 1px solid #e5e5e5; }
-        .dark .chat-user { background: #2f2f2f; }
-        .dark .chat-ai { border-color: #333; }
-        
-        /* モード切替 */
-        .mode-btn { padding: 4px 10px; font-size: 13px; border-radius: 4px; color: rgba(55, 53, 47, 0.65); transition: all 0.15s; }
-        .mode-btn:hover { background: rgba(55, 53, 47, 0.04); }
-        .mode-btn.active { background: rgba(35, 131, 226, 0.1); color: #2383e2; }
-        .dark .mode-btn { color: rgba(255, 255, 255, 0.6); }
-        .dark .mode-btn:hover { background: rgba(255, 255, 255, 0.04); }
-        .dark .mode-btn.active { background: rgba(35, 131, 226, 0.2); color: #529cca; }
+        /* 入力 */
+        input, textarea, select {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: rgba(55, 53, 47, 0.3);
+        }
+        .dark input:focus, .dark textarea:focus, .dark select:focus {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
         
         /* スクロールバー */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-thumb { background: #d3d3d3; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #bbb; }
-        .dark ::-webkit-scrollbar-thumb { background: #444; }
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(55, 53, 47, 0.2); }
+        
+        /* チャート */
+        canvas { filter: grayscale(30%); }
     </style>
 </head>
-<body class="min-h-screen bg-white dark:bg-[#191919] text-[#37352f] dark:text-[#ffffffcf]">
-    <div id="app" class="max-w-5xl mx-auto px-4 sm:px-8 py-4">
+<body class="min-h-screen">
+    <div id="app" class="max-w-4xl mx-auto px-6 py-4">
         
         <!-- ヘッダー -->
-        <header class="flex items-center justify-between py-3 mb-2">
-            <div class="flex items-center gap-3">
-                <span class="text-3xl">🧭</span>
-                <div>
-                    <h1 class="text-xl font-bold">YS調達ナビ</h1>
-                    <p class="text-xs text-[#37352f99] dark:text-[#ffffff66]" id="lastUpdate">調達・在庫管理</p>
-                </div>
+        <header class="flex items-center justify-between py-2 mb-6">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">🧭</span>
+                <span class="font-semibold">YS調達ナビ</span>
+                <span class="text-secondary text-sm" id="lastUpdate"></span>
             </div>
-            <div class="flex items-center gap-1">
-                <a href="index.html" class="hover-bg px-3 py-1.5 rounded text-sm">調達管理</a>
-                <a href="inventory.html" class="hover-bg px-3 py-1.5 rounded text-sm">在庫管理</a>
-                <button onclick="loadData()" class="hover-bg p-2 rounded text-lg" title="更新">🔄</button>
-                <button onclick="toggleDarkMode()" class="hover-bg p-2 rounded text-lg" title="テーマ切替">🌙</button>
+            <div class="flex items-center gap-1 text-sm">
+                <a href="index.html" class="hoverable px-2 py-1 text-secondary">調達</a>
+                <a href="inventory.html" class="hoverable px-2 py-1 text-secondary">在庫</a>
+                <button onclick="loadData()" class="hoverable px-2 py-1 text-secondary">↻</button>
+                <button onclick="toggleDarkMode()" class="hoverable px-2 py-1 text-secondary">◐</button>
             </div>
         </header>
 
-        <!-- ログイン前 -->
-        <div id="loginSection" class="py-20 text-center">
-            <span class="text-6xl mb-6 block">🧭</span>
-            <h2 class="text-xl font-semibold mb-2">YS調達ナビ</h2>
-            <p class="text-[#37352f99] dark:text-[#ffffff66] mb-6">Googleアカウントでログイン</p>
-            <button onclick="handleAuth()" class="px-5 py-2 bg-[#2383e2] text-white rounded hover:bg-[#1a6fbe] transition-colors">
-                Googleでログイン
+        <!-- ログイン -->
+        <div id="loginSection" class="py-24 text-center">
+            <span class="text-5xl block mb-4">🧭</span>
+            <p class="text-secondary mb-6">Googleアカウントでログイン</p>
+            <button onclick="handleAuth()" class="clickable px-4 py-2 border border-default">
+                ログイン
             </button>
         </div>
 
-        <!-- メインコンテンツ -->
-        <div id="mainContent" class="hidden space-y-8">
+        <!-- メイン -->
+        <div id="mainContent" class="hidden space-y-10">
             
             <!-- サマリー -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <a href="inventory.html?status=在庫中" class="hover-bg section cursor-pointer">
-                    <p class="text-xs text-[#37352f99] dark:text-[#ffffff66] mb-1">在庫中</p>
-                    <p class="text-2xl font-semibold" id="statInStock">-</p>
-                    <p class="text-xs text-[#37352f99] dark:text-[#ffffff66] mt-1" id="statInStockDetail">-</p>
-                </a>
-                <a href="inventory.html?status=入庫待ち" class="hover-bg section cursor-pointer">
-                    <p class="text-xs text-[#37352f99] dark:text-[#ffffff66] mb-1">入庫待ち</p>
-                    <p class="text-2xl font-semibold" id="statWaiting">-</p>
-                    <p class="text-xs text-[#eb5757] dark:text-[#ff7369] mt-1" id="statWaitingDetail">-</p>
-                </a>
-                <a href="index.html" class="hover-bg section cursor-pointer">
-                    <p class="text-xs text-[#37352f99] dark:text-[#ffffff66] mb-1">未払い</p>
-                    <p class="text-2xl font-semibold" id="statUnpaid">-</p>
-                    <p class="text-xs text-[#37352f99] dark:text-[#ffffff66] mt-1" id="statUnpaidDetail">-</p>
-                </a>
-                <div class="section">
-                    <p class="text-xs text-[#37352f99] dark:text-[#ffffff66] mb-1">今月支払い</p>
-                    <p class="text-2xl font-semibold" id="statThisMonth">-</p>
-                    <p class="text-xs text-[#37352f99] dark:text-[#ffffff66] mt-1" id="statThisMonthDetail">-</p>
+            <section>
+                <div class="grid grid-cols-4 gap-6 text-center">
+                    <a href="inventory.html?status=在庫中" class="clickable py-3">
+                        <p class="text-2xl font-semibold" id="statInStock">-</p>
+                        <p class="text-tertiary text-sm">在庫中</p>
+                    </a>
+                    <a href="inventory.html?status=入庫待ち" class="clickable py-3">
+                        <p class="text-2xl font-semibold" id="statWaiting">-</p>
+                        <p class="text-tertiary text-sm">入庫待ち</p>
+                    </a>
+                    <a href="index.html" class="clickable py-3">
+                        <p class="text-2xl font-semibold" id="statUnpaid">-</p>
+                        <p class="text-tertiary text-sm">未払い</p>
+                    </a>
+                    <div class="py-3">
+                        <p class="text-2xl font-semibold" id="statThisMonth">-</p>
+                        <p class="text-tertiary text-sm">今月支払</p>
+                    </div>
                 </div>
-            </div>
+            </section>
 
             <!-- AI分析 -->
-            <div>
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="text-lg">🧠</span>
-                    <h2 class="font-semibold">AI分析</h2>
-                </div>
+            <section>
+                <h2 class="flex items-center gap-2 text-sm text-secondary mb-3">
+                    <span>🧠</span> AI分析
+                </h2>
                 
-                <div class="flex flex-wrap gap-1 mb-3">
-                    <button class="mode-btn active" data-mode="quick" onclick="setAnalysisMode('quick')">⚡ クイック</button>
-                    <button class="mode-btn" data-mode="detail" onclick="setAnalysisMode('detail')">📊 詳細</button>
-                    <button class="mode-btn" data-mode="cost" onclick="setAnalysisMode('cost')">💰 コスト</button>
-                    <button class="mode-btn" data-mode="supplier" onclick="setAnalysisMode('supplier')">🏭 サプライヤー</button>
-                    <button class="mode-btn" data-mode="forecast" onclick="setAnalysisMode('forecast')">🔮 予測</button>
+                <div class="flex flex-wrap gap-2 mb-4 text-sm">
+                    <button class="analysis-mode clickable px-2 py-1" data-mode="quick">クイック</button>
+                    <button class="analysis-mode clickable px-2 py-1 text-secondary" data-mode="detail">詳細</button>
+                    <button class="analysis-mode clickable px-2 py-1 text-secondary" data-mode="cost">コスト</button>
+                    <button class="analysis-mode clickable px-2 py-1 text-secondary" data-mode="supplier">サプライヤー</button>
+                    <button class="analysis-mode clickable px-2 py-1 text-secondary" data-mode="forecast">予測</button>
                 </div>
 
-                <div id="analysisResult" class="p-4 bg-[#f7f6f3] dark:bg-[#252525] rounded-lg mb-3 min-h-[100px] text-sm">
-                    <p class="text-[#37352f99] dark:text-[#ffffff66]">分析モードを選んで「分析開始」をクリック</p>
+                <div id="analysisResult" class="text-sm leading-relaxed mb-4 min-h-[60px]">
+                    <p class="text-tertiary">モードを選択して「分析」をクリック</p>
                 </div>
                 
-                <div class="flex gap-2 mb-6">
-                    <button onclick="runAnalysis()" class="px-4 py-2 bg-[#2383e2] text-white text-sm rounded hover:bg-[#1a6fbe] transition-colors">
-                        分析開始
-                    </button>
-                    <button onclick="saveToKnowledge()" id="saveKnowledgeBtn" class="px-4 py-2 bg-[#0f7b6c] text-white text-sm rounded hover:bg-[#0a6355] transition-colors hidden">
-                        💾 ナレッジに保存
-                    </button>
+                <div class="flex gap-3 text-sm">
+                    <button onclick="runAnalysis()" class="clickable px-3 py-1.5 border border-default">分析</button>
+                    <button onclick="saveToKnowledge()" id="saveKnowledgeBtn" class="clickable px-3 py-1.5 border border-default text-secondary hidden">保存</button>
                 </div>
+            </section>
 
-                <!-- AIチャット -->
-                <div class="border-t border-[#e5e5e5] dark:border-[#333] pt-4">
-                    <p class="text-xs text-[#37352f99] dark:text-[#ffffff66] mb-3">💬 AIに質問</p>
-                    <div id="chatHistory" class="space-y-2 mb-3 max-h-[250px] overflow-y-auto"></div>
-                    <div class="flex gap-2">
-                        <input type="text" id="chatInput" placeholder="例: 来月の支払いはいくら？" 
-                            class="flex-1 px-3 py-2 bg-[#f7f6f3] dark:bg-[#252525] rounded text-sm border-0 outline-none focus:ring-1 focus:ring-[#2383e2]"
-                            onkeypress="if(event.key==='Enter')sendChat()">
-                        <button onclick="sendChat()" class="px-4 py-2 bg-[#37352f] dark:bg-[#fff] text-white dark:text-[#191919] text-sm rounded hover:opacity-80">
-                            送信
-                        </button>
-                    </div>
+            <!-- チャット -->
+            <section>
+                <h2 class="flex items-center gap-2 text-sm text-secondary mb-3">
+                    <span>💬</span> 質問
+                </h2>
+                <div id="chatHistory" class="space-y-3 mb-3 max-h-[200px] overflow-y-auto text-sm"></div>
+                <div class="flex gap-2">
+                    <input type="text" id="chatInput" placeholder="例: 来月の支払いは？" 
+                        class="flex-1 px-3 py-2 text-sm rounded"
+                        onkeypress="if(event.key==='Enter')sendChat()">
+                    <button onclick="sendChat()" class="clickable px-3 py-1.5 border border-default text-sm">送信</button>
                 </div>
-            </div>
+            </section>
 
             <!-- ナレッジ -->
-            <div>
+            <section>
                 <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center gap-2">
-                        <span class="text-lg">📚</span>
-                        <h2 class="font-semibold">ナレッジ</h2>
-                        <span id="knowledgeCount" class="text-xs text-[#37352f99] dark:text-[#ffffff66]">0件</span>
-                    </div>
-                    <button onclick="showKnowledgeModal()" class="text-sm text-[#2383e2] hover:underline">すべて見る</button>
+                    <h2 class="flex items-center gap-2 text-sm text-secondary">
+                        <span>📚</span> ナレッジ
+                        <span class="text-tertiary" id="knowledgeCount"></span>
+                    </h2>
+                    <button onclick="showKnowledgeModal()" class="text-sm text-secondary hoverable px-2 py-1">すべて →</button>
                 </div>
-                <div id="knowledgePreview" class="space-y-1">
-                    <p class="text-sm text-[#37352f99] dark:text-[#ffffff66]">ナレッジはまだありません</p>
-                </div>
-            </div>
+                <div id="knowledgePreview" class="space-y-1 text-sm"></div>
+            </section>
 
-            <!-- タイムライン & ヘルスチェック -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="lg:col-span-2">
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex items-center gap-2">
-                            <span class="text-lg">📅</span>
-                            <h2 class="font-semibold">今週のスケジュール</h2>
-                        </div>
-                        <span class="text-xs text-[#37352f99] dark:text-[#ffffff66]" id="timelineWeek">-</span>
-                    </div>
-                    <div id="timeline" class="space-y-2">
-                        <p class="text-sm text-[#37352f99] dark:text-[#ffffff66]">読み込み中...</p>
-                    </div>
+            <hr class="border-default">
+
+            <!-- タイムライン -->
+            <section>
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="flex items-center gap-2 text-sm text-secondary">
+                        <span>📅</span> 今週
+                    </h2>
+                    <span class="text-tertiary text-sm" id="timelineWeek"></span>
                 </div>
-                <div>
-                    <div class="flex items-center gap-2 mb-3">
-                        <span class="text-lg">🏥</span>
-                        <h2 class="font-semibold">ヘルスチェック</h2>
-                    </div>
-                    <div id="healthCheck" class="space-y-2">
-                        <p class="text-sm text-[#37352f99] dark:text-[#ffffff66]">読み込み中...</p>
-                    </div>
-                </div>
-            </div>
+                <div id="timeline" class="text-sm"></div>
+            </section>
+
+            <!-- ヘルスチェック -->
+            <section>
+                <h2 class="flex items-center gap-2 text-sm text-secondary mb-3">
+                    <span>🏥</span> ステータス
+                </h2>
+                <div id="healthCheck" class="text-sm space-y-1"></div>
+            </section>
 
             <!-- クイックアクション -->
-            <div>
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="text-lg">⚡</span>
-                    <h2 class="font-semibold">クイックアクション</h2>
-                </div>
-                <div id="quickActions" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    <p class="text-sm text-[#37352f99] dark:text-[#ffffff66]">読み込み中...</p>
-                </div>
-            </div>
+            <section>
+                <h2 class="flex items-center gap-2 text-sm text-secondary mb-3">
+                    <span>⚡</span> アクション
+                </h2>
+                <div id="quickActions" class="grid grid-cols-2 gap-2 text-sm"></div>
+            </section>
+
+            <hr class="border-default">
 
             <!-- グラフ -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <section class="grid grid-cols-2 gap-8">
                 <div>
-                    <p class="text-sm font-medium mb-3">月別入出庫推移</p>
-                    <div class="h-48"><canvas id="flowChart"></canvas></div>
+                    <p class="text-sm text-secondary mb-2">入出庫</p>
+                    <div class="h-40"><canvas id="flowChart"></canvas></div>
                 </div>
                 <div>
-                    <p class="text-sm font-medium mb-3">月別支払い額</p>
-                    <div class="h-48"><canvas id="paymentChart"></canvas></div>
+                    <p class="text-sm text-secondary mb-2">支払い</p>
+                    <div class="h-40"><canvas id="paymentChart"></canvas></div>
                 </div>
-            </div>
+            </section>
 
         </div>
     </div>
 
     <!-- ナレッジモーダル -->
-    <div id="knowledgeModal" class="fixed inset-0 bg-black/40 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-[#252525] rounded-lg max-w-xl w-full max-h-[80vh] overflow-hidden flex flex-col">
-            <div class="p-4 flex justify-between items-center border-b border-[#e5e5e5] dark:border-[#333]">
-                <h3 class="font-semibold">📚 ナレッジベース</h3>
-                <button onclick="closeKnowledgeModal()" class="hover-bg p-1 rounded">✕</button>
+    <div id="knowledgeModal" class="fixed inset-0 bg-black/20 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-[var(--bg-primary)] rounded max-w-lg w-full max-h-[70vh] flex flex-col shadow-lg">
+            <div class="p-4 flex justify-between items-center border-b border-default">
+                <span class="font-medium">📚 ナレッジ</span>
+                <button onclick="closeKnowledgeModal()" class="hoverable px-2 py-1 text-secondary">✕</button>
             </div>
-            <div class="p-3 border-b border-[#e5e5e5] dark:border-[#333] flex gap-1 flex-wrap">
-                <button class="knowledge-filter mode-btn active" data-filter="all">すべて</button>
-                <button class="knowledge-filter mode-btn" data-filter="important">📌 重要</button>
-                <button class="knowledge-filter mode-btn" data-filter="supplier">🏭 サプライヤー</button>
-                <button class="knowledge-filter mode-btn" data-filter="cost">💰 コスト</button>
-                <button class="knowledge-filter mode-btn" data-filter="pattern">📊 パターン</button>
+            <div class="p-3 border-b border-default flex gap-1 flex-wrap text-sm">
+                <button class="knowledge-filter clickable px-2 py-1" data-filter="all">すべて</button>
+                <button class="knowledge-filter clickable px-2 py-1 text-secondary" data-filter="important">📌</button>
+                <button class="knowledge-filter clickable px-2 py-1 text-secondary" data-filter="supplier">🏭</button>
+                <button class="knowledge-filter clickable px-2 py-1 text-secondary" data-filter="cost">💰</button>
+                <button class="knowledge-filter clickable px-2 py-1 text-secondary" data-filter="pattern">📊</button>
             </div>
-            <div id="knowledgeList" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
-            <div class="p-4 border-t border-[#e5e5e5] dark:border-[#333]">
-                <button onclick="showAddKnowledgeForm()" class="w-full px-4 py-2 text-sm text-[#2383e2] hover:bg-[#f7f6f3] dark:hover:bg-[#333] rounded transition-colors">
-                    + ナレッジを追加
-                </button>
+            <div id="knowledgeList" class="flex-1 overflow-y-auto p-4 text-sm space-y-2"></div>
+            <div class="p-3 border-t border-default">
+                <button onclick="showAddKnowledgeForm()" class="w-full clickable py-2 text-sm text-secondary">+ 追加</button>
             </div>
         </div>
     </div>
 
-    <!-- ナレッジ追加モーダル -->
-    <div id="addKnowledgeModal" class="fixed inset-0 bg-black/40 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-[#252525] rounded-lg max-w-md w-full p-6">
-            <h3 class="font-semibold mb-4">📝 ナレッジを追加</h3>
-            <div class="space-y-4">
+    <!-- 追加モーダル -->
+    <div id="addKnowledgeModal" class="fixed inset-0 bg-black/20 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-[var(--bg-primary)] rounded max-w-sm w-full p-5 shadow-lg">
+            <p class="font-medium mb-4">📝 ナレッジ追加</p>
+            <div class="space-y-3 text-sm">
                 <div>
-                    <label class="block text-xs text-[#37352f99] dark:text-[#ffffff66] mb-1">カテゴリ</label>
-                    <select id="newKnowledgeCategory" class="w-full px-3 py-2 bg-[#f7f6f3] dark:bg-[#333] rounded text-sm border-0">
-                        <option value="important">📌 重要な気づき</option>
+                    <label class="block text-tertiary text-xs mb-1">カテゴリ</label>
+                    <select id="newKnowledgeCategory" class="w-full px-3 py-2 rounded text-sm">
+                        <option value="important">📌 重要</option>
                         <option value="supplier">🏭 サプライヤー</option>
                         <option value="cost">💰 コスト</option>
                         <option value="pattern">📊 パターン</option>
-                        <option value="seasonal">🗓️ 季節性</option>
                         <option value="note">📝 メモ</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs text-[#37352f99] dark:text-[#ffffff66] mb-1">内容</label>
-                    <textarea id="newKnowledgeContent" rows="3" class="w-full px-3 py-2 bg-[#f7f6f3] dark:bg-[#333] rounded text-sm border-0 resize-none" placeholder="例: OKViewは年末に納期が遅れる傾向"></textarea>
+                    <label class="block text-tertiary text-xs mb-1">内容</label>
+                    <textarea id="newKnowledgeContent" rows="3" class="w-full px-3 py-2 rounded text-sm resize-none"></textarea>
                 </div>
                 <div>
-                    <label class="block text-xs text-[#37352f99] dark:text-[#ffffff66] mb-1">タグ（任意）</label>
-                    <input type="text" id="newKnowledgeTags" class="w-full px-3 py-2 bg-[#f7f6f3] dark:bg-[#333] rounded text-sm border-0" placeholder="例: OKView, LED">
+                    <label class="block text-tertiary text-xs mb-1">タグ</label>
+                    <input type="text" id="newKnowledgeTags" class="w-full px-3 py-2 rounded text-sm">
                 </div>
             </div>
-            <div class="flex gap-2 mt-6">
-                <button onclick="closeAddKnowledgeModal()" class="flex-1 px-4 py-2 text-sm hover:bg-[#f7f6f3] dark:hover:bg-[#333] rounded transition-colors">キャンセル</button>
-                <button onclick="addKnowledge()" class="flex-1 px-4 py-2 bg-[#2383e2] text-white text-sm rounded hover:bg-[#1a6fbe]">保存</button>
+            <div class="flex gap-2 mt-5 text-sm">
+                <button onclick="closeAddKnowledgeModal()" class="flex-1 clickable py-2 text-secondary">キャンセル</button>
+                <button onclick="addKnowledge()" class="flex-1 clickable py-2 border border-default">保存</button>
             </div>
         </div>
     </div>
 
     <script>
-        // ========== 設定 ==========
         const CLIENT_ID = '47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
         const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';
         
-        let accessToken = null;
-        let inventory = [], archivedInventory = [], projects = [], suppliers = [], knowledge = [];
-        let charts = {};
-        let currentAnalysisMode = 'quick';
-        let lastAnalysisResult = null;
-        let chatHistory = [];
+        let accessToken = null, inventory = [], archivedInventory = [], projects = [], suppliers = [], knowledge = [];
+        let charts = {}, currentAnalysisMode = 'quick', lastAnalysisResult = null, chatHistory = [];
 
-        // ========== 初期化 ==========
         function init() {
             initDarkMode();
             gapi.load('client', async () => {
@@ -303,16 +297,14 @@
         }
 
         function handleAuth() {
-            const client = google.accounts.oauth2.initTokenClient({
+            google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID, scope: 'https://www.googleapis.com/auth/spreadsheets',
                 callback: (r) => { if (r.access_token) { accessToken = r.access_token; sessionStorage.setItem('googleAccessToken', accessToken); gapi.client.setToken({ access_token: accessToken }); showMain(); loadData(); } }
-            });
-            client.requestAccessToken();
+            }).requestAccessToken();
         }
 
         function showMain() { document.getElementById('loginSection').classList.add('hidden'); document.getElementById('mainContent').classList.remove('hidden'); }
 
-        // ========== データ読み込み ==========
         async function loadData() {
             if (!accessToken) return;
             try {
@@ -321,257 +313,205 @@
                     gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: '案件!A2:N' }),
                     gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: '在庫!A2:Q' })
                 ]);
-                suppliers = (supRes.result.values || []).map(r => ({ id: parseInt(r[0] || 0), name: r[1] || '', paymentPatterns: JSON.parse(r[2] || '[]') }));
-                projects = (prjRes.result.values || []).map(r => ({ id: r[0], projectPrefix: r[1] || 'AD', projectNumber: parseInt(r[2]) || 0, supplierId: parseInt(r[3] || 0), productName: r[4] || '', totalAmount: parseFloat(r[5] || 0), depositSchedule: JSON.parse(r[6] || '[]'), serial: r[7] || '', quantity: parseInt(r[8] || 1), workingDays: parseInt(r[9] || 30), pickupDate: r[10] || '', registeredDate: r[11] || '', expenses: JSON.parse(r[12] || '[]'), receivedComplete: r[13] === 'true' }));
-                inventory = (invRes.result.values || []).map(r => ({ id: r[0] || '', serial: r[1] || '', category: r[2] || '', productName: r[3] || '', orderPrefix: r[4] || '', orderNumber: r[5] || '', orderDate: r[6] || '', receiveDate: r[7] || '', status: r[8] || '', shipDate: r[9] || '', shipPrefix: r[10] || '', shipNumber: r[11] || '', costJPY: r[12] || '', note: r[13] || '', shelfNo: r[14] || '', location: r[15] || '', supplierId: r[16] || '' }));
+                suppliers = (supRes.result.values || []).map(r => ({ id: parseInt(r[0] || 0), name: r[1] || '' }));
+                projects = (prjRes.result.values || []).map(r => ({ id: r[0], projectPrefix: r[1] || 'AD', projectNumber: parseInt(r[2]) || 0, supplierId: parseInt(r[3] || 0), productName: r[4] || '', totalAmount: parseFloat(r[5] || 0), depositSchedule: JSON.parse(r[6] || '[]'), pickupDate: r[10] || '', registeredDate: r[11] || '', receivedComplete: r[13] === 'true' }));
+                inventory = (invRes.result.values || []).map(r => ({ serial: r[1] || '', category: r[2] || '', productName: r[3] || '', receiveDate: r[7] || '', status: r[8] || '', shipDate: r[9] || '', costJPY: r[12] || '', shelfNo: r[14] || '' }));
                 try { const arcRes = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: '在庫アーカイブ!A2:Q' }); archivedInventory = (arcRes.result.values || []).map(r => ({ receiveDate: r[7] || '', shipDate: r[9] || '' })); } catch(e) { archivedInventory = []; }
                 await loadKnowledge();
-                updateSummary(); updateTimeline(); updateHealthCheck(); updateQuickActions(); updateCharts(); updateKnowledgePreview();
-                document.getElementById('lastUpdate').textContent = `最終更新 ${new Date().toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'})}`;
-            } catch (err) { console.error('読み込みエラー:', err); }
+                updateAll();
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'});
+            } catch (err) { console.error(err); }
         }
 
-        // ========== ナレッジ管理 ==========
+        function updateAll() { updateSummary(); updateTimeline(); updateHealthCheck(); updateQuickActions(); updateCharts(); updateKnowledgePreview(); }
+
+        // ナレッジ
         async function loadKnowledge() {
             try {
                 const res = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'ナレッジ!A2:F' });
-                knowledge = (res.result.values || []).map((r, idx) => ({ id: idx + 2, date: r[0] || '', category: r[1] || 'note', content: r[2] || '', importance: r[3] || '中', tags: r[4] || '', source: r[5] || 'manual' }));
-            } catch (e) { await createKnowledgeSheet(); knowledge = []; }
-        }
-
-        async function createKnowledgeSheet() {
-            try {
+                knowledge = (res.result.values || []).map((r, idx) => ({ id: idx + 2, date: r[0] || '', category: r[1] || 'note', content: r[2] || '', tags: r[4] || '', source: r[5] || 'manual' }));
+            } catch (e) {
                 await gapi.client.sheets.spreadsheets.batchUpdate({ spreadsheetId: SPREADSHEET_ID, resource: { requests: [{ addSheet: { properties: { title: 'ナレッジ' } } }] } });
                 await gapi.client.sheets.spreadsheets.values.update({ spreadsheetId: SPREADSHEET_ID, range: 'ナレッジ!A1:F1', valueInputOption: 'RAW', resource: { values: [['日付', 'カテゴリ', '内容', '重要度', 'タグ', 'ソース']] } });
-            } catch (e) { console.error('シート作成エラー:', e); }
+                knowledge = [];
+            }
         }
 
-        async function saveKnowledgeItem(category, content, importance = '中', tags = '', source = 'ai') {
+        async function saveKnowledgeItem(category, content, tags = '', source = 'ai') {
             const date = new Date().toISOString().split('T')[0];
-            try {
-                await gapi.client.sheets.spreadsheets.values.append({ spreadsheetId: SPREADSHEET_ID, range: 'ナレッジ!A:F', valueInputOption: 'RAW', resource: { values: [[date, category, content, importance, tags, source]] } });
-                await loadKnowledge(); updateKnowledgePreview(); return true;
-            } catch (e) { console.error('保存エラー:', e); return false; }
+            await gapi.client.sheets.spreadsheets.values.append({ spreadsheetId: SPREADSHEET_ID, range: 'ナレッジ!A:F', valueInputOption: 'RAW', resource: { values: [[date, category, content, '中', tags, source]] } });
+            await loadKnowledge(); updateKnowledgePreview();
         }
 
         function updateKnowledgePreview() {
             const container = document.getElementById('knowledgePreview');
-            document.getElementById('knowledgeCount').textContent = knowledge.length + '件';
-            if (knowledge.length === 0) { container.innerHTML = '<p class="text-sm text-[#37352f99] dark:text-[#ffffff66]">ナレッジはまだありません</p>'; return; }
-            const recent = [...knowledge].reverse().slice(0, 4);
-            const icons = { important: '📌', supplier: '🏭', cost: '💰', pattern: '📊', seasonal: '🗓️', note: '📝' };
-            container.innerHTML = recent.map(k => `
-                <div class="hover-bg section flex items-start gap-2 text-sm">
+            document.getElementById('knowledgeCount').textContent = knowledge.length ? `(${knowledge.length})` : '';
+            if (!knowledge.length) { container.innerHTML = '<p class="text-tertiary">まだありません</p>'; return; }
+            const icons = { important: '📌', supplier: '🏭', cost: '💰', pattern: '📊', note: '📝' };
+            container.innerHTML = [...knowledge].reverse().slice(0, 3).map(k => `
+                <div class="clickable px-2 py-1.5 flex gap-2">
                     <span>${icons[k.category] || '📝'}</span>
-                    <div class="flex-1 min-w-0">
-                        <p class="truncate">${k.content}</p>
-                        <p class="text-xs text-[#37352f99] dark:text-[#ffffff66] mt-0.5">${k.date}</p>
-                    </div>
+                    <span class="truncate">${k.content}</span>
                 </div>
             `).join('');
         }
 
-        // ========== 分析 ==========
-        function setAnalysisMode(mode) {
-            currentAnalysisMode = mode;
-            document.querySelectorAll('.mode-btn[data-mode]').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
-        }
+        // 分析
+        document.querySelectorAll('.analysis-mode').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.analysis-mode').forEach(b => b.classList.add('text-secondary'));
+                btn.classList.remove('text-secondary');
+                currentAnalysisMode = btn.dataset.mode;
+            });
+        });
 
         async function runAnalysis() {
             const resultEl = document.getElementById('analysisResult');
-            const saveBtn = document.getElementById('saveKnowledgeBtn');
-            resultEl.innerHTML = '<p class="text-[#37352f99] dark:text-[#ffffff66]">⏳ 分析中...</p>';
-            saveBtn.classList.add('hidden');
-            const analysisData = prepareAnalysisData();
-            const prompt = buildAnalysisPrompt(currentAnalysisMode, analysisData);
+            document.getElementById('saveKnowledgeBtn').classList.add('hidden');
+            resultEl.innerHTML = '<p class="text-tertiary">分析中...</p>';
+            const data = prepareAnalysisData();
+            const prompt = buildPrompt(currentAnalysisMode, data);
             try {
-                const response = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1500, messages: [{ role: 'user', content: prompt }] }) });
-                const data = await response.json();
-                lastAnalysisResult = data.content?.[0]?.text || '';
-                resultEl.innerHTML = formatAnalysisResult(lastAnalysisResult);
-                saveBtn.classList.remove('hidden');
-            } catch (err) {
-                resultEl.innerHTML = '<p class="text-[#eb5757]">エラーが発生しました</p>' + generateLocalAnalysis(analysisData);
-                lastAnalysisResult = null;
-            }
+                const res = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1200, messages: [{ role: 'user', content: prompt }] }) });
+                lastAnalysisResult = (await res.json()).content?.[0]?.text || '';
+                resultEl.innerHTML = lastAnalysisResult.split('\n').filter(l => l.trim()).map(l => `<p class="mb-1">${l}</p>`).join('');
+                document.getElementById('saveKnowledgeBtn').classList.remove('hidden');
+            } catch (e) { resultEl.innerHTML = '<p class="text-tertiary">エラーが発生しました</p>'; }
         }
 
         function prepareAnalysisData() {
             const today = new Date();
             const inStock = inventory.filter(i => i.status === '在庫中');
+            let unpaidTotal = 0, unpaidCount = 0, oldestDays = 0;
+            projects.forEach(p => { (p.depositSchedule || []).forEach((d, i) => { if (!d.paid) { unpaidTotal += d.amountJPY || (d.amountUSD * 150) || 0; unpaidCount++; if (i === 0 && p.registeredDate) { const days = Math.floor((today - new Date(p.registeredDate)) / 86400000); if (days > oldestDays) oldestDays = days; } } }); });
             const supplierStats = {};
-            projects.forEach(p => { const sup = suppliers.find(s => s.id === p.supplierId); const name = sup?.name || '不明'; if (!supplierStats[name]) supplierStats[name] = { count: 0, total: 0, unpaid: 0 }; supplierStats[name].count++; supplierStats[name].total += p.totalAmount; (p.depositSchedule || []).forEach(d => { if (!d.paid) supplierStats[name].unpaid += d.amountUSD || 0; }); });
-            const categoryStats = {}; inStock.forEach(i => { categoryStats[i.category] = (categoryStats[i.category] || 0) + 1; });
-            const monthlyPayments = {}; for (let i = 5; i >= 0; i--) { const d = new Date(today.getFullYear(), today.getMonth() - i, 1); monthlyPayments[d.toISOString().slice(0, 7)] = 0; }
-            projects.forEach(p => { (p.depositSchedule || []).forEach(d => { if (d.paid && d.paidDate && monthlyPayments.hasOwnProperty(d.paidDate.slice(0, 7))) monthlyPayments[d.paidDate.slice(0, 7)] += d.amountJPY || 0; }); });
-            let unpaidTotal = 0, unpaidCount = 0, oldestUnpaidDays = 0;
-            projects.forEach(p => { (p.depositSchedule || []).forEach((d, idx) => { if (!d.paid) { unpaidTotal += d.amountJPY || (d.amountUSD * 150) || 0; unpaidCount++; if (idx === 0 && p.registeredDate) { const days = Math.floor((today - new Date(p.registeredDate)) / 86400000); if (days > oldestUnpaidDays) oldestUnpaidDays = days; } } }); });
-            const stayDays = inStock.filter(i => i.receiveDate).map(i => Math.floor((today - new Date(i.receiveDate)) / 86400000));
-            const avgStayDays = stayDays.length > 0 ? Math.round(stayDays.reduce((a, b) => a + b, 0) / stayDays.length) : 0;
-            const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-            const nextMonthEnd = new Date(today.getFullYear(), today.getMonth() + 2, 0);
-            let nextMonthPayment = 0;
-            projects.forEach(p => { (p.depositSchedule || []).forEach((d, idx) => { if (d.paid) return; let dueDate; if (idx === 0 && p.registeredDate) { dueDate = new Date(p.registeredDate); dueDate.setDate(dueDate.getDate() + 14); } else if (p.pickupDate) { dueDate = new Date(p.pickupDate); } if (dueDate && dueDate >= nextMonth && dueDate <= nextMonthEnd) nextMonthPayment += d.amountJPY || (d.amountUSD * 150) || 0; }); });
-            return { inStockCount: inStock.length, inStockValue: inStock.reduce((s, i) => s + (parseInt(i.costJPY) || 0), 0), waitingCount: inventory.filter(i => i.status === '入庫待ち').length, unpaidTotal, unpaidCount, oldestUnpaidDays, supplierStats, categoryStats, monthlyPayments, avgStayDays, noShelfCount: inStock.filter(i => !i.shelfNo).length, staleCount: stayDays.filter(d => d >= 60).length, nextMonthPayment, knowledgeItems: knowledge.slice(-10).map(k => `[${k.category}] ${k.content}`).join('\n') };
+            projects.forEach(p => { const name = suppliers.find(s => s.id === p.supplierId)?.name || '不明'; supplierStats[name] = (supplierStats[name] || 0) + 1; });
+            return { inStock: inStock.length, waiting: inventory.filter(i => i.status === '入庫待ち').length, unpaidTotal, unpaidCount, oldestDays, noShelf: inStock.filter(i => !i.shelfNo).length, supplierStats, knowledge: knowledge.slice(-5).map(k => k.content).join('; ') };
         }
 
-        function buildAnalysisPrompt(mode, data) {
-            const baseContext = `調達・在庫データ:\n- 在庫中: ${data.inStockCount}件（総額 ¥${data.inStockValue.toLocaleString()}）\n- 入庫待ち: ${data.waitingCount}件\n- 未払い: ${data.unpaidCount}件（約¥${Math.round(data.unpaidTotal/10000)}万）\n- 最長未払い経過: ${data.oldestUnpaidDays}日\n- 平均滞留: ${data.avgStayDays}日\n- 棚番未設定: ${data.noShelfCount}件\n- 長期滞留(60日+): ${data.staleCount}件\n- 来月支払い予測: 約¥${Math.round(data.nextMonthPayment/10000)}万\n\nサプライヤー別: ${JSON.stringify(data.supplierStats)}\nカテゴリ別: ${JSON.stringify(data.categoryStats)}\n月別支払い: ${JSON.stringify(data.monthlyPayments)}\n\n過去のナレッジ:\n${data.knowledgeItems || 'なし'}`;
-            const modePrompts = { quick: `${baseContext}\n\n今すぐ対応すべき重要事項を3〜5個、優先度順に簡潔に。形式: 🔴/🟡/🟢 タイトル: アクション`, detail: `${baseContext}\n\n詳細分析:\n1. 📊 現状サマリー\n2. ⚠️ リスク・課題\n3. 💡 改善提案\n4. 📈 トレンド`, cost: `${baseContext}\n\nコスト分析:\n1. 💰 キャッシュフロー\n2. 📉 支払いトレンド\n3. ⏰ 遅延リスク\n4. 🔮 来月予測\n5. 💡 最適化提案`, supplier: `${baseContext}\n\nサプライヤー分析:\n1. 🏭 依存度\n2. 📊 取引状況\n3. ⚠️ 偏りリスク\n4. 💡 戦略提案`, forecast: `${baseContext}\n\n1〜2ヶ月予測:\n1. 💰 支払い予測\n2. 📦 入庫予測\n3. ⚠️ 注意イベント\n4. 🎯 推奨アクション` };
-            return modePrompts[mode] + '\n\n※日本語で、具体的な数値を含めて簡潔に。';
-        }
-
-        function formatAnalysisResult(text) {
-            if (!text) return '<p class="text-[#37352f99]">分析結果がありません</p>';
-            return '<div class="space-y-2">' + text.split('\n').filter(l => l.trim()).map(line => {
-                if (line.match(/^[🔴🟡🟢📊⚠️💡📈💰📉⏰🔮🏭📦🎯]/)) return `<div class="p-2 bg-white dark:bg-[#1e1e1e] rounded">${line}</div>`;
-                if (line.match(/^#+\s/)) return `<p class="font-semibold mt-3">${line.replace(/^#+\s/, '')}</p>`;
-                return `<p class="text-[#37352f99] dark:text-[#ffffff99]">${line}</p>`;
-            }).join('') + '</div>';
-        }
-
-        function generateLocalAnalysis(data) {
-            const items = [];
-            if (data.oldestUnpaidDays > 30) items.push(`<div class="p-2 bg-[#fdebec] dark:bg-[#3d2929] rounded">🔴 支払い${data.oldestUnpaidDays}日超過あり</div>`);
-            if (data.noShelfCount > 0) items.push(`<div class="p-2 bg-[#fbf3db] dark:bg-[#3d3526] rounded">🟡 棚番未設定${data.noShelfCount}件</div>`);
-            if (data.staleCount > 0) items.push(`<div class="p-2 bg-[#fbf3db] dark:bg-[#3d3526] rounded">🟡 長期滞留${data.staleCount}件</div>`);
-            return '<div class="space-y-2 mt-2">' + (items.length > 0 ? items.join('') : '<p class="text-[#37352f99]">特に問題なし</p>') + '</div>';
+        function buildPrompt(mode, d) {
+            const base = `データ: 在庫${d.inStock}件, 入庫待ち${d.waiting}件, 未払い${d.unpaidCount}件(¥${Math.round(d.unpaidTotal/10000)}万), 最長${d.oldestDays}日, 棚番なし${d.noShelf}件, サプライヤー${JSON.stringify(d.supplierStats)}, ナレッジ: ${d.knowledge || 'なし'}`;
+            const modes = {
+                quick: `${base}\n\n優先度順に3-4個、簡潔に。形式: 絵文字 内容`,
+                detail: `${base}\n\n現状・リスク・改善点を簡潔に`,
+                cost: `${base}\n\nキャッシュフローと来月予測を簡潔に`,
+                supplier: `${base}\n\nサプライヤー依存度と提案を簡潔に`,
+                forecast: `${base}\n\n今後1-2ヶ月の予測を簡潔に`
+            };
+            return modes[mode] + '\n\n※日本語、箇条書き不要、段落で。';
         }
 
         async function saveToKnowledge() {
             if (!lastAnalysisResult) return;
-            const summary = lastAnalysisResult.slice(0, 200) + (lastAnalysisResult.length > 200 ? '...' : '');
-            const categoryMap = { quick: 'important', detail: 'pattern', cost: 'cost', supplier: 'supplier', forecast: 'pattern' };
-            if (await saveKnowledgeItem(categoryMap[currentAnalysisMode] || 'note', `[${currentAnalysisMode}分析] ` + summary, '中', '', 'ai')) {
-                alert('ナレッジに保存しました');
-                document.getElementById('saveKnowledgeBtn').classList.add('hidden');
-            }
+            const map = { quick: 'important', detail: 'pattern', cost: 'cost', supplier: 'supplier', forecast: 'pattern' };
+            await saveKnowledgeItem(map[currentAnalysisMode], lastAnalysisResult.slice(0, 200), '', 'ai');
+            document.getElementById('saveKnowledgeBtn').classList.add('hidden');
         }
 
-        // ========== AIチャット ==========
+        // チャット
         async function sendChat() {
             const input = document.getElementById('chatInput');
-            const message = input.value.trim();
-            if (!message) return;
+            const msg = input.value.trim();
+            if (!msg) return;
             input.value = '';
-            chatHistory.push({ role: 'user', content: message });
+            chatHistory.push({ role: 'user', content: msg });
             updateChatUI();
-            const analysisData = prepareAnalysisData();
-            const context = `調達・在庫管理アシスタントとして回答。データ: ${JSON.stringify(analysisData)}\n\n質問: ${message}\n\n簡潔に回答。`;
+            const data = prepareAnalysisData();
             try {
-                const response = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 800, messages: [{ role: 'user', content: context }] }) });
-                const data = await response.json();
-                chatHistory.push({ role: 'assistant', content: data.content?.[0]?.text || '回答を生成できませんでした' });
-            } catch (err) { chatHistory.push({ role: 'assistant', content: 'エラーが発生しました' }); }
+                const res = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 600, messages: [{ role: 'user', content: `データ: ${JSON.stringify(data)}\n質問: ${msg}\n簡潔に回答。` }] }) });
+                chatHistory.push({ role: 'assistant', content: (await res.json()).content?.[0]?.text || '...' });
+            } catch (e) { chatHistory.push({ role: 'assistant', content: 'エラー' }); }
             updateChatUI();
         }
 
         function updateChatUI() {
-            const container = document.getElementById('chatHistory');
-            container.innerHTML = chatHistory.slice(-10).map(m => `<div class="flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}"><div class="chat-bubble ${m.role === 'user' ? 'chat-user' : 'chat-ai'}"><p class="whitespace-pre-wrap">${m.content}</p></div></div>`).join('');
-            container.scrollTop = container.scrollHeight;
+            const c = document.getElementById('chatHistory');
+            c.innerHTML = chatHistory.slice(-8).map(m => `<div class="${m.role === 'user' ? 'text-right' : ''}"><span class="inline-block px-3 py-1.5 rounded ${m.role === 'user' ? 'bg-[var(--bg-hover)]' : ''}">${m.content}</span></div>`).join('');
+            c.scrollTop = c.scrollHeight;
         }
 
-        // ========== ナレッジモーダル ==========
+        // モーダル
         function showKnowledgeModal() { document.getElementById('knowledgeModal').classList.remove('hidden'); renderKnowledgeList('all'); }
         function closeKnowledgeModal() { document.getElementById('knowledgeModal').classList.add('hidden'); }
-        function renderKnowledgeList(filter) {
-            const container = document.getElementById('knowledgeList');
-            const icons = { important: '📌', supplier: '🏭', cost: '💰', pattern: '📊', seasonal: '🗓️', note: '📝' };
-            let filtered = filter === 'all' ? knowledge : knowledge.filter(k => k.category === filter);
-            if (filtered.length === 0) { container.innerHTML = '<p class="text-center text-[#37352f99] py-8">該当するナレッジがありません</p>'; return; }
-            container.innerHTML = [...filtered].reverse().map(k => `<div class="hover-bg section"><div class="flex items-start gap-2"><span>${icons[k.category] || '📝'}</span><div class="flex-1"><p class="text-sm">${k.content}</p><p class="text-xs text-[#37352f99] dark:text-[#ffffff66] mt-1">${k.date}${k.tags ? ' · ' + k.tags : ''}</p></div></div></div>`).join('');
-            document.querySelectorAll('.knowledge-filter').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === filter));
-        }
-        document.addEventListener('click', (e) => { if (e.target.classList.contains('knowledge-filter')) renderKnowledgeList(e.target.dataset.filter); });
         function showAddKnowledgeForm() { document.getElementById('addKnowledgeModal').classList.remove('hidden'); }
         function closeAddKnowledgeModal() { document.getElementById('addKnowledgeModal').classList.add('hidden'); }
+
+        function renderKnowledgeList(filter) {
+            const icons = { important: '📌', supplier: '🏭', cost: '💰', pattern: '📊', note: '📝' };
+            let list = filter === 'all' ? knowledge : knowledge.filter(k => k.category === filter);
+            document.getElementById('knowledgeList').innerHTML = list.length ? [...list].reverse().map(k => `<div class="clickable px-2 py-2"><span class="mr-2">${icons[k.category] || '📝'}</span>${k.content}<span class="text-tertiary ml-2">${k.date}</span></div>`).join('') : '<p class="text-tertiary text-center py-8">なし</p>';
+            document.querySelectorAll('.knowledge-filter').forEach(b => b.classList.toggle('text-secondary', b.dataset.filter !== filter));
+        }
+        document.addEventListener('click', e => { if (e.target.classList.contains('knowledge-filter')) renderKnowledgeList(e.target.dataset.filter); });
+
         async function addKnowledge() {
-            const category = document.getElementById('newKnowledgeCategory').value;
             const content = document.getElementById('newKnowledgeContent').value.trim();
-            const tags = document.getElementById('newKnowledgeTags').value.trim();
-            if (!content) { alert('内容を入力してください'); return; }
-            if (await saveKnowledgeItem(category, content, '中', tags, 'manual')) { closeAddKnowledgeModal(); renderKnowledgeList('all'); document.getElementById('newKnowledgeContent').value = ''; document.getElementById('newKnowledgeTags').value = ''; }
+            if (!content) return;
+            await saveKnowledgeItem(document.getElementById('newKnowledgeCategory').value, content, document.getElementById('newKnowledgeTags').value, 'manual');
+            closeAddKnowledgeModal();
+            renderKnowledgeList('all');
+            document.getElementById('newKnowledgeContent').value = '';
+            document.getElementById('newKnowledgeTags').value = '';
         }
 
-        // ========== UI更新 ==========
+        // UI更新
         function updateSummary() {
-            const today = new Date(), inStock = inventory.filter(i => i.status === '在庫中'), waiting = inventory.filter(i => i.status === '入庫待ち');
-            const inStockValue = inStock.reduce((s, i) => s + (parseInt(i.costJPY) || 0), 0);
-            const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + 7);
-            const arrivingThisWeek = projects.filter(p => { if (!p.pickupDate || p.receivedComplete) return false; const d = new Date(p.pickupDate); return d >= today && d <= weekEnd; });
-            let unpaidTotal = 0, unpaidCount = 0, urgentCount = 0;
-            projects.forEach(p => { (p.depositSchedule || []).forEach((d, idx) => { if (!d.paid) { unpaidTotal += d.amountJPY || (d.amountUSD * 150) || 0; unpaidCount++; if (idx === 0 && p.registeredDate && Math.floor((today - new Date(p.registeredDate)) / 86400000) > 30) urgentCount++; } }); });
-            const thisMonth = today.toISOString().slice(0, 7); let thisMonthTotal = 0, thisMonthCount = 0;
-            projects.forEach(p => { (p.depositSchedule || []).forEach(d => { if (d.paid && d.paidDate && d.paidDate.startsWith(thisMonth)) { thisMonthTotal += d.amountJPY || 0; thisMonthCount++; } }); });
-            document.getElementById('statInStock').textContent = inStock.length + '件';
-            document.getElementById('statInStockDetail').textContent = `¥${inStockValue.toLocaleString()}`;
-            document.getElementById('statWaiting').textContent = waiting.length + '件';
-            document.getElementById('statWaitingDetail').textContent = arrivingThisWeek.length > 0 ? `今週 ${arrivingThisWeek.length}件到着` : '';
+            const inStock = inventory.filter(i => i.status === '在庫中');
+            let unpaidTotal = 0;
+            projects.forEach(p => (p.depositSchedule || []).forEach(d => { if (!d.paid) unpaidTotal += d.amountJPY || (d.amountUSD * 150) || 0; }));
+            const thisMonth = new Date().toISOString().slice(0, 7);
+            let monthTotal = 0;
+            projects.forEach(p => (p.depositSchedule || []).forEach(d => { if (d.paid && d.paidDate?.startsWith(thisMonth)) monthTotal += d.amountJPY || 0; }));
+            document.getElementById('statInStock').textContent = inStock.length;
+            document.getElementById('statWaiting').textContent = inventory.filter(i => i.status === '入庫待ち').length;
             document.getElementById('statUnpaid').textContent = `¥${Math.round(unpaidTotal/10000)}万`;
-            document.getElementById('statUnpaidDetail').textContent = urgentCount > 0 ? `${urgentCount}件が30日超過` : `${unpaidCount}件`;
-            document.getElementById('statThisMonth').textContent = `¥${Math.round(thisMonthTotal/10000)}万`;
-            document.getElementById('statThisMonthDetail').textContent = `${thisMonthCount}件`;
+            document.getElementById('statThisMonth').textContent = `¥${Math.round(monthTotal/10000)}万`;
         }
 
         function updateTimeline() {
-            const today = new Date(); today.setHours(0,0,0,0); const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + 7);
-            const weekEndDisp = new Date(today); weekEndDisp.setDate(weekEndDisp.getDate() + 6);
-            document.getElementById('timelineWeek').textContent = `${today.getMonth()+1}/${today.getDate()} - ${weekEndDisp.getMonth()+1}/${weekEndDisp.getDate()}`;
+            const today = new Date(); today.setHours(0,0,0,0);
+            const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + 7);
+            document.getElementById('timelineWeek').textContent = `${today.getMonth()+1}/${today.getDate()} - ${new Date(today.getTime() + 6*86400000).getMonth()+1}/${new Date(today.getTime() + 6*86400000).getDate()}`;
             const events = [];
             projects.forEach(p => {
-                if (p.pickupDate && !p.receivedComplete) { const d = new Date(p.pickupDate); if (d >= today && d <= weekEnd) events.push({ date: d, icon: '🚚', title: `${p.projectPrefix}-${String(p.projectNumber).padStart(4,'0')}`, detail: p.productName, link: `index.html?project=${p.projectPrefix}-${String(p.projectNumber).padStart(4,'0')}` }); }
-                if (p.registeredDate) { (p.depositSchedule || []).forEach((dep, idx) => { if (dep.paid) return; let due; if (idx === 0) { due = new Date(p.registeredDate); due.setDate(due.getDate() + 7); } else if (p.pickupDate) { due = new Date(p.pickupDate); due.setDate(due.getDate() - 7); } if (due && due >= today && due <= weekEnd) events.push({ date: due, icon: '💰', title: `${p.projectPrefix}-${String(p.projectNumber).padStart(4,'0')}`, detail: `${dep.percentage}%`, link: `index.html?project=${p.projectPrefix}-${String(p.projectNumber).padStart(4,'0')}` }); }); }
+                if (p.pickupDate && !p.receivedComplete) { const d = new Date(p.pickupDate); if (d >= today && d <= weekEnd) events.push({ date: d, icon: '🚚', text: `${p.projectPrefix}-${String(p.projectNumber).padStart(4,'0')} ${p.productName.slice(0,15)}` }); }
+                (p.depositSchedule || []).forEach((dep, i) => { if (dep.paid) return; let due = i === 0 && p.registeredDate ? new Date(new Date(p.registeredDate).getTime() + 7*86400000) : p.pickupDate ? new Date(new Date(p.pickupDate).getTime() - 7*86400000) : null; if (due && due >= today && due <= weekEnd) events.push({ date: due, icon: '💰', text: `${p.projectPrefix}-${String(p.projectNumber).padStart(4,'0')} ${dep.percentage}%` }); });
             });
             events.sort((a, b) => a.date - b.date);
-            const container = document.getElementById('timeline');
-            if (events.length === 0) { container.innerHTML = '<p class="text-sm text-[#37352f99] dark:text-[#ffffff66] py-4 text-center">今週の予定はありません</p>'; return; }
-            const grouped = {}; events.forEach(e => { const k = e.date.toISOString().split('T')[0]; if (!grouped[k]) grouped[k] = []; grouped[k].push(e); });
-            let html = '';
-            Object.entries(grouped).forEach(([ds, de]) => {
-                const d = new Date(ds), isToday = d.toDateString() === today.toDateString(), dn = ['日','月','火','水','木','金','土'][d.getDay()];
-                html += `<div class="timeline-item"><div class="timeline-dot ${isToday ? 'active' : ''}"></div><p class="text-xs ${isToday ? 'text-[#2383e2] font-medium' : 'text-[#37352f99] dark:text-[#ffffff66]'} mb-1">${d.getMonth()+1}/${d.getDate()} (${dn})${isToday ? ' 今日' : ''}</p>`;
-                de.forEach(e => { html += `<a href="${e.link}" class="hover-bg block p-2 rounded mb-1"><span class="mr-2">${e.icon}</span><span class="font-medium">${e.title}</span><span class="text-[#37352f99] dark:text-[#ffffff66] ml-2 text-sm">${e.detail}</span></a>`; });
-                html += '</div>';
-            });
-            container.innerHTML = html;
+            document.getElementById('timeline').innerHTML = events.length ? events.map(e => { const d = e.date; const isToday = d.toDateString() === today.toDateString(); return `<div class="clickable px-2 py-1.5 flex items-center gap-3"><span class="text-tertiary w-16">${d.getMonth()+1}/${d.getDate()}${isToday ? ' 今日' : ''}</span><span>${e.icon}</span><span>${e.text}</span></div>`; }).join('') : '<p class="text-tertiary">予定なし</p>';
         }
 
         function updateHealthCheck() {
             const today = new Date(), checks = [];
             const noShelf = inventory.filter(i => i.status === '在庫中' && !i.shelfNo).length;
-            if (noShelf > 0) checks.push({ icon: '📍', text: `棚番未設定 ${noShelf}件`, color: 'bg-[#fbf3db] dark:bg-[#3d3526]' });
-            const stale = inventory.filter(i => i.status === '在庫中' && i.receiveDate && Math.floor((today - new Date(i.receiveDate)) / 86400000) >= 60).length;
-            if (stale > 0) checks.push({ icon: '⏰', text: `長期滞留 ${stale}件`, color: 'bg-[#fbf3db] dark:bg-[#3d3526]' });
-            let overdueCount = 0; projects.forEach(p => { if (p.registeredDate && (p.depositSchedule || [])[0] && !(p.depositSchedule || [])[0].paid && Math.floor((today - new Date(p.registeredDate)) / 86400000) > 30) overdueCount++; });
-            if (overdueCount > 0) checks.push({ icon: '🚨', text: `支払い遅延 ${overdueCount}件`, color: 'bg-[#fdebec] dark:bg-[#3d2929]' });
-            if (checks.length === 0) checks.push({ icon: '✅', text: '問題なし', color: 'bg-[#dbeddb] dark:bg-[#2b3d2b]' });
-            document.getElementById('healthCheck').innerHTML = checks.map(c => `<div class="${c.color} p-2 rounded text-sm"><span class="mr-2">${c.icon}</span>${c.text}</div>`).join('');
+            if (noShelf) checks.push(`📍 棚番未設定 ${noShelf}件`);
+            const stale = inventory.filter(i => i.status === '在庫中' && i.receiveDate && (today - new Date(i.receiveDate)) / 86400000 >= 60).length;
+            if (stale) checks.push(`⏰ 長期滞留 ${stale}件`);
+            let overdue = 0;
+            projects.forEach(p => { if (p.registeredDate && (p.depositSchedule || [])[0] && !(p.depositSchedule || [])[0].paid && (today - new Date(p.registeredDate)) / 86400000 > 30) overdue++; });
+            if (overdue) checks.push(`⚠️ 支払遅延 ${overdue}件`);
+            document.getElementById('healthCheck').innerHTML = checks.length ? checks.map(c => `<p>${c}</p>`).join('') : '<p class="text-tertiary">✓ 問題なし</p>';
         }
 
         function updateQuickActions() {
             const actions = [];
-            inventory.filter(i => i.status === '入庫待ち').slice(0, 3).forEach(item => { actions.push({ icon: '📦', title: item.serial, detail: item.productName.slice(0, 15), link: `inventory.html?search=${item.serial}` }); });
-            const unpaidProjects = []; projects.forEach(p => { const u = (p.depositSchedule || []).find(d => !d.paid); if (u && p.registeredDate) unpaidProjects.push({ p, u, d: new Date(p.registeredDate) }); });
-            unpaidProjects.sort((a, b) => a.d - b.d).slice(0, 3).forEach(({ p, u }) => { const pn = `${p.projectPrefix}-${String(p.projectNumber).padStart(4,'0')}`; actions.push({ icon: '💳', title: pn, detail: `${u.percentage}%`, link: `index.html?project=${pn}` }); });
-            const container = document.getElementById('quickActions');
-            if (actions.length === 0) { container.innerHTML = '<p class="text-sm text-[#37352f99] dark:text-[#ffffff66]">実行待ちのアクションはありません</p>'; return; }
-            container.innerHTML = actions.slice(0, 6).map(a => `<a href="${a.link}" class="hover-bg section flex items-center gap-3"><span class="text-lg">${a.icon}</span><div class="min-w-0"><p class="font-medium text-sm truncate">${a.title}</p><p class="text-xs text-[#37352f99] dark:text-[#ffffff66] truncate">${a.detail}</p></div></a>`).join('');
+            inventory.filter(i => i.status === '入庫待ち').slice(0, 2).forEach(i => actions.push({ icon: '📦', text: i.serial, link: `inventory.html?search=${i.serial}` }));
+            projects.forEach(p => { const u = (p.depositSchedule || []).find(d => !d.paid); if (u) actions.push({ icon: '💳', text: `${p.projectPrefix}-${String(p.projectNumber).padStart(4,'0')}`, link: `index.html?project=${p.projectPrefix}-${String(p.projectNumber).padStart(4,'0')}` }); });
+            document.getElementById('quickActions').innerHTML = actions.length ? actions.slice(0, 4).map(a => `<a href="${a.link}" class="clickable px-2 py-1.5 flex items-center gap-2"><span>${a.icon}</span><span>${a.text}</span></a>`).join('') : '<p class="text-tertiary col-span-2">なし</p>';
         }
 
         function updateCharts() {
-            const now = new Date(), allItems = [...inventory, ...archivedInventory], months = [];
-            for (let i = 5; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); months.push({ key: d.toISOString().slice(0, 7), label: `${d.getMonth() + 1}月`, receive: 0, ship: 0, payment: 0 }); }
-            allItems.forEach(item => { if (item.receiveDate) { const m = months.find(m => m.key === item.receiveDate.slice(0, 7)); if (m) m.receive++; } if (item.shipDate) { const m = months.find(m => m.key === item.shipDate.slice(0, 7)); if (m) m.ship++; } });
-            projects.forEach(p => { (p.depositSchedule || []).forEach(d => { if (d.paid && d.paidDate) { const m = months.find(m => m.key === d.paidDate.slice(0, 7)); if (m) m.payment += d.amountJPY || 0; } }); });
-            const chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { grid: { color: '#e5e5e5' }, beginAtZero: true } } };
+            const now = new Date(), months = [];
+            for (let i = 5; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); months.push({ key: d.toISOString().slice(0, 7), label: `${d.getMonth()+1}月`, r: 0, s: 0, p: 0 }); }
+            [...inventory, ...archivedInventory].forEach(i => { const mr = months.find(m => m.key === (i.receiveDate || '').slice(0, 7)); if (mr) mr.r++; const ms = months.find(m => m.key === (i.shipDate || '').slice(0, 7)); if (ms) ms.s++; });
+            projects.forEach(p => (p.depositSchedule || []).forEach(d => { if (d.paid && d.paidDate) { const m = months.find(m => m.key === d.paidDate.slice(0, 7)); if (m) m.p += d.amountJPY || 0; } }));
+            const opts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { color: 'rgba(55,53,47,0.5)' } }, y: { grid: { color: 'rgba(55,53,47,0.08)' }, ticks: { color: 'rgba(55,53,47,0.5)' }, beginAtZero: true } } };
             if (charts.flow) charts.flow.destroy();
-            charts.flow = new Chart(document.getElementById('flowChart'), { type: 'line', data: { labels: months.map(m => m.label), datasets: [{ label: '入庫', data: months.map(m => m.receive), borderColor: '#0f7b6c', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3 }, { label: '出庫', data: months.map(m => m.ship), borderColor: '#2383e2', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3 }] }, options: { ...chartOptions, plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 12, padding: 15 } } } } });
+            charts.flow = new Chart(document.getElementById('flowChart'), { type: 'line', data: { labels: months.map(m => m.label), datasets: [{ data: months.map(m => m.r), borderColor: 'rgba(55,53,47,0.6)', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 }, { data: months.map(m => m.s), borderColor: 'rgba(55,53,47,0.3)', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 }] }, options: opts });
             if (charts.payment) charts.payment.destroy();
-            charts.payment = new Chart(document.getElementById('paymentChart'), { type: 'bar', data: { labels: months.map(m => m.label), datasets: [{ data: months.map(m => m.payment), backgroundColor: '#37352f', borderRadius: 4 }] }, options: { ...chartOptions, scales: { ...chartOptions.scales, y: { ...chartOptions.scales.y, ticks: { callback: v => '¥' + (v/10000).toFixed(0) + '万' } } } } });
+            charts.payment = new Chart(document.getElementById('paymentChart'), { type: 'bar', data: { labels: months.map(m => m.label), datasets: [{ data: months.map(m => m.p), backgroundColor: 'rgba(55,53,47,0.15)', borderRadius: 2 }] }, options: { ...opts, scales: { ...opts.scales, y: { ...opts.scales.y, ticks: { ...opts.scales.y.ticks, callback: v => (v/10000) + '万' } } } } });
         }
 
-        // ========== ユーティリティ ==========
         function toggleDarkMode() { document.documentElement.classList.toggle('dark'); localStorage.setItem('darkMode', document.documentElement.classList.contains('dark')); }
         function initDarkMode() { if (localStorage.getItem('darkMode') === 'true' || (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark'); }
         window.onload = () => { const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.onload = init; document.head.appendChild(s); };
