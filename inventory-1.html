@@ -2967,7 +2967,9 @@
 
         // 詳細モーダル（3タブ：詳細・スペック・編集）
         function showDetailModal(id) {
+            console.log('showDetailModal called with id:', id);
             const item = inventory.find(i => String(i.id) === String(id));
+            console.log('Found item:', item ? item.serial + ' / ' + item.productName : 'NOT FOUND');
             if (!item) return;
 
             // 製品マスタからスペック情報を取得
