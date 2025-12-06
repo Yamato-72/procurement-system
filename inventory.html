@@ -746,7 +746,7 @@
                     range: '在庫!A1:Q1',
                     valueInputOption: 'RAW',
                     resource: {
-                        values: [['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所', 'サプライヤーID']]
+                        values: [['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税別)', '備考', '棚番', '保管場所', 'サプライヤーID']]
                     }
                 });
             } catch (e) {
@@ -771,7 +771,7 @@
                     range: '在庫アーカイブ!A1:Q1',
                     valueInputOption: 'RAW',
                     resource: {
-                        values: [['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所', 'サプライヤーID']]
+                        values: [['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税別)', '備考', '棚番', '保管場所', 'サプライヤーID']]
                     }
                 });
             } catch (e) {
@@ -804,7 +804,7 @@
                 }
                 
                 const inventoryData = [
-                    ['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所', 'サプライヤーID'],
+                    ['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税別)', '備考', '棚番', '保管場所', 'サプライヤーID'],
                     ...inventory.map(item => [
                         item.id,
                         item.serial,
@@ -839,7 +839,7 @@
                 });
 
                 const archiveData = [
-                    ['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所', 'サプライヤーID'],
+                    ['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税別)', '備考', '棚番', '保管場所', 'サプライヤーID'],
                     ...archivedInventory.map(item => [
                         item.id,
                         item.serial,
@@ -1455,7 +1455,7 @@
                                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">備考</th>
                                                                     <th class="px-3 py-2 text-center text-xs font-semibold text-slate-700 dark:text-slate-300">棚番</th>
                                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">入庫日</th>
-                                                                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-700 dark:text-slate-300">原価(税込)</th>
+                                                                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-700 dark:text-slate-300">原価(税別)</th>
                                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">ステータス</th>
                                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">${groupMode === 'ship' ? '発注元' : '出庫先'}</th>
                                                                     <th class="px-3 py-2 text-center text-xs font-semibold text-slate-700 dark:text-slate-300">操作</th>
@@ -3015,7 +3015,7 @@
                                         <td class="py-2 dark:text-white">${item.receiveDate || '-'}</td>
                                     </tr>
                                     <tr class="border-b border-slate-200 dark:border-slate-600">
-                                        <td class="py-2 text-slate-500 dark:text-slate-400">取得金（税込）</td>
+                                        <td class="py-2 text-slate-500 dark:text-slate-400">取得金（税別）</td>
                                         <td class="py-2 dark:text-white font-semibold">${item.costJPY ? '¥' + Number(item.costJPY).toLocaleString() : '-'}</td>
                                     </tr>
                                     ${item.status === '出庫済' ? `
@@ -3120,7 +3120,7 @@
                                     <input type="date" id="detailEditReceiveDate" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.receiveDate}">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">取得金（税込円）</label>
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">取得金（税別円）</label>
                                     <input type="number" id="detailEditCostJPY" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.costJPY || ''}">
                                 </div>
                             </div>
@@ -3277,7 +3277,7 @@
                                     <input type="date" id="editReceiveDate" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.receiveDate}">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">取得金（税込円）</label>
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">取得金（税別円）</label>
                                     <input type="number" id="editCostJPY" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.costJPY || ''}">
                                 </div>
                             </div>
@@ -3603,7 +3603,7 @@
                 return;
             }
 
-            const headers = ['Serial', '種別', '製品名', '棚番', '保管場所', '発注案件', '発注日', '入庫日', '取得金（税込）', 'ステータス', '出庫日', '出庫先案件', '備考'];
+            const headers = ['Serial', '種別', '製品名', '棚番', '保管場所', '発注案件', '発注日', '入庫日', '取得金（税別）', 'ステータス', '出庫日', '出庫先案件', '備考'];
             const rows = filtered.map(item => [
                 item.serial,
                 item.category,
