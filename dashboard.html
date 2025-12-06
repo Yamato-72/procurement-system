@@ -276,6 +276,41 @@
         </div>
     </div>
 
+    <!-- 設定ボタン -->
+    <div id="settingsBtn" class="fixed bottom-4 left-4 hidden">
+        <button onclick="showSettingsModal()" class="flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg text-sm hover:opacity-90 bg-card border border-def">
+            <i data-lucide="settings" class="w-4 h-4 t-sub"></i>
+            <span class="t-sub">設定</span>
+        </button>
+    </div>
+
+    <!-- 設定モーダル -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/40 z-50 hidden flex items-center justify-center p-4">
+        <div class="rounded-lg max-w-md w-full overflow-hidden flex flex-col" style="background:var(--bg)">
+            <div class="p-3 flex justify-between items-center border-b border-def">
+                <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded flex items-center justify-center" style="background:var(--gray-bg)">
+                        <i data-lucide="settings" class="w-3.5 h-3.5" style="color:var(--gray)"></i>
+                    </div>
+                    <span class="font-medium text-sm">設定</span>
+                </div>
+                <button onclick="closeSettingsModal()" class="hover-bg p-1"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="p-4 space-y-4">
+                <div>
+                    <label class="text-xs font-medium block mb-1">Anthropic APIキー</label>
+                    <input type="password" id="apiKeyInput" placeholder="sk-ant-..." class="w-full text-sm">
+                    <p class="text-xs t-sub mt-1">AI分析機能に必要です。<a href="https://console.anthropic.com/" target="_blank" class="underline" style="color:var(--blue)">取得はこちら</a></p>
+                </div>
+                <div id="apiKeyStatus" class="text-xs"></div>
+            </div>
+            <div class="p-3 border-t border-def flex justify-end gap-2">
+                <button onclick="closeSettingsModal()" class="btn" style="background:var(--gray-bg);color:var(--text)">キャンセル</button>
+                <button onclick="saveApiKey()" class="btn btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ナレッジボタン -->
     <div id="knowledgeBtn" class="fixed bottom-4 right-4 hidden">
         <button onclick="showKnowledgeModal()" class="flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg text-sm hover:opacity-90" style="background:var(--purple);color:#fff">
@@ -312,6 +347,7 @@
         const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';
         let accessToken = null, inventory = [], archivedInventory = [], projects = [], suppliers = [], knowledge = [];
         let charts = {}, currentMode = 'quick';
+        let apiKey = localStorage.getItem('anthropicApiKey') || '';
         
         // カラーパレット
         const colors = {
@@ -339,7 +375,31 @@
             document.getElementById('loginSection').classList.add('hidden');
             document.getElementById('mainContent').classList.remove('hidden');
             document.getElementById('knowledgeBtn').classList.remove('hidden');
+            document.getElementById('settingsBtn').classList.remove('hidden');
             lucide.createIcons();
+        }
+
+        // 設定モーダル
+        function showSettingsModal() {
+            document.getElementById('settingsModal').classList.remove('hidden');
+            document.getElementById('apiKeyInput').value = apiKey;
+            updateApiKeyStatus();
+            lucide.createIcons();
+        }
+        function closeSettingsModal() { document.getElementById('settingsModal').classList.add('hidden'); }
+        function saveApiKey() {
+            apiKey = document.getElementById('apiKeyInput').value.trim();
+            localStorage.setItem('anthropicApiKey', apiKey);
+            updateApiKeyStatus();
+            closeSettingsModal();
+        }
+        function updateApiKeyStatus() {
+            const el = document.getElementById('apiKeyStatus');
+            if (apiKey) {
+                el.innerHTML = '<span class="tag tag-green">✓ APIキー設定済み</span>';
+            } else {
+                el.innerHTML = '<span class="tag tag-yellow">APIキー未設定</span>';
+            }
         }
 
         async function loadData() {
@@ -634,6 +694,10 @@
 
         async function runAnalysis() {
             const el = document.getElementById('analysisResult');
+            if (!apiKey) {
+                el.innerHTML = '<p class="t-sub">APIキーを設定してください → <button onclick="showSettingsModal()" class="underline" style="color:var(--blue)">設定</button></p>';
+                return;
+            }
             el.innerHTML = '<p class="t-sub"><i data-lucide="loader-2" class="w-4 h-4 inline animate-spin mr-1"></i>分析中...</p>';
             lucide.createIcons();
             const d = prepareData();
@@ -645,7 +709,20 @@
             };
             const prompt = `調達在庫データ: ${JSON.stringify(d)}\n\nナレッジ: ${knowledge.map(k => k.content).join('; ')}\n\n${prompts[currentMode]}\n\n日本語で簡潔に。`;
             try {
-                const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 800, messages: [{ role: 'user', content: prompt }] }) });
+                const r = await fetch('https://api.anthropic.com/v1/messages', { 
+                    method: 'POST', 
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01',
+                        'anthropic-dangerous-direct-browser-access': 'true'
+                    }, 
+                    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 800, messages: [{ role: 'user', content: prompt }] }) 
+                });
+                if (!r.ok) {
+                    const err = await r.json();
+                    throw new Error(err.error?.message || 'API Error');
+                }
                 const j = await r.json();
                 const text = j.content?.[0]?.text || '';
                 el.innerHTML = text.split('\n').filter(l => l.trim()).map(l => {
@@ -654,23 +731,40 @@
                     if (l.includes('● 低')) return `<div class="mb-1.5 p-1.5 rounded" style="background:var(--green-bg)">${l}</div>`;
                     return `<div class="mb-1">${l}</div>`;
                 }).join('');
-            } catch { el.innerHTML = '<p style="color:var(--red)">エラーが発生しました</p>'; }
+            } catch (e) { el.innerHTML = `<p style="color:var(--red)">エラー: ${e.message}</p>`; }
         }
 
         async function sendChat() {
             const inp = document.getElementById('chatInput');
             const msg = inp.value.trim();
             if (!msg) return;
-            inp.value = '';
             const el = document.getElementById('analysisResult');
+            if (!apiKey) {
+                el.innerHTML = '<p class="t-sub">APIキーを設定してください → <button onclick="showSettingsModal()" class="underline" style="color:var(--blue)">設定</button></p>';
+                return;
+            }
+            inp.value = '';
             el.innerHTML = '<p class="t-sub"><i data-lucide="loader-2" class="w-4 h-4 inline animate-spin mr-1"></i>回答中...</p>';
             lucide.createIcons();
             const d = prepareData();
             try {
-                const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 500, messages: [{ role: 'user', content: `データ: ${JSON.stringify(d)}\n\n質問: ${msg}\n\n簡潔に回答。` }] }) });
+                const r = await fetch('https://api.anthropic.com/v1/messages', { 
+                    method: 'POST', 
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01',
+                        'anthropic-dangerous-direct-browser-access': 'true'
+                    }, 
+                    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 500, messages: [{ role: 'user', content: `データ: ${JSON.stringify(d)}\n\n質問: ${msg}\n\n簡潔に回答。` }] }) 
+                });
+                if (!r.ok) {
+                    const err = await r.json();
+                    throw new Error(err.error?.message || 'API Error');
+                }
                 const j = await r.json();
                 el.innerHTML = (j.content?.[0]?.text || 'エラー').split('\n').map(l => `<div class="mb-1">${l}</div>`).join('');
-            } catch { el.innerHTML = '<p style="color:var(--red)">エラーが発生しました</p>'; }
+            } catch (e) { el.innerHTML = `<p style="color:var(--red)">エラー: ${e.message}</p>`; }
         }
 
         function prepareData() {
