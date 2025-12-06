@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YS調達ナビ</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2337352f' stroke-width='2'><circle cx='12' cy='12' r='10'/><polygon points='16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76'/></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232383e2' stroke-width='2'><circle cx='12' cy='12' r='10'/><polygon points='16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76'/></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -12,44 +12,63 @@
     <script>tailwind.config = { darkMode: 'class' }</script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600&display=swap');
-        :root { --text: #37352f; --text-sub: rgba(55,53,47,0.65); --bg: #fff; --bg-hover: rgba(55,53,47,0.04); --bg-card: #f7f6f3; --border: rgba(55,53,47,0.09); --accent: #2383e2; --green: #0f7b6c; --red: #eb5757; --yellow: #dfab01; }
-        .dark { --text: rgba(255,255,255,0.9); --text-sub: rgba(255,255,255,0.5); --bg: #191919; --bg-hover: rgba(255,255,255,0.03); --bg-card: #252525; --border: rgba(255,255,255,0.08); }
+        :root {
+            --text: #37352f; --text-sub: rgba(55,53,47,0.65); 
+            --bg: #fff; --bg-hover: rgba(55,53,47,0.04); --bg-card: #f7f6f3; --border: rgba(55,53,47,0.09);
+            --blue: #2383e2; --blue-bg: #e8f0fe;
+            --green: #0f7b6c; --green-bg: #dbeddb;
+            --orange: #d9730d; --orange-bg: #faebdd;
+            --red: #e03e3e; --red-bg: #fbe4e4;
+            --purple: #6940a5; --purple-bg: #eae4f2;
+            --yellow: #dfab01; --yellow-bg: #fbf3db;
+            --gray: #787774; --gray-bg: #ebeaea;
+        }
+        .dark {
+            --text: rgba(255,255,255,0.9); --text-sub: rgba(255,255,255,0.5);
+            --bg: #191919; --bg-hover: rgba(255,255,255,0.03); --bg-card: #252525; --border: rgba(255,255,255,0.08);
+            --blue-bg: #1c3a5e; --green-bg: #1e3a32; --orange-bg: #3d2e1e; --red-bg: #3d2828; --purple-bg: #2e2540; --yellow-bg: #3d3526; --gray-bg: #2f2f2f;
+        }
         * { font-family: 'Noto Sans JP', -apple-system, sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
         body { background: var(--bg); color: var(--text); }
         .t-sub { color: var(--text-sub); }
         .bg-card { background: var(--bg-card); }
         .border-def { border-color: var(--border); }
-        .hover-bg { transition: background 80ms; border-radius: 3px; }
+        .hover-bg { transition: background 80ms; border-radius: 4px; }
         .hover-bg:hover { background: var(--bg-hover); }
-        .btn { padding: 4px 10px; border-radius: 3px; font-size: 12px; transition: opacity 80ms; cursor: pointer; border: none; }
+        .btn { padding: 5px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; border: none; transition: opacity 80ms; }
         .btn:hover { opacity: 0.85; }
-        .btn-primary { background: var(--accent); color: #fff; }
-        .mode-btn { padding: 3px 8px; font-size: 11px; border-radius: 3px; color: var(--text-sub); transition: all 80ms; cursor: pointer; border: none; background: transparent; }
+        .btn-primary { background: var(--blue); color: #fff; }
+        .mode-btn { padding: 4px 10px; font-size: 11px; border-radius: 4px; color: var(--text-sub); cursor: pointer; border: none; background: transparent; transition: all 80ms; }
         .mode-btn:hover { background: var(--bg-hover); }
-        .mode-btn.active { background: rgba(35,131,226,0.1); color: var(--accent); }
-        input { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 3px; padding: 6px 8px; font-size: 12px; }
-        input:focus { outline: none; border-color: var(--accent); }
+        .mode-btn.active { background: var(--blue-bg); color: var(--blue); }
+        input { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 6px 10px; font-size: 12px; }
+        input:focus { outline: none; border-color: var(--blue); }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
         
-        /* フル画面グリッド */
-        .dashboard { display: grid; height: 100vh; grid-template-rows: auto 1fr; gap: 0; }
-        .main-grid { display: grid; grid-template-columns: 1fr 1fr 280px; grid-template-rows: auto 1fr 1fr; gap: 1px; background: var(--border); padding: 1px; overflow: hidden; }
+        .dashboard { display: grid; height: 100vh; grid-template-rows: auto 1fr; }
+        .main-grid { display: grid; grid-template-columns: 1fr 1fr 300px; grid-template-rows: auto 1fr 1fr; gap: 1px; background: var(--border); padding: 1px; overflow: hidden; }
         .main-grid > * { background: var(--bg); padding: 12px; overflow: hidden; }
         
-        /* テーブル */
+        .kpi-bar { display: flex; gap: 8px; padding: 10px 12px !important; overflow-x: auto; }
+        .kpi { flex: 1; min-width: 90px; padding: 10px; border-radius: 6px; background: var(--bg-card); }
+        .kpi-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; }
+        .kpi-value { font-size: 18px; font-weight: 600; }
+        .kpi-label { font-size: 10px; color: var(--text-sub); margin-top: 2px; }
+        .kpi-sub { font-size: 10px; margin-top: 4px; }
+        
         .mini-table { font-size: 11px; width: 100%; }
-        .mini-table th { text-align: left; font-weight: 500; padding: 4px 6px; border-bottom: 1px solid var(--border); }
-        .mini-table td { padding: 4px 6px; border-bottom: 1px solid var(--border); }
+        .mini-table th { text-align: left; font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--border); color: var(--text-sub); }
+        .mini-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
         .mini-table tr:hover { background: var(--bg-hover); }
         
-        /* KPIカード */
-        .kpi { text-align: center; padding: 8px !important; }
-        .kpi-value { font-size: 20px; font-weight: 600; }
-        .kpi-label { font-size: 10px; color: var(--text-sub); }
-        .kpi-sub { font-size: 10px; margin-top: 2px; }
+        .tag { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 500; }
+        .tag-red { background: var(--red-bg); color: var(--red); }
+        .tag-yellow { background: var(--yellow-bg); color: var(--yellow); }
+        .tag-green { background: var(--green-bg); color: var(--green); }
+        .tag-blue { background: var(--blue-bg); color: var(--blue); }
+        .tag-gray { background: var(--gray-bg); color: var(--gray); }
         
-        /* モバイル対応 */
         @media (max-width: 1024px) {
             .dashboard { height: auto; }
             .main-grid { grid-template-columns: 1fr; grid-template-rows: auto; }
@@ -62,13 +81,15 @@
         <!-- ヘッダー -->
         <header class="flex items-center justify-between px-4 py-2 border-b border-def">
             <div class="flex items-center gap-2">
-                <i data-lucide="compass" class="w-5 h-5"></i>
+                <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:var(--blue-bg)">
+                    <i data-lucide="compass" class="w-4 h-4" style="color:var(--blue)"></i>
+                </div>
                 <span class="font-semibold">YS調達ナビ</span>
                 <span class="t-sub text-xs" id="lastUpdate"></span>
             </div>
             <div class="flex items-center gap-1 text-xs">
-                <a href="index.html" class="hover-bg px-2 py-1 t-sub">調達</a>
-                <a href="inventory.html" class="hover-bg px-2 py-1 t-sub">在庫</a>
+                <a href="index.html" class="hover-bg px-2 py-1.5 t-sub flex items-center gap-1"><i data-lucide="clipboard-list" class="w-3.5 h-3.5"></i>調達</a>
+                <a href="inventory.html" class="hover-bg px-2 py-1.5 t-sub flex items-center gap-1"><i data-lucide="package" class="w-3.5 h-3.5"></i>在庫</a>
                 <button onclick="loadData()" class="hover-bg p-1.5 t-sub"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
                 <button onclick="toggleDarkMode()" class="hover-bg p-1.5 t-sub"><i data-lucide="moon" class="w-4 h-4"></i></button>
             </div>
@@ -77,63 +98,74 @@
         <!-- ログイン -->
         <div id="loginSection" class="flex items-center justify-center">
             <div class="text-center">
-                <i data-lucide="compass" class="w-12 h-12 mx-auto mb-3 stroke-1"></i>
+                <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style="background:var(--blue-bg)">
+                    <i data-lucide="compass" class="w-8 h-8" style="color:var(--blue)"></i>
+                </div>
                 <p class="text-sm mb-4">Googleアカウントでログイン</p>
-                <button onclick="handleAuth()" class="btn btn-primary px-4 py-2">ログイン</button>
+                <button onclick="handleAuth()" class="btn btn-primary px-5 py-2">ログイン</button>
             </div>
         </div>
 
-        <!-- メイングリッド -->
+        <!-- メイン -->
         <div id="mainContent" class="main-grid hidden">
             
-            <!-- Row 1: KPIバー -->
-            <div class="col-span-3 flex gap-1 p-2 overflow-x-auto" style="grid-column: 1 / -1;">
-                <div class="kpi flex-1 min-w-0">
-                    <div class="kpi-label">在庫中</div>
+            <!-- KPIバー -->
+            <div class="kpi-bar" style="grid-column: 1 / -1;">
+                <div class="kpi">
+                    <div class="kpi-icon" style="background:var(--blue-bg)"><i data-lucide="package" class="w-4 h-4" style="color:var(--blue)"></i></div>
                     <div class="kpi-value" id="kpiInStock">-</div>
+                    <div class="kpi-label">在庫中</div>
                     <div class="kpi-sub t-sub" id="kpiInStockSub">-</div>
                 </div>
-                <div class="kpi flex-1 min-w-0">
-                    <div class="kpi-label">入庫待ち</div>
+                <div class="kpi">
+                    <div class="kpi-icon" style="background:var(--orange-bg)"><i data-lucide="truck" class="w-4 h-4" style="color:var(--orange)"></i></div>
                     <div class="kpi-value" id="kpiWaiting">-</div>
-                    <div class="kpi-sub" style="color:var(--yellow)" id="kpiWaitingSub">-</div>
+                    <div class="kpi-label">入庫待ち</div>
+                    <div class="kpi-sub" style="color:var(--orange)" id="kpiWaitingSub">-</div>
                 </div>
-                <div class="kpi flex-1 min-w-0">
-                    <div class="kpi-label">未払い</div>
+                <div class="kpi">
+                    <div class="kpi-icon" style="background:var(--red-bg)"><i data-lucide="wallet" class="w-4 h-4" style="color:var(--red)"></i></div>
                     <div class="kpi-value" id="kpiUnpaid">-</div>
+                    <div class="kpi-label">未払い</div>
                     <div class="kpi-sub t-sub" id="kpiUnpaidSub">-</div>
                 </div>
-                <div class="kpi flex-1 min-w-0">
-                    <div class="kpi-label">今月支払</div>
+                <div class="kpi">
+                    <div class="kpi-icon" style="background:var(--green-bg)"><i data-lucide="credit-card" class="w-4 h-4" style="color:var(--green)"></i></div>
                     <div class="kpi-value" id="kpiThisMonth">-</div>
+                    <div class="kpi-label">今月支払</div>
                     <div class="kpi-sub" id="kpiThisMonthSub">-</div>
                 </div>
-                <div class="kpi flex-1 min-w-0">
-                    <div class="kpi-label">平均滞留</div>
+                <div class="kpi">
+                    <div class="kpi-icon" style="background:var(--purple-bg)"><i data-lucide="clock" class="w-4 h-4" style="color:var(--purple)"></i></div>
                     <div class="kpi-value" id="kpiAvgStay">-</div>
+                    <div class="kpi-label">平均滞留</div>
                     <div class="kpi-sub" id="kpiAvgStaySub">-</div>
                 </div>
-                <div class="kpi flex-1 min-w-0">
-                    <div class="kpi-label">回転率</div>
+                <div class="kpi">
+                    <div class="kpi-icon" style="background:var(--yellow-bg)"><i data-lucide="refresh-cw" class="w-4 h-4" style="color:var(--yellow)"></i></div>
                     <div class="kpi-value" id="kpiTurnover">-</div>
+                    <div class="kpi-label">回転率</div>
                     <div class="kpi-sub t-sub">回/月</div>
                 </div>
-                <div class="kpi flex-1 min-w-0">
-                    <div class="kpi-label">遅延</div>
+                <div class="kpi">
+                    <div class="kpi-icon" style="background:var(--red-bg)"><i data-lucide="alert-triangle" class="w-4 h-4" style="color:var(--red)"></i></div>
                     <div class="kpi-value" id="kpiOverdue">-</div>
-                    <div class="kpi-sub" style="color:var(--red)" id="kpiOverdueSub">-</div>
+                    <div class="kpi-label">支払遅延</div>
+                    <div class="kpi-sub" id="kpiOverdueSub">-</div>
                 </div>
-                <div class="kpi flex-1 min-w-0 bg-card rounded" style="padding:6px !important">
-                    <div class="kpi-label">ヘルス</div>
-                    <div id="healthMini" class="text-xs mt-1"></div>
+                <div class="kpi" style="background:var(--bg)">
+                    <div class="flex items-center gap-1 mb-2"><i data-lucide="activity" class="w-4 h-4" style="color:var(--green)"></i><span class="text-xs font-medium">ヘルス</span></div>
+                    <div id="healthMini" class="text-xs space-y-1"></div>
                 </div>
             </div>
 
-            <!-- Row 2 Col 1: AI分析 -->
+            <!-- AI分析 -->
             <div class="flex flex-col">
                 <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center gap-1">
-                        <i data-lucide="sparkles" class="w-4 h-4"></i>
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded flex items-center justify-center" style="background:var(--purple-bg)">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5" style="color:var(--purple)"></i>
+                        </div>
                         <span class="font-medium text-sm">AI分析</span>
                     </div>
                     <div class="flex gap-1">
@@ -143,98 +175,126 @@
                         <button class="mode-btn" data-mode="supplier" onclick="setMode('supplier')">サプライヤー</button>
                     </div>
                 </div>
-                <div id="analysisResult" class="flex-1 bg-card rounded p-2 text-xs overflow-auto mb-2">
+                <div id="analysisResult" class="flex-1 bg-card rounded-lg p-3 text-xs overflow-auto mb-2">
                     <p class="t-sub">「分析」をクリック</p>
                 </div>
-                <div class="flex gap-1">
-                    <input type="text" id="chatInput" placeholder="質問..." class="flex-1 text-xs" onkeypress="if(event.key==='Enter')sendChat()">
+                <div class="flex gap-2">
+                    <input type="text" id="chatInput" placeholder="質問を入力..." class="flex-1" onkeypress="if(event.key==='Enter')sendChat()">
                     <button onclick="runAnalysis()" class="btn btn-primary">分析</button>
-                    <button onclick="sendChat()" class="btn" style="background:var(--text);color:var(--bg)">送信</button>
+                    <button onclick="sendChat()" class="btn" style="background:var(--gray);color:#fff">送信</button>
                 </div>
             </div>
 
-            <!-- Row 2 Col 2: グラフ2つ -->
-            <div class="grid grid-cols-2 gap-2">
+            <!-- グラフ2つ -->
+            <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <p class="text-xs font-medium mb-1">サプライヤー別</p>
+                    <div class="flex items-center gap-1 mb-2">
+                        <i data-lucide="factory" class="w-3.5 h-3.5" style="color:var(--orange)"></i>
+                        <span class="text-xs font-medium">サプライヤー別</span>
+                    </div>
                     <div class="h-28"><canvas id="supplierChart"></canvas></div>
                 </div>
                 <div>
-                    <p class="text-xs font-medium mb-1">カテゴリ別在庫</p>
+                    <div class="flex items-center gap-1 mb-2">
+                        <i data-lucide="pie-chart" class="w-3.5 h-3.5" style="color:var(--blue)"></i>
+                        <span class="text-xs font-medium">カテゴリ別在庫</span>
+                    </div>
                     <div class="h-28"><canvas id="categoryChart"></canvas></div>
                 </div>
             </div>
 
-            <!-- Row 2 Col 3: スケジュール -->
+            <!-- スケジュール -->
             <div class="flex flex-col">
-                <div class="flex items-center gap-1 mb-2">
-                    <i data-lucide="calendar" class="w-4 h-4"></i>
-                    <span class="font-medium text-sm">今週</span>
-                    <span class="t-sub text-xs" id="weekRange"></span>
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded flex items-center justify-center" style="background:var(--blue-bg)">
+                            <i data-lucide="calendar" class="w-3.5 h-3.5" style="color:var(--blue)"></i>
+                        </div>
+                        <span class="font-medium text-sm">今週</span>
+                    </div>
+                    <span class="text-xs t-sub" id="weekRange"></span>
                 </div>
                 <div id="timeline" class="flex-1 overflow-auto text-xs space-y-1"></div>
             </div>
 
-            <!-- Row 3 Col 1: 未払い一覧 -->
+            <!-- 未払い一覧 -->
             <div class="flex flex-col">
-                <div class="flex items-center gap-1 mb-2">
-                    <i data-lucide="wallet" class="w-4 h-4"></i>
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-6 h-6 rounded flex items-center justify-center" style="background:var(--red-bg)">
+                        <i data-lucide="wallet" class="w-3.5 h-3.5" style="color:var(--red)"></i>
+                    </div>
                     <span class="font-medium text-sm">未払い一覧</span>
                 </div>
                 <div class="flex-1 overflow-auto">
                     <table class="mini-table">
-                        <thead><tr><th>案件</th><th>金額</th><th>経過</th><th></th></tr></thead>
+                        <thead><tr><th>案件</th><th>金額</th><th>経過</th><th>状態</th></tr></thead>
                         <tbody id="unpaidTable"></tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- Row 3 Col 2: グラフ2つ -->
-            <div class="grid grid-cols-2 gap-2">
+            <!-- グラフ2つ -->
+            <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <p class="text-xs font-medium mb-1">支払い予定（4週）</p>
+                    <div class="flex items-center gap-1 mb-2">
+                        <i data-lucide="bar-chart-2" class="w-3.5 h-3.5" style="color:var(--green)"></i>
+                        <span class="text-xs font-medium">支払い予定（4週）</span>
+                    </div>
                     <div class="h-28"><canvas id="forecastChart"></canvas></div>
                 </div>
                 <div>
-                    <p class="text-xs font-medium mb-1">入出庫推移</p>
+                    <div class="flex items-center gap-1 mb-2">
+                        <i data-lucide="trending-up" class="w-3.5 h-3.5" style="color:var(--purple)"></i>
+                        <span class="text-xs font-medium">入出庫推移</span>
+                    </div>
                     <div class="h-28"><canvas id="flowChart"></canvas></div>
                 </div>
             </div>
 
-            <!-- Row 3 Col 3: 滞留 & アクション -->
-            <div class="flex flex-col gap-2">
+            <!-- 滞留 & アクション -->
+            <div class="flex flex-col gap-3">
                 <div class="flex-1">
-                    <div class="flex items-center gap-1 mb-1">
-                        <i data-lucide="clock" class="w-3 h-3"></i>
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--yellow-bg)">
+                            <i data-lucide="clock" class="w-3 h-3" style="color:var(--yellow)"></i>
+                        </div>
                         <span class="font-medium text-xs">長期滞留</span>
                     </div>
-                    <div id="staleList" class="text-xs space-y-1 overflow-auto" style="max-height:80px"></div>
+                    <div id="staleList" class="text-xs space-y-1 overflow-auto" style="max-height:90px"></div>
                 </div>
                 <div class="flex-1">
-                    <div class="flex items-center gap-1 mb-1">
-                        <i data-lucide="zap" class="w-3 h-3"></i>
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="w-5 h-5 rounded flex items-center justify-center" style="background:var(--green-bg)">
+                            <i data-lucide="zap" class="w-3 h-3" style="color:var(--green)"></i>
+                        </div>
                         <span class="font-medium text-xs">クイックアクション</span>
                     </div>
-                    <div id="quickActions" class="text-xs space-y-1 overflow-auto" style="max-height:80px"></div>
+                    <div id="quickActions" class="text-xs space-y-1 overflow-auto" style="max-height:90px"></div>
                 </div>
             </div>
 
         </div>
     </div>
 
-    <!-- ナレッジは別モーダルで -->
+    <!-- ナレッジボタン -->
     <div id="knowledgeBtn" class="fixed bottom-4 right-4 hidden">
-        <button onclick="showKnowledgeModal()" class="flex items-center gap-1 px-3 py-2 bg-card rounded-lg shadow-lg text-sm hover:opacity-80">
+        <button onclick="showKnowledgeModal()" class="flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg text-sm hover:opacity-90" style="background:var(--purple);color:#fff">
             <i data-lucide="book-open" class="w-4 h-4"></i>
             <span>ナレッジ</span>
-            <span id="knowledgeCount" class="text-xs t-sub">0</span>
+            <span class="px-1.5 py-0.5 rounded text-xs" style="background:rgba(255,255,255,0.2)" id="knowledgeCount">0</span>
         </button>
     </div>
 
+    <!-- ナレッジモーダル -->
     <div id="knowledgeModal" class="fixed inset-0 bg-black/40 z-50 hidden flex items-center justify-center p-4">
         <div class="rounded-lg max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col" style="background:var(--bg)">
             <div class="p-3 flex justify-between items-center border-b border-def">
-                <span class="font-medium text-sm">📚 ナレッジ</span>
+                <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded flex items-center justify-center" style="background:var(--purple-bg)">
+                        <i data-lucide="book-open" class="w-3.5 h-3.5" style="color:var(--purple)"></i>
+                    </div>
+                    <span class="font-medium text-sm">ナレッジ</span>
+                </div>
                 <button onclick="closeKnowledgeModal()" class="hover-bg p-1"><i data-lucide="x" class="w-4 h-4"></i></button>
             </div>
             <div id="knowledgeList" class="flex-1 overflow-auto p-3 space-y-2 text-sm"></div>
@@ -251,8 +311,13 @@
         const CLIENT_ID = '47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
         const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';
         let accessToken = null, inventory = [], archivedInventory = [], projects = [], suppliers = [], knowledge = [];
-        let charts = {}, currentMode = 'quick', lastResult = null;
-        const icons = { important: 'pin', supplier: 'factory', cost: 'coins', pattern: 'bar-chart-2', seasonal: 'calendar-days', note: 'file-text' };
+        let charts = {}, currentMode = 'quick';
+        
+        // カラーパレット
+        const colors = {
+            blue: '#2383e2', green: '#0f7b6c', orange: '#d9730d', red: '#e03e3e', purple: '#6940a5', yellow: '#dfab01', gray: '#787774',
+            chart: ['#2383e2', '#0f7b6c', '#d9730d', '#6940a5', '#dfab01']
+        };
 
         function init() {
             initDarkMode(); lucide.createIcons();
@@ -304,12 +369,7 @@
         }
 
         function updateAll() {
-            updateKPIs();
-            updateTimeline();
-            updateUnpaidTable();
-            updateStaleList();
-            updateQuickActions();
-            updateCharts();
+            updateKPIs(); updateTimeline(); updateUnpaidTable(); updateStaleList(); updateQuickActions(); updateCharts();
             lucide.createIcons();
         }
 
@@ -319,11 +379,9 @@
             const waiting = inventory.filter(i => i.status === '入庫待ち');
             const inStockValue = inStock.reduce((s, i) => s + (parseInt(i.costJPY) || 0), 0);
 
-            // 入庫待ち（今週到着）
             const we = new Date(today); we.setDate(we.getDate() + 7);
             const arrivingThisWeek = projects.filter(p => p.pickupDate && !p.receivedComplete && new Date(p.pickupDate) >= today && new Date(p.pickupDate) <= we).length;
 
-            // 未払い
             let unpaidTotal = 0, unpaidCount = 0, overdueCount = 0;
             projects.forEach(p => {
                 (p.depositSchedule || []).forEach((d, i) => {
@@ -335,7 +393,6 @@
                 });
             });
 
-            // 今月支払い
             const tm = today.toISOString().slice(0, 7);
             const lm = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().slice(0, 7);
             let thisMonthTotal = 0, lastMonthTotal = 0;
@@ -349,34 +406,21 @@
             });
             const momChange = lastMonthTotal > 0 ? Math.round((thisMonthTotal - lastMonthTotal) / lastMonthTotal * 100) : 0;
 
-            // 平均滞留日数
             const stayDays = inStock.filter(i => i.receiveDate).map(i => Math.floor((today - new Date(i.receiveDate)) / 86400000));
             const avgStay = stayDays.length ? Math.round(stayDays.reduce((a, b) => a + b, 0) / stayDays.length) : 0;
-            
-            // 先月の平均と比較
-            const lastMonthInStock = [...inventory, ...archivedInventory].filter(i => {
-                if (!i.receiveDate) return false;
-                const rd = new Date(i.receiveDate);
-                return rd.getMonth() === today.getMonth() - 1;
-            });
-            const lastMonthStay = lastMonthInStock.length > 0 ? 30 : avgStay; // 仮
-            const stayChange = avgStay - lastMonthStay;
+            const stayChange = 0; // 簡略化
 
-            // 回転率（月間出庫数 / 平均在庫）
             const thisMonthShipped = [...inventory, ...archivedInventory].filter(i => i.shipDate && i.shipDate.startsWith(tm)).length;
-            const avgInventory = inStock.length || 1;
-            const turnover = (thisMonthShipped / avgInventory).toFixed(1);
+            const turnover = ((thisMonthShipped / (inStock.length || 1))).toFixed(1);
 
-            // ヘルス
             const noShelf = inStock.filter(i => !i.shelfNo).length;
             const stale60 = stayDays.filter(d => d >= 60).length;
             let healthHtml = '';
-            if (overdueCount > 0) healthHtml += `<div style="color:var(--red)">⚠ 支払遅延${overdueCount}</div>`;
-            if (noShelf > 0) healthHtml += `<div style="color:var(--yellow)">△ 棚番${noShelf}</div>`;
-            if (stale60 > 0) healthHtml += `<div style="color:var(--yellow)">△ 滞留${stale60}</div>`;
-            if (!healthHtml) healthHtml = '<div style="color:var(--green)">✓ OK</div>';
+            if (overdueCount > 0) healthHtml += `<div class="tag tag-red">支払遅延 ${overdueCount}</div>`;
+            if (noShelf > 0) healthHtml += `<div class="tag tag-yellow">棚番未設定 ${noShelf}</div>`;
+            if (stale60 > 0) healthHtml += `<div class="tag tag-yellow">長期滞留 ${stale60}</div>`;
+            if (!healthHtml) healthHtml = '<div class="tag tag-green">問題なし</div>';
 
-            // DOM更新
             document.getElementById('kpiInStock').textContent = inStock.length + '件';
             document.getElementById('kpiInStockSub').textContent = '¥' + (inStockValue / 10000).toFixed(0) + '万';
             document.getElementById('kpiWaiting').textContent = waiting.length + '件';
@@ -384,12 +428,12 @@
             document.getElementById('kpiUnpaid').textContent = '¥' + Math.round(unpaidTotal / 10000) + '万';
             document.getElementById('kpiUnpaidSub').textContent = unpaidCount + '件';
             document.getElementById('kpiThisMonth').textContent = '¥' + Math.round(thisMonthTotal / 10000) + '万';
-            document.getElementById('kpiThisMonthSub').innerHTML = `<span style="color:${momChange >= 0 ? 'var(--red)' : 'var(--green)'}">${momChange >= 0 ? '+' : ''}${momChange}%</span>`;
+            document.getElementById('kpiThisMonthSub').innerHTML = `<span class="tag ${momChange >= 0 ? 'tag-red' : 'tag-green'}">${momChange >= 0 ? '+' : ''}${momChange}%</span>`;
             document.getElementById('kpiAvgStay').textContent = avgStay + '日';
-            document.getElementById('kpiAvgStaySub').innerHTML = `<span style="color:${stayChange >= 0 ? 'var(--red)' : 'var(--green)'}">${stayChange >= 0 ? '+' : ''}${stayChange}日</span>`;
+            document.getElementById('kpiAvgStaySub').innerHTML = avgStay > 45 ? '<span class="tag tag-yellow">長め</span>' : '<span class="tag tag-green">良好</span>';
             document.getElementById('kpiTurnover').textContent = turnover;
             document.getElementById('kpiOverdue').textContent = overdueCount + '件';
-            document.getElementById('kpiOverdueSub').textContent = overdueCount > 0 ? '要対応' : '-';
+            document.getElementById('kpiOverdueSub').innerHTML = overdueCount > 0 ? '<span class="tag tag-red">要対応</span>' : '<span class="tag tag-gray">-</span>';
             document.getElementById('healthMini').innerHTML = healthHtml;
         }
 
@@ -404,7 +448,7 @@
                 const pn = `${p.projectPrefix}-${String(p.projectNumber).padStart(4, '0')}`;
                 if (p.pickupDate && !p.receivedComplete) {
                     const d = new Date(p.pickupDate);
-                    if (d >= today && d <= we) events.push({ date: d, icon: 'truck', title: pn, sub: p.productName.slice(0, 10) });
+                    if (d >= today && d <= we) events.push({ date: d, type: 'pickup', title: pn, sub: p.productName.slice(0, 12) });
                 }
                 if (p.registeredDate) {
                     (p.depositSchedule || []).forEach((dep, i) => {
@@ -412,23 +456,25 @@
                         let due;
                         if (i === 0) { due = new Date(p.registeredDate); due.setDate(due.getDate() + 7); }
                         else if (p.pickupDate) { due = new Date(p.pickupDate); due.setDate(due.getDate() - 7); }
-                        if (due && due >= today && due <= we) events.push({ date: due, icon: 'wallet', title: pn, sub: `${dep.percentage}%` });
+                        if (due && due >= today && due <= we) events.push({ date: due, type: 'payment', title: pn, sub: `${dep.percentage}%` });
                     });
                 }
             });
             events.sort((a, b) => a.date - b.date);
 
             const c = document.getElementById('timeline');
-            if (!events.length) { c.innerHTML = '<p class="t-sub">予定なし</p>'; return; }
+            if (!events.length) { c.innerHTML = '<p class="t-sub text-center py-4">今週の予定なし</p>'; return; }
             
             const dn = ['日', '月', '火', '水', '木', '金', '土'];
             c.innerHTML = events.slice(0, 8).map(e => {
                 const isToday = e.date.toDateString() === today.toDateString();
-                return `<div class="flex items-center gap-2 hover-bg p-1 ${isToday ? 'font-medium' : ''}">
-                    <span class="w-10 t-sub">${e.date.getMonth() + 1}/${e.date.getDate()}${dn[e.date.getDay()]}</span>
-                    <i data-lucide="${e.icon}" class="w-3 h-3 t-sub"></i>
-                    <span>${e.title}</span>
-                    <span class="t-sub truncate">${e.sub}</span>
+                const color = e.type === 'pickup' ? colors.orange : colors.red;
+                const icon = e.type === 'pickup' ? 'truck' : 'wallet';
+                return `<div class="flex items-center gap-2 hover-bg p-1.5 rounded ${isToday ? 'bg-card' : ''}">
+                    <span class="w-12 text-right ${isToday ? 'font-medium' : 't-sub'}">${e.date.getMonth() + 1}/${e.date.getDate()}(${dn[e.date.getDay()]})</span>
+                    <div class="w-5 h-5 rounded flex items-center justify-center" style="background:${color}20"><i data-lucide="${icon}" class="w-3 h-3" style="color:${color}"></i></div>
+                    <span class="font-medium">${e.title}</span>
+                    <span class="t-sub truncate flex-1">${e.sub}</span>
                 </div>`;
             }).join('');
             lucide.createIcons();
@@ -442,7 +488,7 @@
                 (p.depositSchedule || []).forEach((d, i) => {
                     if (!d.paid) {
                         const days = p.registeredDate ? Math.floor((today - new Date(p.registeredDate)) / 86400000) : 0;
-                        unpaid.push({ pn, amount: d.amountUSD || 0, amountJPY: d.amountJPY || 0, days, overdue: i === 0 && days > 30 });
+                        unpaid.push({ pn, amount: d.amountUSD || 0, days, overdue: i === 0 && days > 30 });
                     }
                 });
             });
@@ -451,12 +497,12 @@
             const tbody = document.getElementById('unpaidTable');
             tbody.innerHTML = unpaid.slice(0, 6).map(u => `
                 <tr>
-                    <td>${u.pn}</td>
+                    <td class="font-medium">${u.pn}</td>
                     <td>$${u.amount.toLocaleString()}</td>
                     <td>${u.days}日</td>
-                    <td>${u.overdue ? '<span style="color:var(--red)">⚠</span>' : '✓'}</td>
+                    <td><span class="tag ${u.overdue ? 'tag-red' : 'tag-green'}">${u.overdue ? '遅延' : 'OK'}</span></td>
                 </tr>
-            `).join('');
+            `).join('') || '<tr><td colspan="4" class="text-center t-sub py-4">未払いなし</td></tr>';
         }
 
         function updateStaleList() {
@@ -467,11 +513,11 @@
                 .sort((a, b) => b.days - a.days);
 
             const c = document.getElementById('staleList');
-            if (!stale.length) { c.innerHTML = '<p class="t-sub">なし</p>'; return; }
+            if (!stale.length) { c.innerHTML = '<p class="t-sub text-center py-2">長期滞留なし ✓</p>'; return; }
             c.innerHTML = stale.slice(0, 5).map(s => `
-                <div class="flex items-center gap-2 hover-bg p-1">
-                    <span class="font-medium">${s.serial}</span>
-                    <span class="t-sub">${s.days}日</span>
+                <div class="flex items-center gap-2 hover-bg p-1.5 rounded">
+                    <span class="font-medium" style="color:var(--orange)">${s.serial}</span>
+                    <span class="tag ${s.days >= 60 ? 'tag-red' : 'tag-yellow'}">${s.days}日</span>
                     <span class="t-sub truncate">${s.cat}</span>
                 </div>
             `).join('');
@@ -480,7 +526,7 @@
         function updateQuickActions() {
             const actions = [];
             inventory.filter(i => i.status === '入庫待ち').slice(0, 3).forEach(i => {
-                actions.push({ icon: 'package', title: i.serial, sub: '入庫', link: `inventory.html?search=${i.serial}` });
+                actions.push({ icon: 'package', color: colors.blue, title: i.serial, sub: '入庫処理', link: `inventory.html?search=${i.serial}` });
             });
             const today = new Date();
             const unpaidProjects = [];
@@ -490,14 +536,16 @@
             });
             unpaidProjects.sort((a, b) => a.d - b.d).slice(0, 3).forEach(({ p, u }) => {
                 const pn = `${p.projectPrefix}-${String(p.projectNumber).padStart(4, '0')}`;
-                actions.push({ icon: 'credit-card', title: pn, sub: `${u.percentage}%`, link: `index.html?project=${pn}` });
+                actions.push({ icon: 'credit-card', color: colors.green, title: pn, sub: `${u.percentage}%支払`, link: `index.html?project=${pn}` });
             });
 
             const c = document.getElementById('quickActions');
-            if (!actions.length) { c.innerHTML = '<p class="t-sub">なし</p>'; return; }
+            if (!actions.length) { c.innerHTML = '<p class="t-sub text-center py-2">アクションなし ✓</p>'; return; }
             c.innerHTML = actions.slice(0, 5).map(a => `
-                <a href="${a.link}" class="flex items-center gap-2 hover-bg p-1">
-                    <i data-lucide="${a.icon}" class="w-3 h-3 t-sub"></i>
+                <a href="${a.link}" class="flex items-center gap-2 hover-bg p-1.5 rounded">
+                    <div class="w-5 h-5 rounded flex items-center justify-center" style="background:${a.color}20">
+                        <i data-lucide="${a.icon}" class="w-3 h-3" style="color:${a.color}"></i>
+                    </div>
                     <span class="font-medium">${a.title}</span>
                     <span class="t-sub">${a.sub}</span>
                 </a>
@@ -508,25 +556,18 @@
         function updateCharts() {
             const today = new Date();
             const inStock = inventory.filter(i => i.status === '在庫中');
-            const chartColors = ['#37352f', '#787774', '#9b9a97', '#bfbfbd', '#d3d3d1'];
-            const defaultOpts = {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false } }
-            };
+            const defaultOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
 
             // サプライヤー別
             const supplierData = {};
-            projects.forEach(p => {
-                const name = suppliers.find(s => s.id === p.supplierId)?.name || '他';
-                supplierData[name] = (supplierData[name] || 0) + p.totalAmount;
-            });
+            projects.forEach(p => { const name = suppliers.find(s => s.id === p.supplierId)?.name || '他'; supplierData[name] = (supplierData[name] || 0) + p.totalAmount; });
             const supLabels = Object.keys(supplierData).slice(0, 5);
             const supValues = supLabels.map(l => supplierData[l]);
             if (charts.supplier) charts.supplier.destroy();
             charts.supplier = new Chart(document.getElementById('supplierChart'), {
                 type: 'doughnut',
-                data: { labels: supLabels, datasets: [{ data: supValues, backgroundColor: chartColors }] },
-                options: { ...defaultOpts, cutout: '60%' }
+                data: { labels: supLabels, datasets: [{ data: supValues, backgroundColor: colors.chart }] },
+                options: { ...defaultOpts, cutout: '55%', plugins: { legend: { display: true, position: 'right', labels: { boxWidth: 8, padding: 4, font: { size: 9 } } } } }
             });
 
             // カテゴリ別
@@ -537,16 +578,16 @@
             if (charts.category) charts.category.destroy();
             charts.category = new Chart(document.getElementById('categoryChart'), {
                 type: 'doughnut',
-                data: { labels: catLabels, datasets: [{ data: catValues, backgroundColor: chartColors }] },
-                options: { ...defaultOpts, cutout: '60%' }
+                data: { labels: catLabels, datasets: [{ data: catValues, backgroundColor: colors.chart }] },
+                options: { ...defaultOpts, cutout: '55%', plugins: { legend: { display: true, position: 'right', labels: { boxWidth: 8, padding: 4, font: { size: 9 } } } } }
             });
 
-            // 支払い予定（4週）
+            // 支払い予定
             const weeks = [];
             for (let i = 0; i < 4; i++) {
                 const ws = new Date(today); ws.setDate(ws.getDate() + i * 7);
                 const we = new Date(ws); we.setDate(we.getDate() + 6);
-                weeks.push({ label: `${ws.getMonth() + 1}/${ws.getDate()}〜`, start: ws, end: we, total: 0 });
+                weeks.push({ label: `${i + 1}週`, start: ws, end: we, total: 0 });
             }
             projects.forEach(p => {
                 (p.depositSchedule || []).forEach((d, i) => {
@@ -554,25 +595,19 @@
                     let due;
                     if (i === 0 && p.registeredDate) { due = new Date(p.registeredDate); due.setDate(due.getDate() + 14); }
                     else if (p.pickupDate) { due = new Date(p.pickupDate); }
-                    if (due) {
-                        const w = weeks.find(w => due >= w.start && due <= w.end);
-                        if (w) w.total += d.amountJPY || (d.amountUSD * 150) || 0;
-                    }
+                    if (due) { const w = weeks.find(w => due >= w.start && due <= w.end); if (w) w.total += d.amountJPY || (d.amountUSD * 150) || 0; }
                 });
             });
             if (charts.forecast) charts.forecast.destroy();
             charts.forecast = new Chart(document.getElementById('forecastChart'), {
                 type: 'bar',
-                data: { labels: weeks.map(w => w.label), datasets: [{ data: weeks.map(w => w.total), backgroundColor: '#37352f', borderRadius: 2 }] },
-                options: { ...defaultOpts, scales: { x: { grid: { display: false }, ticks: { font: { size: 9 } } }, y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 9 }, callback: v => '¥' + (v / 10000).toFixed(0) + '万' } } } }
+                data: { labels: weeks.map(w => w.label), datasets: [{ data: weeks.map(w => w.total), backgroundColor: colors.green, borderRadius: 3 }] },
+                options: { ...defaultOpts, scales: { x: { grid: { display: false }, ticks: { font: { size: 10 } } }, y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 }, callback: v => '¥' + (v / 10000).toFixed(0) + '万' } } } }
             });
 
             // 入出庫推移
             const months = [];
-            for (let i = 5; i >= 0; i--) {
-                const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-                months.push({ key: d.toISOString().slice(0, 7), label: `${d.getMonth() + 1}月`, receive: 0, ship: 0 });
-            }
+            for (let i = 5; i >= 0; i--) { const d = new Date(today.getFullYear(), today.getMonth() - i, 1); months.push({ key: d.toISOString().slice(0, 7), label: `${d.getMonth() + 1}月`, receive: 0, ship: 0 }); }
             [...inventory, ...archivedInventory].forEach(item => {
                 if (item.receiveDate) { const m = months.find(m => m.key === item.receiveDate.slice(0, 7)); if (m) m.receive++; }
                 if (item.shipDate) { const m = months.find(m => m.key === item.shipDate.slice(0, 7)); if (m) m.ship++; }
@@ -583,11 +618,11 @@
                 data: {
                     labels: months.map(m => m.label),
                     datasets: [
-                        { label: '入庫', data: months.map(m => m.receive), borderColor: '#37352f', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 1.5 },
-                        { label: '出庫', data: months.map(m => m.ship), borderColor: '#37352f', borderDash: [3, 3], backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 1.5 }
+                        { label: '入庫', data: months.map(m => m.receive), borderColor: colors.blue, backgroundColor: colors.blue + '20', fill: true, tension: 0.3, pointRadius: 3, borderWidth: 2 },
+                        { label: '出庫', data: months.map(m => m.ship), borderColor: colors.purple, backgroundColor: 'transparent', tension: 0.3, pointRadius: 3, borderWidth: 2 }
                     ]
                 },
-                options: { ...defaultOpts, scales: { x: { grid: { display: false }, ticks: { font: { size: 9 } } }, y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 9 } } } } }
+                options: { ...defaultOpts, scales: { x: { grid: { display: false }, ticks: { font: { size: 10 } } }, y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } } }, plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, padding: 8, font: { size: 10 } } } } }
             });
         }
 
@@ -599,24 +634,27 @@
 
         async function runAnalysis() {
             const el = document.getElementById('analysisResult');
-            el.innerHTML = '<p class="t-sub">分析中...</p>';
+            el.innerHTML = '<p class="t-sub"><i data-lucide="loader-2" class="w-4 h-4 inline animate-spin mr-1"></i>分析中...</p>';
+            lucide.createIcons();
             const d = prepareData();
             const prompts = {
                 quick: '今すぐ対応すべき3〜5項目を優先度順に。形式: ● 高/中/低 タイトル: 内容',
-                detail: '1. 現状 2. リスク 3. 改善案 を簡潔に',
-                cost: '1. キャッシュフロー 2. 来月予測 3. コスト削減案',
-                supplier: '1. 依存度リスク 2. 各サプライヤー評価 3. 戦略提案'
+                detail: '1. 現状サマリー 2. リスク・課題 3. 改善案 を簡潔に',
+                cost: '1. キャッシュフロー状況 2. 来月支払い予測 3. コスト削減提案',
+                supplier: '1. サプライヤー依存度リスク 2. 各社評価 3. 戦略提案'
             };
-            const prompt = `調達在庫データ: ${JSON.stringify(d)}\n\nナレッジ: ${knowledge.map(k => k.content).join('; ')}\n\n${prompts[currentMode]}\n\n日本語で簡潔に、箇条書きで。`;
+            const prompt = `調達在庫データ: ${JSON.stringify(d)}\n\nナレッジ: ${knowledge.map(k => k.content).join('; ')}\n\n${prompts[currentMode]}\n\n日本語で簡潔に。`;
             try {
-                const r = await fetch('https://api.anthropic.com/v1/messages', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 800, messages: [{ role: 'user', content: prompt }] })
-                });
+                const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 800, messages: [{ role: 'user', content: prompt }] }) });
                 const j = await r.json();
-                lastResult = j.content?.[0]?.text || '';
-                el.innerHTML = lastResult.split('\n').filter(l => l.trim()).map(l => `<div class="mb-1">${l}</div>`).join('');
-            } catch { el.innerHTML = '<p style="color:var(--red)">エラー</p>'; }
+                const text = j.content?.[0]?.text || '';
+                el.innerHTML = text.split('\n').filter(l => l.trim()).map(l => {
+                    if (l.includes('● 高')) return `<div class="mb-1.5 p-1.5 rounded" style="background:var(--red-bg)">${l}</div>`;
+                    if (l.includes('● 中')) return `<div class="mb-1.5 p-1.5 rounded" style="background:var(--yellow-bg)">${l}</div>`;
+                    if (l.includes('● 低')) return `<div class="mb-1.5 p-1.5 rounded" style="background:var(--green-bg)">${l}</div>`;
+                    return `<div class="mb-1">${l}</div>`;
+                }).join('');
+            } catch { el.innerHTML = '<p style="color:var(--red)">エラーが発生しました</p>'; }
         }
 
         async function sendChat() {
@@ -625,16 +663,14 @@
             if (!msg) return;
             inp.value = '';
             const el = document.getElementById('analysisResult');
-            el.innerHTML = '<p class="t-sub">回答中...</p>';
+            el.innerHTML = '<p class="t-sub"><i data-lucide="loader-2" class="w-4 h-4 inline animate-spin mr-1"></i>回答中...</p>';
+            lucide.createIcons();
             const d = prepareData();
             try {
-                const r = await fetch('https://api.anthropic.com/v1/messages', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 500, messages: [{ role: 'user', content: `データ: ${JSON.stringify(d)}\n\n質問: ${msg}\n\n簡潔に回答。` }] })
-                });
+                const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 500, messages: [{ role: 'user', content: `データ: ${JSON.stringify(d)}\n\n質問: ${msg}\n\n簡潔に回答。` }] }) });
                 const j = await r.json();
                 el.innerHTML = (j.content?.[0]?.text || 'エラー').split('\n').map(l => `<div class="mb-1">${l}</div>`).join('');
-            } catch { el.innerHTML = '<p style="color:var(--red)">エラー</p>'; }
+            } catch { el.innerHTML = '<p style="color:var(--red)">エラーが発生しました</p>'; }
         }
 
         function prepareData() {
@@ -644,23 +680,25 @@
             projects.forEach(p => { (p.depositSchedule || []).forEach(d => { if (!d.paid) { ut += d.amountJPY || (d.amountUSD * 150) || 0; uc++; } }); });
             const supplierStats = {};
             projects.forEach(p => { const n = suppliers.find(s => s.id === p.supplierId)?.name || '他'; supplierStats[n] = (supplierStats[n] || 0) + p.totalAmount; });
-            return { inStock: inStock.length, waiting: inventory.filter(i => i.status === '入庫待ち').length, unpaid: uc, unpaidTotal: ut, supplierStats };
+            const categoryStats = {};
+            inStock.forEach(i => { categoryStats[i.category] = (categoryStats[i.category] || 0) + 1; });
+            return { inStock: inStock.length, waiting: inventory.filter(i => i.status === '入庫待ち').length, unpaid: uc, unpaidTotal: ut, supplierStats, categoryStats };
         }
 
         // ナレッジ
-        function showKnowledgeModal() {
-            document.getElementById('knowledgeModal').classList.remove('hidden');
-            renderKnowledgeList();
-            lucide.createIcons();
-        }
+        function showKnowledgeModal() { document.getElementById('knowledgeModal').classList.remove('hidden'); renderKnowledgeList(); lucide.createIcons(); }
         function closeKnowledgeModal() { document.getElementById('knowledgeModal').classList.add('hidden'); }
         function renderKnowledgeList() {
+            const icons = { important: 'pin', supplier: 'factory', cost: 'coins', pattern: 'bar-chart-2', note: 'file-text' };
+            const iconColors = { important: colors.red, supplier: colors.orange, cost: colors.green, pattern: colors.purple, note: colors.gray };
             const c = document.getElementById('knowledgeList');
-            if (!knowledge.length) { c.innerHTML = '<p class="t-sub">ナレッジなし</p>'; return; }
+            if (!knowledge.length) { c.innerHTML = '<p class="t-sub text-center py-8">ナレッジなし</p>'; return; }
             c.innerHTML = [...knowledge].reverse().map(k => `
-                <div class="hover-bg p-2 flex items-start gap-2">
-                    <i data-lucide="${icons[k.category] || 'file-text'}" class="w-4 h-4 t-sub flex-shrink-0 mt-0.5"></i>
-                    <div><p>${k.content}</p><p class="text-xs t-sub">${k.date}</p></div>
+                <div class="hover-bg p-2 rounded flex items-start gap-2">
+                    <div class="w-5 h-5 rounded flex items-center justify-center flex-shrink-0" style="background:${iconColors[k.category] || colors.gray}20">
+                        <i data-lucide="${icons[k.category] || 'file-text'}" class="w-3 h-3" style="color:${iconColors[k.category] || colors.gray}"></i>
+                    </div>
+                    <div><p>${k.content}</p><p class="text-xs t-sub mt-1">${k.date}</p></div>
                 </div>
             `).join('');
             lucide.createIcons();
@@ -670,17 +708,13 @@
             const content = inp.value.trim();
             if (!content) return;
             try {
-                await gapi.client.sheets.spreadsheets.values.append({
-                    spreadsheetId: SPREADSHEET_ID, range: 'ナレッジ!A:F', valueInputOption: 'RAW',
-                    resource: { values: [[new Date().toISOString().split('T')[0], 'note', content, '中', '', 'manual']] }
-                });
+                await gapi.client.sheets.spreadsheets.values.append({ spreadsheetId: SPREADSHEET_ID, range: 'ナレッジ!A:F', valueInputOption: 'RAW', resource: { values: [[new Date().toISOString().split('T')[0], 'note', content, '中', '', 'manual']] } });
                 inp.value = '';
                 await loadKnowledge();
                 renderKnowledgeList();
             } catch (e) { console.error(e); }
         }
 
-        // ユーティリティ
         function toggleDarkMode() { document.documentElement.classList.toggle('dark'); localStorage.setItem('darkMode', document.documentElement.classList.contains('dark')); }
         function initDarkMode() { if (localStorage.getItem('darkMode') === 'true' || (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark'); }
         window.onload = () => { const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.onload = init; document.head.appendChild(s); };
