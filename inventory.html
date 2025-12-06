@@ -1638,6 +1638,7 @@
                             <span class="font-semibold text-sm">${selectedItems.size}件選択中</span>
                             <div class="flex flex-wrap gap-2">
                                 <button onclick="showBulkProjectModal()" class="px-3 py-1.5 bg-indigo-600 text-white text-xs sm:text-sm rounded hover:bg-indigo-700">案件変更</button>
+                                <button onclick="showBulkSupplierModal()" class="px-3 py-1.5 bg-orange-600 text-white text-xs sm:text-sm rounded hover:bg-orange-700">サプライヤー</button>
                                 <button onclick="showBulkShelfModal()" class="px-3 py-1.5 bg-purple-600 text-white text-xs sm:text-sm rounded hover:bg-purple-700">棚番変更</button>
                                 <button onclick="showBulkLocationModal()" class="px-3 py-1.5 bg-teal-600 text-white text-xs sm:text-sm rounded hover:bg-teal-700">場所変更</button>
                                 <button onclick="bulkReceive()" class="px-3 py-1.5 bg-emerald-600 text-white text-xs sm:text-sm rounded hover:bg-emerald-700">一括入庫</button>
@@ -1779,6 +1780,42 @@
             });
             saveData();
             closeModal('bulkShelfModal');
+            cancelBulkSelect();
+        }
+
+        // 一括サプライヤー変更モーダル
+        function showBulkSupplierModal() {
+            const modal = document.createElement('div');
+            modal.id = 'bulkSupplierModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-sm mx-4">
+                        <h3 class="text-lg font-bold mb-4 dark:text-white">一括サプライヤー変更（${selectedItems.size}件）</h3>
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold mb-1 dark:text-slate-300">サプライヤー</label>
+                            <select id="bulkSupplierId" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <option value="">未設定</option>
+                                ${suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="submitBulkSupplier()" class="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">変更</button>
+                            <button onclick="closeModal('bulkSupplierModal')" class="flex-1 px-4 py-2 bg-slate-300 dark:bg-slate-600 text-slate-700 dark:text-white rounded-lg hover:bg-slate-400">キャンセル</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function submitBulkSupplier() {
+            const supplierId = document.getElementById('bulkSupplierId').value;
+            selectedItems.forEach(id => {
+                const item = inventory.find(i => String(i.id) === String(id));
+                if (item) item.supplierId = supplierId;
+            });
+            saveData();
+            closeModal('bulkSupplierModal');
             cancelBulkSelect();
         }
 
