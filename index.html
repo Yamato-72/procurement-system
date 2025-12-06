@@ -51,6 +51,7 @@
         let productMaster = []; // 製品マスタ
         let nextSerial = 554; // YS0554から開始
         let showSupplierSection = false; // サプライヤー管理の折りたたみ状態
+        let showUnpaidSection = false; // 未払いデポジットの折りたたみ状態
         let expandedProjects = {}; // 案件カードの展開状態
         let lastUpdated = null; // 最終更新日時
         let isDarkMode = localStorage.getItem('darkMode') === 'true'; // ダークモード状態
@@ -919,6 +920,29 @@
                 return diff >= 0 && diff <= 7;
             }).length;
             
+            // 未払いデポジット一覧を計算
+            const unpaidDeposits = [];
+            projects.forEach(p => {
+                const supplier = suppliers.find(s => s.id === p.supplierId);
+                (p.depositSchedule || []).forEach((dep, idx) => {
+                    if (!dep.paid) {
+                        const orderDate = p.orderDate ? new Date(p.orderDate) : null;
+                        const today = new Date();
+                        const daysSinceOrder = orderDate ? Math.floor((today - orderDate) / (1000 * 60 * 60 * 24)) : null;
+                        unpaidDeposits.push({
+                            project: p,
+                            supplier: supplier,
+                            deposit: dep,
+                            depositIndex: idx,
+                            daysSinceOrder: daysSinceOrder
+                        });
+                    }
+                });
+            });
+            // 発注日が古い順にソート
+            unpaidDeposits.sort((a, b) => (b.daysSinceOrder || 0) - (a.daysSinceOrder || 0));
+            const unpaidTotal = unpaidDeposits.reduce((sum, u) => sum + (u.deposit.amountJPY || 0), 0);
+            
             document.getElementById('app').innerHTML = `
                 <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
                     <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
@@ -976,6 +1000,61 @@
                                     <span class="flex items-center gap-1 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs sm:text-sm rounded-lg border border-blue-300 dark:border-blue-700">
                                         🚚 集荷予定（7日以内） ${upcomingPickups}件
                                     </span>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+                        
+                        <!-- 未払いデポジット一覧 -->
+                        ${unpaidDeposits.length > 0 ? `
+                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl shadow-sm border dark:border-slate-700 mb-4 sm:mb-6">
+                                <button onclick="toggleUnpaidSection()" class="w-full p-3 sm:p-4 flex justify-between items-center text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg sm:rounded-xl">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-lg">💰</span>
+                                        <h2 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white">未払いデポジット</h2>
+                                        <span class="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 text-xs rounded-full">${unpaidDeposits.length}件</span>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">${formatJPY(unpaidTotal)}</span>
+                                        <span class="text-slate-400">${showUnpaidSection ? '▼' : '▶'}</span>
+                                    </div>
+                                </button>
+                                ${showUnpaidSection ? `
+                                    <div class="border-t dark:border-slate-700">
+                                        <div class="overflow-x-auto">
+                                            <table class="w-full">
+                                                <thead class="bg-slate-50 dark:bg-slate-700/50">
+                                                    <tr>
+                                                        <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-300">案件</th>
+                                                        <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-300">サプライヤー</th>
+                                                        <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-300">デポジット</th>
+                                                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 dark:text-slate-300">金額(税込)</th>
+                                                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 dark:text-slate-300">経過日数</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y dark:divide-slate-700">
+                                                    ${unpaidDeposits.map(u => `
+                                                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer" onclick="scrollToProject(${u.project.id})">
+                                                            <td class="px-3 py-2">
+                                                                <span class="font-mono font-semibold text-sm text-blue-600 dark:text-blue-400">${formatProjectNumber(u.project)}</span>
+                                                                <p class="text-xs text-slate-500 dark:text-slate-400 truncate max-w-32">${u.project.productName || ''}</p>
+                                                            </td>
+                                                            <td class="px-3 py-2 text-sm dark:text-slate-300">${u.supplier?.name || '-'}</td>
+                                                            <td class="px-3 py-2 text-sm dark:text-slate-300">
+                                                                ${u.deposit.percentage}%
+                                                                <span class="text-xs text-slate-400">(${u.depositIndex + 1}回目)</span>
+                                                            </td>
+                                                            <td class="px-3 py-2 text-sm text-right font-semibold dark:text-white">
+                                                                ${u.deposit.amountJPY ? formatJPY(u.deposit.amountJPY) : '-'}
+                                                            </td>
+                                                            <td class="px-3 py-2 text-sm text-right ${u.daysSinceOrder > 60 ? 'text-red-600 dark:text-red-400 font-semibold' : u.daysSinceOrder > 30 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-400'}">
+                                                                ${u.daysSinceOrder !== null ? u.daysSinceOrder + '日' : '-'}
+                                                            </td>
+                                                        </tr>
+                                                    `).join('')}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
                                 ` : ''}
                             </div>
                         ` : ''}
@@ -1076,7 +1155,7 @@
                                     // ステータス自動判定
                                     const projectStatus = getProjectStatus(p);
                                     
-                                    return `<div class="border-2 rounded-lg ${nextPayment ? 'border-amber-300 bg-amber-50 dark:bg-amber-900/30 dark:border-amber-600' : 'border-green-300 bg-green-50 dark:bg-green-900/30 dark:border-green-600'}">
+                                    return `<div id="project-${p.id}" class="border-2 rounded-lg transition-all ${nextPayment ? 'border-amber-300 bg-amber-50 dark:bg-amber-900/30 dark:border-amber-600' : 'border-green-300 bg-green-50 dark:bg-green-900/30 dark:border-green-600'}">
                                         <div class="p-3 sm:p-5 cursor-pointer" onclick="toggleProject(${p.id})">
                                             <div class="flex justify-between items-start">
                                                 <div class="flex-1">
@@ -1311,6 +1390,28 @@
         function toggleSupplierSection() {
             showSupplierSection = !showSupplierSection;
             renderMain();
+        }
+        
+        function toggleUnpaidSection() {
+            showUnpaidSection = !showUnpaidSection;
+            renderMain();
+        }
+        
+        function scrollToProject(projectId) {
+            // 未払いパネルを閉じる
+            showUnpaidSection = false;
+            // 該当案件を展開状態にする
+            expandedProjects[projectId] = true;
+            renderMain();
+            // 少し待ってからスクロール
+            setTimeout(() => {
+                const el = document.getElementById('project-' + projectId);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.classList.add('ring-2', 'ring-blue-500');
+                    setTimeout(() => el.classList.remove('ring-2', 'ring-blue-500'), 2000);
+                }
+            }, 100);
         }
 
         function toggleProject(projectId) {
