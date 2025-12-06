@@ -1525,11 +1525,6 @@
 
             const quantity = project.quantity || 1;
             const serial = project.serial || '';
-            
-            if (!serial) {
-                alert('Serialが設定されていません。案件を編集してSerialを設定してください。');
-                return;
-            }
 
             // 在庫シートに追加
             try {
@@ -1565,19 +1560,19 @@
                     });
                 }
 
-                // 重複チェック
+                // 重複チェック（Serial空の場合はスキップ）
                 const existingSerials = existingInventory.map(row => row[1]);
-                const baseSerial = serial.replace(/\(.*\)/, ''); // YS0554(1-4) → YS0554
+                const baseSerial = serial ? serial.replace(/\(.*\)/, '') : ''; // YS0554(1-4) → YS0554
                 
                 // 追加するデータを作成（新形式16列）
                 const newRows = [];
                 const today = new Date().toISOString().split('T')[0];
                 
                 for (let i = 1; i <= quantity; i++) {
-                    const itemSerial = quantity > 1 ? `${baseSerial}-${i}` : baseSerial;
+                    const itemSerial = baseSerial ? (quantity > 1 ? `${baseSerial}-${i}` : baseSerial) : '';
                     
-                    // 既に存在するかチェック
-                    if (existingSerials.includes(itemSerial)) {
+                    // 既に存在するかチェック（Serial空の場合はスキップしない）
+                    if (itemSerial && existingSerials.includes(itemSerial)) {
                         continue; // スキップ
                     }
                     
