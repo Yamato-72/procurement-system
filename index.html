@@ -1059,7 +1059,9 @@
                                             <hr class="border-slate-200 dark:border-slate-700">
                                             <button onclick="showSupplierSummary()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📊 サプライヤー別集計</button>
                                             <button onclick="showExchangeSimulator()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">💱 為替計算</button>
-                                            <button onclick="exportCSV()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white rounded-b-lg">📥 CSV出力</button>
+                                            <button onclick="exportCSV()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📥 CSV出力</button>
+                                            <hr class="border-slate-200 dark:border-slate-700">
+                                            <button onclick="repairInventorySupplierIds()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 text-red-600 dark:text-red-400 rounded-b-lg">🔧 在庫サプライヤー復旧</button>
                                         </div>
                                     </div>
                                     <a href="inventory.html" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-teal-600 text-white text-xs sm:text-sm rounded-lg hover:bg-teal-700">在庫</a>
@@ -2591,6 +2593,81 @@
         }
 
         // ==================== 新機能 ====================
+
+        // 在庫のサプライヤーID復旧（緊急用）
+        async function repairInventorySupplierIds() {
+            if (!confirm('在庫シートのサプライヤーIDを調達データから復旧します。\n\n案件番号をもとに、調達管理のサプライヤー情報を在庫に書き戻します。\n\n続行しますか？')) {
+                return;
+            }
+            
+            try {
+                showStatus('サプライヤーID復旧中...');
+                
+                // 案件番号 → サプライヤーIDのマップを作成
+                const projectSupplierMap = {};
+                projects.forEach(p => {
+                    const projectNumber = formatProjectNumber(p);
+                    if (p.supplierId) {
+                        projectSupplierMap[projectNumber] = p.supplierId;
+                    }
+                });
+                
+                console.log('案件→サプライヤーマップ:', projectSupplierMap);
+                
+                // 在庫データを取得
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '在庫!A2:Q',
+                });
+                const rows = response.result.values || [];
+                
+                const updates = [];
+                let repairCount = 0;
+                
+                rows.forEach((row, index) => {
+                    const rowNum = index + 2;
+                    const prefix = row[4] || '';
+                    const number = row[5] || '';
+                    const currentSupplierId = row[16] || ''; // Q列
+                    
+                    if (prefix && number) {
+                        const projectNumber = `${prefix}-${String(number).padStart(4, '0')}`;
+                        const supplierId = projectSupplierMap[projectNumber];
+                        
+                        // サプライヤーIDが見つかり、かつ現在空の場合は更新
+                        if (supplierId && !currentSupplierId) {
+                            updates.push({
+                                range: `在庫!Q${rowNum}`,
+                                values: [[supplierId]]
+                            });
+                            repairCount++;
+                        }
+                    }
+                });
+                
+                console.log('復旧対象:', repairCount, '件');
+                
+                if (updates.length > 0) {
+                    await gapi.client.sheets.spreadsheets.values.batchUpdate({
+                        spreadsheetId: SPREADSHEET_ID,
+                        resource: {
+                            valueInputOption: 'RAW',
+                            data: updates
+                        }
+                    });
+                    
+                    showStatus(`✅ サプライヤーID ${repairCount}件を復旧しました`);
+                    alert(`${repairCount}件のサプライヤーIDを復旧しました。\n\n在庫管理画面をリロードして確認してください。`);
+                } else {
+                    showStatus('復旧対象がありません');
+                    alert('復旧対象がありませんでした。\n\n・既にサプライヤーIDが設定されている\n・調達に該当案件がない\n\nのいずれかです。');
+                }
+            } catch (error) {
+                console.error('復旧エラー:', error);
+                showStatus('復旧エラー: ' + error.message);
+                alert('復旧に失敗しました: ' + error.message);
+            }
+        }
 
         // ツールメニュー開閉
         function toggleToolsMenu() {
