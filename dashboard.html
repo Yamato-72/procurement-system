@@ -664,7 +664,7 @@
             document.getElementById('kpiAvgStay').textContent = avgStay + '日';
             document.getElementById('kpiAvgStaySub').innerHTML = avgStay > 45 ? '<span class="tag tag-yellow">長め</span>' : '<span class="tag tag-green">良好</span>';
             document.getElementById('kpiTurnover').textContent = turnover;
-            document.getElementById('kpiSales7').textContent = '¥' + (sales7 / 10000 / 100).toFixed(1) + '億';
+            document.getElementById('kpiSales7').textContent = '¥' + (sales7 / 10000).toFixed(0) + '万';
             document.getElementById('kpiSales7Sub').textContent = uniqueMonths7 + 'ヶ月経過';
             document.getElementById('kpiOverdue').textContent = overdueCount + '件';
             document.getElementById('kpiOverdueSub').innerHTML = overdueCount > 0 ? '<span class="tag tag-red">要対応</span>' : '<span class="tag tag-gray">-</span>';
@@ -1181,7 +1181,7 @@
                     sales7.forEach(s => { byCat[s.category] = (byCat[s.category] || 0) + s.amount; });
                     const topSales = Object.entries(byCat).sort((a,b) => b[1] - a[1]).slice(0, 3);
                     title = '📈 7期売上 詳細';
-                    content = `<div>7期累計: <strong>¥${(total7/10000/100).toFixed(2)}億</strong></div>
+                    content = `<div>7期累計: <strong>¥${(total7/10000).toFixed(0)}万</strong></div>
                         <div class="mt-2">カテゴリTOP3:</div>
                         ${topSales.map(([cat, amt]) => `<div>・${cat.replace('液晶ディスプレイ','液晶')}: ¥${(amt/10000).toFixed(0)}万</div>`).join('')}
                         <div class="insight">💡 電子黒板が急成長中！</div>`;
