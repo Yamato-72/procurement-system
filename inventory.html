@@ -52,6 +52,7 @@
         let suppliers = []; // サプライヤーマスタ
         let projects = []; // 案件データ（重複チェック用）
         let viewMode = 'group'; // 表示モード: 'group'（グループ表示） or 'flat'（フラット表示）
+        let groupMode = 'order'; // グループ化基準: 'order'（発注案件） or 'ship'（出庫先）
         
         // 複数人利用対応
         let autoReloadInterval = null;
@@ -977,13 +978,27 @@
         function groupByProject(items) {
             const groups = {};
             items.forEach(item => {
-                const project = formatProjectNumber(item.orderPrefix, item.orderNumber) || '未設定';
+                let project;
+                if (groupMode === 'ship') {
+                    // 出庫先でグループ化（出庫先が空なら「未出庫」）
+                    project = formatProjectNumber(item.shipPrefix, item.shipNumber) || '未出庫';
+                } else {
+                    // 発注案件でグループ化
+                    project = formatProjectNumber(item.orderPrefix, item.orderNumber) || '未設定';
+                }
                 if (!groups[project]) {
                     groups[project] = [];
                 }
                 groups[project].push(item);
             });
             return groups;
+        }
+        
+        // グループモード切り替え
+        function setGroupMode(mode) {
+            groupMode = mode;
+            expandedProjects = {}; // 展開状態リセット
+            renderMain();
         }
 
         // 折りたたみトグル
@@ -1253,8 +1268,8 @@
 
                         <!-- 在庫リスト -->
                         <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl shadow-sm border dark:border-slate-700 overflow-hidden">
-                            <div class="p-3 sm:p-4 border-b dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 flex justify-between items-center">
-                                <div class="flex items-center gap-3">
+                            <div class="p-3 sm:p-4 border-b dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 flex flex-wrap justify-between items-center gap-2">
+                                <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
                                     <h2 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white">在庫一覧（${filtered.length}件）</h2>
                                     <div class="flex rounded-lg overflow-hidden border dark:border-slate-600">
                                         <button onclick="setViewMode('group')" class="px-2 py-1 text-xs ${(hasActiveFilters() ? 'flat' : viewMode) === 'group' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'}">
@@ -1264,6 +1279,16 @@
                                             一覧
                                         </button>
                                     </div>
+                                    ${(!hasActiveFilters() && viewMode === 'group') ? `
+                                        <div class="flex rounded-lg overflow-hidden border dark:border-slate-600">
+                                            <button onclick="setGroupMode('order')" class="px-2 py-1 text-xs ${groupMode === 'order' ? 'bg-slate-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'}">
+                                                発注元
+                                            </button>
+                                            <button onclick="setGroupMode('ship')" class="px-2 py-1 text-xs ${groupMode === 'ship' ? 'bg-slate-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'}">
+                                                出庫先
+                                            </button>
+                                        </div>
+                                    ` : ''}
                                     ${hasActiveFilters() ? '<span class="text-xs text-slate-400">フィルタ中</span>' : ''}
                                 </div>
                                 <button onclick="showArchiveModal()" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">アーカイブ</button>
@@ -1374,7 +1399,7 @@
                                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">入庫日</th>
                                                                     <th class="px-3 py-2 text-right text-xs font-semibold text-slate-700 dark:text-slate-300">原価(税込)</th>
                                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">ステータス</th>
-                                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">出庫先</th>
+                                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">${groupMode === 'ship' ? '発注元' : '出庫先'}</th>
                                                                     <th class="px-3 py-2 text-center text-xs font-semibold text-slate-700 dark:text-slate-300">操作</th>
                                                                 </tr>
                                                             </thead>
@@ -1393,7 +1418,7 @@
                                                                             ${item.location === '東京' ? '<span class="ml-1 text-xs text-slate-500">東京</span>' : ''}
                                                                             ${item.location === '大阪' ? '<span class="ml-1 text-xs text-slate-500">大阪</span>' : ''}
                                                                         </td>
-                                                                        <td class="px-3 py-2 text-xs">${formatProjectNumber(item.shipPrefix, item.shipNumber) || '-'}</td>
+                                                                        <td class="px-3 py-2 text-xs font-semibold text-blue-600 dark:text-blue-400">${groupMode === 'ship' ? (formatProjectNumber(item.orderPrefix, item.orderNumber) || '-') : (formatProjectNumber(item.shipPrefix, item.shipNumber) || '-')}</td>
                                                                         <td class="px-3 py-2 text-center" onclick="event.stopPropagation()">
                                                                             <div class="flex gap-1 justify-center">
                                                                                 ${item.status === '入庫待ち' ? `
