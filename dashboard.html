@@ -69,6 +69,37 @@
         .tag-blue { background: var(--blue-bg); color: var(--blue); }
         .tag-gray { background: var(--gray-bg); color: var(--gray); }
         
+        /* ツールチップ・ポップオーバー */
+        .tooltip-container { position: relative; }
+        .tooltip {
+            position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+            background: var(--text); color: var(--bg); padding: 8px 12px; border-radius: 6px;
+            font-size: 11px; white-space: nowrap; opacity: 0; pointer-events: none;
+            transition: opacity 150ms; z-index: 100; margin-bottom: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .tooltip::after {
+            content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+            border: 5px solid transparent; border-top-color: var(--text);
+        }
+        .tooltip-container:hover .tooltip { opacity: 1; }
+        
+        .popover {
+            position: fixed; background: var(--bg); border: 1px solid var(--border);
+            border-radius: 8px; padding: 12px; min-width: 280px; max-width: 360px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 200;
+            font-size: 12px; display: none;
+        }
+        .popover.show { display: block; }
+        .popover-title { font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+        .popover-content { color: var(--text-sub); line-height: 1.5; }
+        .popover-content .insight { background: var(--blue-bg); color: var(--blue); padding: 6px 8px; border-radius: 4px; margin-top: 8px; }
+        .popover-content .action { background: var(--green-bg); color: var(--green); padding: 6px 8px; border-radius: 4px; margin-top: 6px; cursor: pointer; }
+        .popover-content .warning { background: var(--red-bg); color: var(--red); padding: 6px 8px; border-radius: 4px; margin-top: 6px; }
+        
+        .kpi { cursor: pointer; transition: transform 80ms, box-shadow 80ms; }
+        .kpi:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        
         @media (max-width: 1024px) {
             .dashboard { height: auto; }
             .main-grid { grid-template-columns: 1fr; grid-template-rows: auto; }
@@ -112,55 +143,55 @@
             
             <!-- KPIバー -->
             <div class="kpi-bar" style="grid-column: 1 / -1;">
-                <div class="kpi">
+                <div class="kpi" onclick="showKpiPopover(event, 'inStock')">
                     <div class="kpi-icon" style="background:var(--blue-bg)"><i data-lucide="package" class="w-4 h-4" style="color:var(--blue)"></i></div>
                     <div class="kpi-value" id="kpiInStock">-</div>
                     <div class="kpi-label">在庫中</div>
                     <div class="kpi-sub t-sub" id="kpiInStockSub">-</div>
                 </div>
-                <div class="kpi">
+                <div class="kpi" onclick="showKpiPopover(event, 'waiting')">
                     <div class="kpi-icon" style="background:var(--orange-bg)"><i data-lucide="truck" class="w-4 h-4" style="color:var(--orange)"></i></div>
                     <div class="kpi-value" id="kpiWaiting">-</div>
                     <div class="kpi-label">入庫待ち</div>
                     <div class="kpi-sub" style="color:var(--orange)" id="kpiWaitingSub">-</div>
                 </div>
-                <div class="kpi">
+                <div class="kpi" onclick="showKpiPopover(event, 'unpaid')">
                     <div class="kpi-icon" style="background:var(--red-bg)"><i data-lucide="wallet" class="w-4 h-4" style="color:var(--red)"></i></div>
                     <div class="kpi-value" id="kpiUnpaid">-</div>
                     <div class="kpi-label">未払い</div>
                     <div class="kpi-sub t-sub" id="kpiUnpaidSub">-</div>
                 </div>
-                <div class="kpi">
+                <div class="kpi" onclick="showKpiPopover(event, 'payment')">
                     <div class="kpi-icon" style="background:var(--green-bg)"><i data-lucide="credit-card" class="w-4 h-4" style="color:var(--green)"></i></div>
                     <div class="kpi-value" id="kpiThisMonth">-</div>
                     <div class="kpi-label">今月支払</div>
                     <div class="kpi-sub" id="kpiThisMonthSub">-</div>
                 </div>
-                <div class="kpi">
+                <div class="kpi" onclick="showKpiPopover(event, 'stay')">
                     <div class="kpi-icon" style="background:var(--purple-bg)"><i data-lucide="clock" class="w-4 h-4" style="color:var(--purple)"></i></div>
                     <div class="kpi-value" id="kpiAvgStay">-</div>
                     <div class="kpi-label">平均滞留</div>
                     <div class="kpi-sub" id="kpiAvgStaySub">-</div>
                 </div>
-                <div class="kpi">
+                <div class="kpi" onclick="showKpiPopover(event, 'turnover')">
                     <div class="kpi-icon" style="background:var(--yellow-bg)"><i data-lucide="refresh-cw" class="w-4 h-4" style="color:var(--yellow)"></i></div>
                     <div class="kpi-value" id="kpiTurnover">-</div>
                     <div class="kpi-label">回転率</div>
                     <div class="kpi-sub t-sub">回/月</div>
                 </div>
-                <div class="kpi">
+                <div class="kpi" onclick="showKpiPopover(event, 'sales')">
                     <div class="kpi-icon" style="background:var(--green-bg)"><i data-lucide="bar-chart-2" class="w-4 h-4" style="color:var(--green)"></i></div>
                     <div class="kpi-value" id="kpiSales7">-</div>
                     <div class="kpi-label">7期売上</div>
                     <div class="kpi-sub" id="kpiSales7Sub">-</div>
                 </div>
-                <div class="kpi">
+                <div class="kpi" onclick="showKpiPopover(event, 'overdue')">
                     <div class="kpi-icon" style="background:var(--red-bg)"><i data-lucide="alert-triangle" class="w-4 h-4" style="color:var(--red)"></i></div>
                     <div class="kpi-value" id="kpiOverdue">-</div>
                     <div class="kpi-label">支払遅延</div>
                     <div class="kpi-sub" id="kpiOverdueSub">-</div>
                 </div>
-                <div class="kpi" style="background:var(--bg)">
+                <div class="kpi" style="background:var(--bg);cursor:default">
                     <div class="flex items-center gap-1 mb-2"><i data-lucide="activity" class="w-4 h-4" style="color:var(--green)"></i><span class="text-xs font-medium">ヘルス</span></div>
                     <div id="healthMini" class="text-xs space-y-1"></div>
                 </div>
@@ -195,17 +226,19 @@
 
             <!-- グラフ2つ（売上） -->
             <div class="grid grid-cols-2 gap-3">
-                <div>
+                <div class="cursor-pointer hover:opacity-80 transition-opacity" onclick="analyzeChart('salesTrend')">
                     <div class="flex items-center gap-1 mb-2">
                         <i data-lucide="trending-up" class="w-3.5 h-3.5" style="color:var(--green)"></i>
                         <span class="text-xs font-medium">売上推移（6ヶ月）</span>
+                        <i data-lucide="sparkles" class="w-3 h-3 t-sub ml-auto" title="クリックでAI分析"></i>
                     </div>
                     <div class="h-28"><canvas id="salesChart"></canvas></div>
                 </div>
-                <div>
+                <div class="cursor-pointer hover:opacity-80 transition-opacity" onclick="analyzeChart('salesCategory')">
                     <div class="flex items-center gap-1 mb-2">
                         <i data-lucide="pie-chart" class="w-3.5 h-3.5" style="color:var(--purple)"></i>
                         <span class="text-xs font-medium">カテゴリ別売上</span>
+                        <i data-lucide="sparkles" class="w-3 h-3 t-sub ml-auto" title="クリックでAI分析"></i>
                     </div>
                     <div class="h-28"><canvas id="salesCategoryChart"></canvas></div>
                 </div>
@@ -243,17 +276,19 @@
 
             <!-- グラフ2つ -->
             <div class="grid grid-cols-2 gap-3">
-                <div>
+                <div class="cursor-pointer hover:opacity-80 transition-opacity" onclick="analyzeChart('paymentForecast')">
                     <div class="flex items-center gap-1 mb-2">
                         <i data-lucide="bar-chart-2" class="w-3.5 h-3.5" style="color:var(--green)"></i>
                         <span class="text-xs font-medium">支払い予定（4週）</span>
+                        <i data-lucide="sparkles" class="w-3 h-3 t-sub ml-auto" title="クリックでAI分析"></i>
                     </div>
                     <div class="h-28"><canvas id="forecastChart"></canvas></div>
                 </div>
-                <div>
+                <div class="cursor-pointer hover:opacity-80 transition-opacity" onclick="analyzeChart('inventoryFlow')">
                     <div class="flex items-center gap-1 mb-2">
                         <i data-lucide="trending-up" class="w-3.5 h-3.5" style="color:var(--purple)"></i>
                         <span class="text-xs font-medium">入出庫推移</span>
+                        <i data-lucide="sparkles" class="w-3 h-3 t-sub ml-auto" title="クリックでAI分析"></i>
                     </div>
                     <div class="h-28"><canvas id="flowChart"></canvas></div>
                 </div>
@@ -282,6 +317,12 @@
             </div>
 
         </div>
+    </div>
+
+    <!-- ポップオーバー -->
+    <div id="popover" class="popover">
+        <div class="popover-title"><i data-lucide="info" class="w-4 h-4"></i><span id="popoverTitle">-</span></div>
+        <div class="popover-content" id="popoverContent"></div>
     </div>
 
     <!-- 設定ボタン -->
@@ -996,6 +1037,195 @@
                 document.getElementById('loginSection').classList.remove('hidden');
             }
         }
+
+        // グラフクリックでAI分析
+        async function analyzeChart(chartType) {
+            if (!apiKey) {
+                alert('APIキーを設定してください（左下の設定ボタン）');
+                return;
+            }
+            
+            const el = document.getElementById('analysisResult');
+            el.innerHTML = '<p class="t-sub"><i data-lucide="loader-2" class="w-4 h-4 inline animate-spin mr-1"></i>グラフを分析中...</p>';
+            lucide.createIcons();
+            
+            const d = prepareData();
+            let prompt = '';
+            
+            switch(chartType) {
+                case 'salesTrend':
+                    prompt = `売上推移データ: ${JSON.stringify(d.salesByMonth)}\n\n直近6ヶ月の売上トレンドを分析して、1)傾向 2)異常値 3)来月予測 を簡潔に。`;
+                    break;
+                case 'salesCategory':
+                    prompt = `カテゴリ別売上: ${JSON.stringify(d.salesByCategory)}\n\nカテゴリ別の売上構成を分析して、1)主力カテゴリ 2)成長カテゴリ 3)在庫への示唆 を簡潔に。`;
+                    break;
+                case 'paymentForecast':
+                    prompt = `未払い件数: ${d.unpaid}件、未払い総額: ¥${d.unpaidTotal}、サプライヤー別: ${JSON.stringify(d.supplierStats)}\n\n今後4週間の支払い予測とキャッシュフロー管理のアドバイスを簡潔に。`;
+                    break;
+                case 'inventoryFlow':
+                    prompt = `在庫中: ${d.inStock}件、入庫待ち: ${d.waiting}件、カテゴリ: ${JSON.stringify(d.categoryStats)}\n\n入出庫の傾向を分析して、1)回転率評価 2)滞留リスク 3)発注推奨 を簡潔に。`;
+                    break;
+            }
+            
+            try {
+                const r = await fetch('https://api.anthropic.com/v1/messages', { 
+                    method: 'POST', 
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01',
+                        'anthropic-dangerous-direct-browser-access': 'true'
+                    }, 
+                    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 400, messages: [{ role: 'user', content: prompt + '\n\n日本語で簡潔に。' }] }) 
+                });
+                if (!r.ok) throw new Error('API Error');
+                const j = await r.json();
+                el.innerHTML = `<div class="mb-2 text-xs font-medium" style="color:var(--purple)">📊 グラフ分析結果</div>` + 
+                    (j.content?.[0]?.text || '').split('\n').map(l => `<div class="mb-1">${l}</div>`).join('');
+            } catch (e) { 
+                el.innerHTML = `<p style="color:var(--red)">エラー: ${e.message}</p>`; 
+            }
+        }
+
+        // ポップオーバー
+        let currentPopover = null;
+        function showKpiPopover(event, type) {
+            event.stopPropagation();
+            const popover = document.getElementById('popover');
+            const titleEl = document.getElementById('popoverTitle');
+            const contentEl = document.getElementById('popoverContent');
+            
+            const today = new Date();
+            const inStock = inventory.filter(i => i.status === '在庫中');
+            const waiting = inventory.filter(i => i.status === '入庫待ち');
+            
+            let title = '', content = '';
+            
+            switch(type) {
+                case 'inStock':
+                    const catBreakdown = {};
+                    inStock.forEach(i => { catBreakdown[i.category] = (catBreakdown[i.category] || 0) + 1; });
+                    const topCats = Object.entries(catBreakdown).sort((a,b) => b[1] - a[1]).slice(0, 3);
+                    title = '📦 在庫中 詳細';
+                    content = `<div><strong>${inStock.length}件</strong>の在庫があります</div>
+                        <div class="mt-2">カテゴリ内訳:</div>
+                        ${topCats.map(([cat, cnt]) => `<div>・${cat}: ${cnt}件</div>`).join('')}
+                        <div class="insight">💡 ${topCats[0] ? topCats[0][0] + 'が最も多い' : '在庫なし'}</div>`;
+                    break;
+                case 'waiting':
+                    const thisWeek = new Date(today); thisWeek.setDate(thisWeek.getDate() + 7);
+                    const arriving = projects.filter(p => p.pickupDate && !p.receivedComplete && new Date(p.pickupDate) <= thisWeek);
+                    title = '🚚 入庫待ち 詳細';
+                    content = `<div><strong>${waiting.length}件</strong>が入庫待ち</div>
+                        <div class="mt-2">今週到着予定: ${arriving.length}件</div>
+                        ${arriving.slice(0, 3).map(p => `<div>・${p.projectPrefix}-${String(p.projectNumber).padStart(4,'0')}: ${p.productName.slice(0,15)}</div>`).join('')}
+                        ${arriving.length > 0 ? '<div class="action" onclick="window.location.href=\'inventory.html\'">→ 入庫処理へ</div>' : '<div class="insight">💡 今週の到着予定なし</div>'}`;
+                    break;
+                case 'unpaid':
+                    let unpaidList = [];
+                    projects.forEach(p => {
+                        (p.depositSchedule || []).forEach((d, i) => {
+                            if (!d.paid) {
+                                const days = p.registeredDate ? Math.floor((today - new Date(p.registeredDate)) / 86400000) : 0;
+                                unpaidList.push({ pn: `${p.projectPrefix}-${String(p.projectNumber).padStart(4,'0')}`, days, amount: d.amountUSD || 0 });
+                            }
+                        });
+                    });
+                    unpaidList.sort((a,b) => b.days - a.days);
+                    const overdue = unpaidList.filter(u => u.days > 30);
+                    title = '💰 未払い 詳細';
+                    content = `<div><strong>${unpaidList.length}件</strong>の未払いあり</div>
+                        ${overdue.length > 0 ? `<div class="warning">⚠ ${overdue.length}件が30日超過</div>` : '<div class="insight">✓ 30日超過なし</div>'}
+                        <div class="mt-2">経過日数TOP3:</div>
+                        ${unpaidList.slice(0,3).map(u => `<div>・${u.pn}: ${u.days}日 ($${u.amount})</div>`).join('')}`;
+                    break;
+                case 'payment':
+                    const tm = today.toISOString().slice(0, 7);
+                    let thisMonthPaid = 0, thisMonthCount = 0;
+                    projects.forEach(p => {
+                        (p.depositSchedule || []).forEach(d => {
+                            if (d.paid && d.paidDate && d.paidDate.startsWith(tm)) {
+                                thisMonthPaid += d.amountJPY || 0;
+                                thisMonthCount++;
+                            }
+                        });
+                    });
+                    title = '💳 今月支払い 詳細';
+                    content = `<div>今月の支払い実績</div>
+                        <div class="mt-2"><strong>¥${(thisMonthPaid/10000).toFixed(0)}万</strong> (${thisMonthCount}件)</div>
+                        <div class="insight">💡 月末に向けて支払い予定を確認</div>`;
+                    break;
+                case 'stay':
+                    const stayDays = inStock.filter(i => i.receiveDate).map(i => ({ serial: i.serial, days: Math.floor((today - new Date(i.receiveDate)) / 86400000), cat: i.category }));
+                    const longStay = stayDays.filter(s => s.days >= 60).sort((a,b) => b.days - a.days);
+                    const avgStay = stayDays.length ? Math.round(stayDays.reduce((a,b) => a + b.days, 0) / stayDays.length) : 0;
+                    title = '⏱ 滞留日数 詳細';
+                    content = `<div>平均滞留: <strong>${avgStay}日</strong></div>
+                        ${longStay.length > 0 ? `<div class="warning">⚠ 60日超え: ${longStay.length}件</div>` : '<div class="insight">✓ 長期滞留なし</div>'}
+                        ${longStay.slice(0,3).map(s => `<div>・${s.serial}: ${s.days}日</div>`).join('')}
+                        ${longStay.length > 0 ? '<div class="action" onclick="window.location.href=\'inventory.html\'">→ 在庫確認へ</div>' : ''}`;
+                    break;
+                case 'turnover':
+                    const thisMonthShipped = [...inventory, ...archivedInventory].filter(i => i.shipDate && i.shipDate.startsWith(today.toISOString().slice(0,7))).length;
+                    const turnover = (thisMonthShipped / (inStock.length || 1)).toFixed(2);
+                    title = '🔄 回転率 詳細';
+                    content = `<div>今月の回転率: <strong>${turnover}回</strong></div>
+                        <div class="mt-2">・今月出庫: ${thisMonthShipped}件</div>
+                        <div>・現在在庫: ${inStock.length}件</div>
+                        <div class="insight">💡 回転率1.0以上が理想的</div>`;
+                    break;
+                case 'sales':
+                    const sales7 = SALES_RAW_DATA.filter(s => s.period === '7期');
+                    const total7 = sales7.reduce((a,s) => a + s.amount, 0);
+                    const byCat = {};
+                    sales7.forEach(s => { byCat[s.category] = (byCat[s.category] || 0) + s.amount; });
+                    const topSales = Object.entries(byCat).sort((a,b) => b[1] - a[1]).slice(0, 3);
+                    title = '📈 7期売上 詳細';
+                    content = `<div>7期累計: <strong>¥${(total7/10000/100).toFixed(2)}億</strong></div>
+                        <div class="mt-2">カテゴリTOP3:</div>
+                        ${topSales.map(([cat, amt]) => `<div>・${cat.replace('液晶ディスプレイ','液晶')}: ¥${(amt/10000).toFixed(0)}万</div>`).join('')}
+                        <div class="insight">💡 電子黒板が急成長中！</div>`;
+                    break;
+                case 'overdue':
+                    let overdueList = [];
+                    projects.forEach(p => {
+                        (p.depositSchedule || []).forEach((d, i) => {
+                            if (!d.paid && i === 0 && p.registeredDate) {
+                                const days = Math.floor((today - new Date(p.registeredDate)) / 86400000);
+                                if (days > 30) overdueList.push({ pn: `${p.projectPrefix}-${String(p.projectNumber).padStart(4,'0')}`, days, supplier: suppliers.find(s => s.id === p.supplierId)?.name || '不明' });
+                            }
+                        });
+                    });
+                    title = '⚠ 支払遅延 詳細';
+                    content = overdueList.length > 0 
+                        ? `<div class="warning">⚠ ${overdueList.length}件が30日超過</div>
+                           ${overdueList.slice(0,3).map(o => `<div>・${o.pn}: ${o.days}日 (${o.supplier})</div>`).join('')}
+                           <div class="action" onclick="window.location.href='index.html'">→ 支払い処理へ</div>`
+                        : '<div class="insight">✓ 支払い遅延なし</div>';
+                    break;
+            }
+            
+            titleEl.textContent = title;
+            contentEl.innerHTML = content;
+            
+            // 位置調整
+            const rect = event.target.closest('.kpi').getBoundingClientRect();
+            popover.style.top = (rect.bottom + 8) + 'px';
+            popover.style.left = Math.min(rect.left, window.innerWidth - 300) + 'px';
+            popover.classList.add('show');
+            currentPopover = popover;
+            lucide.createIcons();
+        }
+        
+        // ポップオーバーを閉じる
+        document.addEventListener('click', (e) => {
+            const popover = document.getElementById('popover');
+            if (currentPopover && !popover.contains(e.target) && !e.target.closest('.kpi')) {
+                popover.classList.remove('show');
+                currentPopover = null;
+            }
+        });
+
         window.onload = () => { const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.onload = init; document.head.appendChild(s); };
     </script>
 </body>
