@@ -59,6 +59,7 @@
         let autoReloadEnabled = true;
         const AUTO_RELOAD_SECONDS = 60; // 60秒間隔
         let lastDataHash = ''; // データ変更検知用
+        let lastSaveTime = 0; // 最後に保存した時刻
 
         // 案件番号ヘルパー関数
         // 表示用フォーマット（例: AD-1681）
@@ -589,10 +590,16 @@
 
         // サイレントリロード（UIを更新せずにデータ取得、変更があれば通知）
         async function silentReload() {
+            // 保存直後5秒間はスキップ
+            if (Date.now() - lastSaveTime < 5000) {
+                console.log('保存直後のため自動同期スキップ');
+                return;
+            }
+            
             try {
                 const response = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫!A2:N',
+                    range: '在庫!A2:Q',
                 });
                 const rows = response.result.values || [];
                 const newHash = JSON.stringify(rows);
@@ -613,14 +620,15 @@
                                 orderNumber: parsed.number,
                                 orderDate: row[5] || '',
                                 receiveDate: row[6] || '',
-                                status: row[7] || '入庫待ち',
+                                status: normalizeStatus(row[7] || '入庫待ち'),
                                 shipDate: row[8] || '',
                                 shipPrefix: '',
                                 shipNumber: '',
                                 costJPY: row[10] || '',
                                 note: row[11] || '',
                                 shelfNo: row[12] || '',
-                                location: row[13] || ''
+                                location: row[13] || '',
+                                supplierId: row[14] || ''
                             };
                         }
                         return {
@@ -632,7 +640,7 @@
                             orderNumber: row[5] || '',
                             orderDate: row[6] || '',
                             receiveDate: row[7] || '',
-                            status: row[8] || '入庫待ち',
+                            status: normalizeStatus(row[8] || '入庫待ち'),
                             shipDate: row[9] || '',
                             shipPrefix: row[10] || '',
                             shipNumber: row[11] || '',
@@ -958,11 +966,12 @@
                 });
 
                 // 保存後にハッシュを更新
+                lastSaveTime = Date.now();
                 lastDataHash = JSON.stringify(inventory.map(item => [
                     item.id, item.serial, item.category, item.productName, 
                     item.orderPrefix, item.orderNumber, item.orderDate, item.receiveDate, 
                     item.status, item.shipDate, item.shipPrefix, item.shipNumber,
-                    item.costJPY, item.note, item.shelfNo, item.location
+                    item.costJPY, item.note, item.shelfNo, item.location, item.supplierId
                 ]));
                 lastUpdated = new Date();
 
@@ -1808,13 +1817,13 @@
             document.body.appendChild(modal);
         }
 
-        function submitBulkSupplier() {
+        async function submitBulkSupplier() {
             const supplierId = document.getElementById('bulkSupplierId').value;
             selectedItems.forEach(id => {
                 const item = inventory.find(i => String(i.id) === String(id));
                 if (item) item.supplierId = supplierId;
             });
-            saveData();
+            await saveData();
             closeModal('bulkSupplierModal');
             cancelBulkSelect();
         }
@@ -3310,7 +3319,7 @@
         }
 
         // 詳細モーダルからの編集保存
-        function submitDetailEdit(id) {
+        async function submitDetailEdit(id) {
             const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
 
@@ -3339,7 +3348,7 @@
             
             item.note = document.getElementById('detailEditNote').value.trim();
 
-            saveData();
+            await saveData();
             closeModal('detailModal');
             renderMain();
         }
@@ -3614,7 +3623,7 @@
             `;
         }
 
-        function submitEdit(id) {
+        async function submitEdit(id) {
             const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
 
@@ -3643,7 +3652,7 @@
             
             item.note = document.getElementById('editNote').value.trim();
 
-            saveData();
+            await saveData();
             closeModal('editModal');
             renderMain();
         }
