@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ダッシュボード - 調達・在庫管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <style>
+        .card { @apply bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border dark:border-slate-700; }
+        .stat-value { @apply text-2xl sm:text-3xl font-bold; }
+        .stat-label { @apply text-sm text-slate-500 dark:text-slate-400; }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-900 min-h-screen">
+    <div id="app" class="max-w-7xl mx-auto p-4 sm:p-6">
+        <!-- ヘッダー -->
+        <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">📊 ダッシュボード</h1>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">調達・在庫管理の全体像</p>
+            </div>
+            <div class="flex gap-2">
+                <a href="index.html" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">調達管理</a>
+                <a href="inventory.html" class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700">在庫管理</a>
+                <button onclick="loadData()" class="px-4 py-2 bg-slate-600 text-white text-sm rounded-lg hover:bg-slate-700">🔄 更新</button>
+            </div>
+        </div>
+
+        <!-- ログイン前 -->
+        <div id="loginSection" class="card text-center py-12">
+            <p class="text-slate-600 dark:text-slate-400 mb-4">Googleアカウントでログインしてください</p>
+            <button onclick="handleAuth()" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                Googleでログイン
+            </button>
+        </div>
+
+        <!-- メインコンテンツ -->
+        <div id="mainContent" class="hidden">
+            <!-- ステータスバー -->
+            <div id="statusBar" class="mb-4 text-sm text-slate-500 dark:text-slate-400"></div>
+
+            <!-- サマリーカード -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="card">
+                    <div class="stat-label">在庫中</div>
+                    <div class="stat-value text-emerald-600" id="statInStock">-</div>
+                    <div class="text-xs text-slate-400 mt-1" id="statInStockValue">-</div>
+                </div>
+                <div class="card">
+                    <div class="stat-label">入庫待ち</div>
+                    <div class="stat-value text-amber-600" id="statWaiting">-</div>
+                    <div class="text-xs text-slate-400 mt-1" id="statWaitingProjects">-</div>
+                </div>
+                <div class="card">
+                    <div class="stat-label">未払いデポジット</div>
+                    <div class="stat-value text-red-600" id="statUnpaid">-</div>
+                    <div class="text-xs text-slate-400 mt-1" id="statUnpaidUSD">-</div>
+                </div>
+                <div class="card">
+                    <div class="stat-label">今月の支払い</div>
+                    <div class="stat-value text-blue-600" id="statThisMonth">-</div>
+                    <div class="text-xs text-slate-400 mt-1" id="statThisMonthCount">-</div>
+                </div>
+            </div>
+
+            <!-- アラート -->
+            <div id="alertSection" class="mb-6 hidden">
+                <div class="card border-l-4 border-orange-500">
+                    <h3 class="font-bold text-orange-600 dark:text-orange-400 mb-2">⚠️ 要確認</h3>
+                    <ul id="alertList" class="text-sm space-y-1"></ul>
+                </div>
+            </div>
+
+            <!-- グラフセクション -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- 在庫ステータス（ドーナツ） -->
+                <div class="card">
+                    <h3 class="font-bold text-slate-900 dark:text-white mb-4">在庫ステータス</h3>
+                    <div class="h-64">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- カテゴリ別在庫（棒グラフ） -->
+                <div class="card">
+                    <h3 class="font-bold text-slate-900 dark:text-white mb-4">カテゴリ別在庫数</h3>
+                    <div class="h-64">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 月別入出庫推移（折れ線） -->
+                <div class="card">
+                    <h3 class="font-bold text-slate-900 dark:text-white mb-4">月別入出庫推移</h3>
+                    <div class="h-64">
+                        <canvas id="monthlyFlowChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 月別支払い推移（棒グラフ） -->
+                <div class="card">
+                    <h3 class="font-bold text-slate-900 dark:text-white mb-4">月別支払い額</h3>
+                    <div class="h-64">
+                        <canvas id="monthlyPaymentChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 詳細テーブル -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- サプライヤー別集計 -->
+                <div class="card">
+                    <h3 class="font-bold text-slate-900 dark:text-white mb-4">サプライヤー別集計</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b dark:border-slate-700">
+                                    <th class="text-left py-2 px-2">サプライヤー</th>
+                                    <th class="text-right py-2 px-2">案件数</th>
+                                    <th class="text-right py-2 px-2">在庫</th>
+                                    <th class="text-right py-2 px-2">支払累計</th>
+                                </tr>
+                            </thead>
+                            <tbody id="supplierTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 保管場所別 -->
+                <div class="card">
+                    <h3 class="font-bold text-slate-900 dark:text-white mb-4">保管場所別在庫</h3>
+                    <div class="h-48">
+                        <canvas id="locationChart"></canvas>
+                    </div>
+                    <div class="mt-4 grid grid-cols-2 gap-4 text-center">
+                        <div>
+                            <div class="text-2xl font-bold text-blue-600" id="statTokyo">-</div>
+                            <div class="text-sm text-slate-500">東京</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-orange-600" id="statOsaka">-</div>
+                            <div class="text-sm text-slate-500">大阪</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 案件ステータス分布 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="card">
+                    <h3 class="font-bold text-slate-900 dark:text-white mb-4">案件ステータス分布</h3>
+                    <div class="h-64">
+                        <canvas id="projectStatusChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 長期滞留アイテム -->
+                <div class="card">
+                    <h3 class="font-bold text-slate-900 dark:text-white mb-4">長期滞留在庫（30日以上）</h3>
+                    <div class="overflow-x-auto max-h-64">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800">
+                                    <th class="text-left py-2 px-2">Serial</th>
+                                    <th class="text-left py-2 px-2">製品</th>
+                                    <th class="text-right py-2 px-2">日数</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staleInventoryTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最終更新 -->
+            <div class="text-center text-sm text-slate-400 dark:text-slate-500">
+                最終更新: <span id="lastUpdated">-</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 設定
+        const CLIENT_ID = '758aborelj5-cak05t9kfp3lp1qhp0o9lqhaqvf2duif.apps.googleusercontent.com';
+        const API_KEY = 'AIzaSyBi-H1ug_OJBXKOATN5waYKq_jyaqhxJjE';
+        const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';
+
+        // データ
+        let accessToken = null;
+        let inventory = [];
+        let archivedInventory = [];
+        let projects = [];
+        let suppliers = [];
+
+        // チャートインスタンス
+        let charts = {};
+
+        // 初期化
+        function init() {
+            gapi.load('client', async () => {
+                await gapi.client.init({
+                    apiKey: API_KEY,
+                    discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+                });
+                
+                // トークンチェック
+                const savedToken = sessionStorage.getItem('gapi_token');
+                if (savedToken) {
+                    accessToken = savedToken;
+                    gapi.client.setToken({ access_token: accessToken });
+                    showMain();
+                    loadData();
+                }
+            });
+        }
+
+        function handleAuth() {
+            const client = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: 'https://www.googleapis.com/auth/spreadsheets',
+                callback: (response) => {
+                    if (response.access_token) {
+                        accessToken = response.access_token;
+                        sessionStorage.setItem('gapi_token', accessToken);
+                        gapi.client.setToken({ access_token: accessToken });
+                        showMain();
+                        loadData();
+                    }
+                },
+            });
+            client.requestAccessToken();
+        }
+
+        function showMain() {
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('mainContent').classList.remove('hidden');
+        }
+
+        function showStatus(msg) {
+            document.getElementById('statusBar').textContent = msg;
+        }
+
+        // データ読み込み
+        async function loadData() {
+            if (!accessToken) return;
+            
+            try {
+                showStatus('データ読み込み中...');
+
+                // サプライヤー
+                const supplierResponse = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: 'サプライヤー!A2:C',
+                });
+                const supplierRows = supplierResponse.result.values || [];
+                suppliers = supplierRows.map(row => ({
+                    id: parseInt(row[0] || 0),
+                    name: row[1] || '',
+                    paymentPatterns: JSON.parse(row[2] || '[]')
+                }));
+
+                // 案件
+                const projectResponse = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '案件!A2:N',
+                });
+                const projectRows = projectResponse.result.values || [];
+                projects = projectRows.map(row => ({
+                    id: row[0],
+                    projectPrefix: row[1] || 'AD',
+                    projectNumber: parseInt(row[2]) || 0,
+                    supplierId: parseInt(row[3] || 0),
+                    productName: row[4] || '',
+                    totalAmount: parseFloat(row[5] || 0),
+                    depositSchedule: JSON.parse(row[6] || '[]'),
+                    serial: row[7] || '',
+                    quantity: parseInt(row[8] || 1),
+                    workingDays: parseInt(row[9] || 30),
+                    pickupDate: row[10] || '',
+                    registeredDate: row[11] || '',
+                    expenses: JSON.parse(row[12] || '[]'),
+                    receivedComplete: row[13] === 'true'
+                }));
+
+                // 在庫
+                const inventoryResponse = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '在庫!A2:Q',
+                });
+                const inventoryRows = inventoryResponse.result.values || [];
+                inventory = inventoryRows.map(row => ({
+                    id: row[0] || '',
+                    serial: row[1] || '',
+                    category: row[2] || '',
+                    productName: row[3] || '',
+                    orderPrefix: row[4] || '',
+                    orderNumber: row[5] || '',
+                    orderDate: row[6] || '',
+                    receiveDate: row[7] || '',
+                    status: row[8] || '',
+                    shipDate: row[9] || '',
+                    shipPrefix: row[10] || '',
+                    shipNumber: row[11] || '',
+                    costJPY: row[12] || '',
+                    note: row[13] || '',
+                    shelfNo: row[14] || '',
+                    location: row[15] || '',
+                    supplierId: row[16] || ''
+                }));
+
+                // アーカイブ在庫
+                try {
+                    const archiveResponse = await gapi.client.sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: '在庫アーカイブ!A2:Q',
+                    });
+                    const archiveRows = archiveResponse.result.values || [];
+                    archivedInventory = archiveRows.map(row => ({
+                        id: row[0] || '',
+                        serial: row[1] || '',
+                        category: row[2] || '',
+                        productName: row[3] || '',
+                        orderPrefix: row[4] || '',
+                        orderNumber: row[5] || '',
+                        orderDate: row[6] || '',
+                        receiveDate: row[7] || '',
+                        status: row[8] || '',
+                        shipDate: row[9] || '',
+                        shipPrefix: row[10] || '',
+                        shipNumber: row[11] || '',
+                        costJPY: row[12] || '',
+                        note: row[13] || '',
+                        shelfNo: row[14] || '',
+                        location: row[15] || '',
+                        supplierId: row[16] || ''
+                    }));
+                } catch (e) {
+                    archivedInventory = [];
+                }
+
+                showStatus('');
+                document.getElementById('lastUpdated').textContent = new Date().toLocaleString('ja-JP');
+                
+                renderDashboard();
+            } catch (err) {
+                console.error('読み込みエラー:', err);
+                showStatus('エラー: ' + err.message);
+            }
+        }
+
+        // ダッシュボード描画
+        function renderDashboard() {
+            renderSummaryCards();
+            renderAlerts();
+            renderCharts();
+            renderTables();
+        }
+
+        // サマリーカード
+        function renderSummaryCards() {
+            // 在庫中
+            const inStock = inventory.filter(i => i.status === '在庫中');
+            const inStockValue = inStock.reduce((sum, i) => sum + (parseFloat(i.costJPY) || 0), 0);
+            document.getElementById('statInStock').textContent = inStock.length + '台';
+            document.getElementById('statInStockValue').textContent = '¥' + inStockValue.toLocaleString();
+
+            // 入庫待ち
+            const waiting = inventory.filter(i => i.status === '入庫待ち');
+            const waitingProjects = new Set(waiting.map(i => `${i.orderPrefix}-${i.orderNumber}`)).size;
+            document.getElementById('statWaiting').textContent = waiting.length + '台';
+            document.getElementById('statWaitingProjects').textContent = waitingProjects + '案件';
+
+            // 未払いデポジット
+            let unpaidUSD = 0;
+            let unpaidJPY = 0;
+            projects.forEach(p => {
+                (p.depositSchedule || []).forEach(d => {
+                    if (!d.paid) {
+                        unpaidUSD += d.amountUSD || 0;
+                        unpaidJPY += (d.amountUSD || 0) * 150; // 概算レート
+                    }
+                });
+            });
+            document.getElementById('statUnpaid').textContent = '¥' + Math.round(unpaidJPY).toLocaleString();
+            document.getElementById('statUnpaidUSD').textContent = '$' + unpaidUSD.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+
+            // 今月の支払い
+            const now = new Date();
+            const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            let thisMonthTotal = 0;
+            let thisMonthCount = 0;
+            projects.forEach(p => {
+                (p.depositSchedule || []).forEach(d => {
+                    if (d.paid && d.paidDate && d.paidDate.startsWith(thisMonth)) {
+                        thisMonthTotal += d.amountJPY || 0;
+                        thisMonthCount++;
+                    }
+                });
+            });
+            document.getElementById('statThisMonth').textContent = '¥' + Math.round(thisMonthTotal).toLocaleString();
+            document.getElementById('statThisMonthCount').textContent = thisMonthCount + '件の支払い';
+
+            // 保管場所別
+            const tokyo = inventory.filter(i => i.status === '在庫中' && i.location === '東京').length;
+            const osaka = inventory.filter(i => i.status === '在庫中' && i.location === '大阪').length;
+            document.getElementById('statTokyo').textContent = tokyo + '台';
+            document.getElementById('statOsaka').textContent = osaka + '台';
+        }
+
+        // アラート
+        function renderAlerts() {
+            const alerts = [];
+            const today = new Date();
+
+            // 長期入庫待ち（14日以上）
+            inventory.filter(i => i.status === '入庫待ち' && i.orderDate).forEach(item => {
+                const orderDate = new Date(item.orderDate);
+                const days = Math.floor((today - orderDate) / (1000 * 60 * 60 * 24));
+                if (days >= 14) {
+                    alerts.push(`📦 ${item.serial || item.productName}: 入庫待ち ${days}日`);
+                }
+            });
+
+            // 高額未払い（$5000以上）
+            projects.forEach(p => {
+                const unpaid = (p.depositSchedule || [])
+                    .filter(d => !d.paid)
+                    .reduce((sum, d) => sum + (d.amountUSD || 0), 0);
+                if (unpaid >= 5000) {
+                    alerts.push(`💰 ${p.projectPrefix}-${p.projectNumber}: 未払い $${unpaid.toLocaleString()}`);
+                }
+            });
+
+            const alertSection = document.getElementById('alertSection');
+            const alertList = document.getElementById('alertList');
+            
+            if (alerts.length > 0) {
+                alertSection.classList.remove('hidden');
+                alertList.innerHTML = alerts.map(a => `<li class="text-slate-700 dark:text-slate-300">${a}</li>`).join('');
+            } else {
+                alertSection.classList.add('hidden');
+            }
+        }
+
+        // チャート描画
+        function renderCharts() {
+            // 既存チャートを破棄
+            Object.values(charts).forEach(chart => chart.destroy());
+            charts = {};
+
+            // 在庫ステータス（ドーナツ）
+            const statusCounts = {
+                '入庫待ち': inventory.filter(i => i.status === '入庫待ち').length,
+                '在庫中': inventory.filter(i => i.status === '在庫中').length,
+                '出庫済': inventory.filter(i => i.status === '出庫済').length,
+                '不具合': inventory.filter(i => i.status === '不具合').length,
+            };
+            charts.status = new Chart(document.getElementById('statusChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusCounts),
+                    datasets: [{
+                        data: Object.values(statusCounts),
+                        backgroundColor: ['#f59e0b', '#10b981', '#6366f1', '#ef4444']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+
+            // カテゴリ別在庫（棒グラフ）
+            const categoryCounts = {};
+            inventory.filter(i => i.status === '在庫中').forEach(item => {
+                const cat = item.category || '未分類';
+                categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+            });
+            const sortedCategories = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1]);
+            charts.category = new Chart(document.getElementById('categoryChart'), {
+                type: 'bar',
+                data: {
+                    labels: sortedCategories.map(c => c[0]),
+                    datasets: [{
+                        label: '在庫数',
+                        data: sortedCategories.map(c => c[1]),
+                        backgroundColor: '#3b82f6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // 月別入出庫推移
+            const allItems = [...inventory, ...archivedInventory];
+            const monthlyFlow = {};
+            const now = new Date();
+            for (let i = 11; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                monthlyFlow[key] = { receive: 0, ship: 0 };
+            }
+            allItems.forEach(item => {
+                if (item.receiveDate) {
+                    const month = item.receiveDate.substring(0, 7);
+                    if (monthlyFlow[month]) monthlyFlow[month].receive++;
+                }
+                if (item.shipDate) {
+                    const month = item.shipDate.substring(0, 7);
+                    if (monthlyFlow[month]) monthlyFlow[month].ship++;
+                }
+            });
+            const flowLabels = Object.keys(monthlyFlow).map(k => k.substring(5) + '月');
+            charts.flow = new Chart(document.getElementById('monthlyFlowChart'), {
+                type: 'line',
+                data: {
+                    labels: flowLabels,
+                    datasets: [
+                        {
+                            label: '入庫',
+                            data: Object.values(monthlyFlow).map(v => v.receive),
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        },
+                        {
+                            label: '出庫',
+                            data: Object.values(monthlyFlow).map(v => v.ship),
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // 月別支払い額
+            const monthlyPayment = {};
+            for (let i = 11; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                monthlyPayment[key] = 0;
+            }
+            projects.forEach(p => {
+                (p.depositSchedule || []).forEach(d => {
+                    if (d.paid && d.paidDate) {
+                        const month = d.paidDate.substring(0, 7);
+                        if (monthlyPayment[month] !== undefined) {
+                            monthlyPayment[month] += d.amountJPY || 0;
+                        }
+                    }
+                });
+            });
+            charts.payment = new Chart(document.getElementById('monthlyPaymentChart'), {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(monthlyPayment).map(k => k.substring(5) + '月'),
+                    datasets: [{
+                        label: '支払い額 (円)',
+                        data: Object.values(monthlyPayment),
+                        backgroundColor: '#f59e0b'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { 
+                        y: { 
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '¥' + (value / 10000).toFixed(0) + '万';
+                                }
+                            }
+                        } 
+                    }
+                }
+            });
+
+            // 保管場所（ドーナツ）
+            const inStockItems = inventory.filter(i => i.status === '在庫中');
+            const locationCounts = {
+                '東京': inStockItems.filter(i => i.location === '東京').length,
+                '大阪': inStockItems.filter(i => i.location === '大阪').length,
+                '未設定': inStockItems.filter(i => !i.location).length
+            };
+            charts.location = new Chart(document.getElementById('locationChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(locationCounts),
+                    datasets: [{
+                        data: Object.values(locationCounts),
+                        backgroundColor: ['#3b82f6', '#f97316', '#94a3b8']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+
+            // 案件ステータス分布
+            const projectStatusCounts = { '未着手': 0, '支払中': 0, '支払済': 0, '入庫完了': 0 };
+            projects.forEach(p => {
+                const status = getProjectStatus(p);
+                projectStatusCounts[status] = (projectStatusCounts[status] || 0) + 1;
+            });
+            charts.projectStatus = new Chart(document.getElementById('projectStatusChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(projectStatusCounts),
+                    datasets: [{
+                        data: Object.values(projectStatusCounts),
+                        backgroundColor: ['#94a3b8', '#f59e0b', '#3b82f6', '#10b981']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+
+        function getProjectStatus(project) {
+            if (project.receivedComplete) return '入庫完了';
+            
+            const deposits = project.depositSchedule || [];
+            const allPaid = deposits.length > 0 && deposits.every(d => d.paid);
+            const somePaid = deposits.some(d => d.paid);
+            
+            const today = new Date();
+            const pickupDate = project.pickupDate ? new Date(project.pickupDate) : null;
+            const isPickupPassed = pickupDate && pickupDate < today;
+
+            if (allPaid && isPickupPassed) return '入庫完了';
+            if (allPaid) return '支払済';
+            if (somePaid) return '支払中';
+            return '未着手';
+        }
+
+        // テーブル描画
+        function renderTables() {
+            // サプライヤー別集計
+            const supplierStats = {};
+            suppliers.forEach(s => {
+                supplierStats[s.id] = { name: s.name, projects: 0, inventory: 0, paid: 0 };
+            });
+            
+            projects.forEach(p => {
+                if (supplierStats[p.supplierId]) {
+                    supplierStats[p.supplierId].projects++;
+                    (p.depositSchedule || []).forEach(d => {
+                        if (d.paid) supplierStats[p.supplierId].paid += d.amountJPY || 0;
+                    });
+                }
+            });
+            
+            inventory.filter(i => i.status === '在庫中').forEach(item => {
+                const sid = parseInt(item.supplierId);
+                if (supplierStats[sid]) supplierStats[sid].inventory++;
+            });
+
+            const sortedSuppliers = Object.values(supplierStats).sort((a, b) => b.paid - a.paid);
+            document.getElementById('supplierTable').innerHTML = sortedSuppliers.map(s => `
+                <tr class="border-b dark:border-slate-700">
+                    <td class="py-2 px-2 dark:text-white">${s.name}</td>
+                    <td class="py-2 px-2 text-right dark:text-slate-300">${s.projects}</td>
+                    <td class="py-2 px-2 text-right dark:text-slate-300">${s.inventory}</td>
+                    <td class="py-2 px-2 text-right font-semibold dark:text-white">¥${Math.round(s.paid).toLocaleString()}</td>
+                </tr>
+            `).join('');
+
+            // 長期滞留在庫
+            const today = new Date();
+            const staleItems = inventory
+                .filter(i => i.status === '在庫中' && i.receiveDate)
+                .map(item => {
+                    const receiveDate = new Date(item.receiveDate);
+                    const days = Math.floor((today - receiveDate) / (1000 * 60 * 60 * 24));
+                    return { ...item, days };
+                })
+                .filter(item => item.days >= 30)
+                .sort((a, b) => b.days - a.days)
+                .slice(0, 20);
+
+            document.getElementById('staleInventoryTable').innerHTML = staleItems.length > 0 
+                ? staleItems.map(item => `
+                    <tr class="border-b dark:border-slate-700">
+                        <td class="py-2 px-2 font-mono text-sm dark:text-white">${item.serial || '-'}</td>
+                        <td class="py-2 px-2 text-xs dark:text-slate-300 truncate max-w-32">${item.productName}</td>
+                        <td class="py-2 px-2 text-right font-semibold ${item.days >= 60 ? 'text-red-600' : 'text-amber-600'}">${item.days}日</td>
+                    </tr>
+                `).join('')
+                : '<tr><td colspan="3" class="py-4 text-center text-slate-400">該当なし</td></tr>';
+        }
+
+        // Google Identity Services
+        window.onload = () => {
+            const script = document.createElement('script');
+            script.src = 'https://accounts.google.com/gsi/client';
+            script.onload = init;
+            document.head.appendChild(script);
+        };
+    </script>
+</body>
+</html>
