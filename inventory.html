@@ -285,6 +285,82 @@
                 </div>`;
         }
 
+        // 在庫IDの重複を修復
+        async function repairDuplicateIds() {
+            if (!confirm('在庫シートのIDの重複を修復します。\n\n重複しているIDを新しい一意のIDに置き換えます。\n\n続行しますか？')) {
+                return;
+            }
+            
+            try {
+                showStatus('ID重複をチェック中...');
+                
+                // 在庫データを取得
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '在庫!A2:A',
+                });
+                const rows = response.result.values || [];
+                
+                // 重複をチェック
+                const idCounts = {};
+                rows.forEach((row, idx) => {
+                    const id = row[0] || '';
+                    if (!idCounts[id]) {
+                        idCounts[id] = [];
+                    }
+                    idCounts[id].push(idx);
+                });
+                
+                // 重複しているIDを修復
+                const updates = [];
+                let repairCount = 0;
+                
+                Object.keys(idCounts).forEach(id => {
+                    const indices = idCounts[id];
+                    if (indices.length > 1) {
+                        // 最初の1つは残し、残りは新しいIDを付与
+                        for (let i = 1; i < indices.length; i++) {
+                            const rowNum = indices[i] + 2; // 実際の行番号
+                            const newId = Date.now().toString() + '-' + rowNum + '-' + i;
+                            updates.push({
+                                range: `在庫!A${rowNum}`,
+                                values: [[newId]]
+                            });
+                            repairCount++;
+                        }
+                    }
+                });
+                
+                console.log('修復対象:', repairCount, '件');
+                
+                if (updates.length > 0) {
+                    showStatus(`${repairCount}件のIDを修復中...`);
+                    
+                    // バッチで更新
+                    await gapi.client.sheets.spreadsheets.values.batchUpdate({
+                        spreadsheetId: SPREADSHEET_ID,
+                        resource: {
+                            valueInputOption: 'RAW',
+                            data: updates
+                        }
+                    });
+                    
+                    showStatus(`✅ ${repairCount}件のIDを修復しました`);
+                    alert(`${repairCount}件の重複IDを修復しました。\n\nページをリロードしてください。`);
+                    
+                    // データを再読み込み
+                    await loadData();
+                } else {
+                    showStatus('重複IDはありません');
+                    alert('重複しているIDはありませんでした。');
+                }
+            } catch (error) {
+                console.error('ID修復エラー:', error);
+                showStatus('ID修復エラー: ' + error.message);
+                alert('ID修復に失敗しました: ' + error.message);
+            }
+        }
+
         async function loadData() {
             try {
                 showStatus('データ読み込み中...');
@@ -296,7 +372,10 @@
                         range: '在庫!A2:Q',
                     });
                     const inventoryRows = inventoryResponse.result.values || [];
-                    inventory = inventoryRows.map(row => {
+                    inventory = inventoryRows.map((row, idx) => {
+                        // IDがない場合は自動生成
+                        const itemId = row[0] || `auto-${Date.now()}-${idx}`;
+                        
                         // 後方互換: 古い形式(orderProject=AD-1234)と新しい形式(prefix + number)の両方に対応
                         let orderPrefix = row[4] || '';
                         let orderNumber = row[5] || '';
@@ -310,7 +389,7 @@
                             orderNumber = parsed.number;
                             // 古い形式の場合、カラム位置をシフト
                             return {
-                                id: row[0] || '',
+                                id: itemId,
                                 serial: row[1] || '',
                                 category: row[2] || '',
                                 productName: row[3] || '',
@@ -326,12 +405,13 @@
                                 costJPY: row[10] || '',
                                 note: row[11] || '',
                                 shelfNo: row[12] || '',
-                                location: row[13] || ''
+                                location: row[13] || '',
+                                supplierId: row[14] || ''
                             };
                         }
                         
                         return {
-                            id: row[0] || '',
+                            id: itemId,
                             serial: row[1] || '',
                             category: row[2] || '',
                             productName: row[3] || '',
@@ -377,13 +457,15 @@
                 try {
                     const projectResponse = await gapi.client.sheets.spreadsheets.values.get({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '案件!A2:C',
+                        range: '案件!A2:E',
                     });
                     const projectRows = projectResponse.result.values || [];
                     projects = projectRows.map(row => ({
                         id: row[0] || '',
                         prefix: row[1] || 'AD',
-                        number: row[2] || ''
+                        number: row[2] || '',
+                        supplierId: row[3] || '',
+                        productName: row[4] || ''
                     }));
                 } catch (e) {
                     console.log('案件シートの読み込みに失敗しました', e);
@@ -397,12 +479,14 @@
                         range: '在庫アーカイブ!A2:Q',
                     });
                     const archiveRows = archiveResponse.result.values || [];
-                    archivedInventory = archiveRows.map(row => {
+                    archivedInventory = archiveRows.map((row, idx) => {
+                        const itemId = row[0] || `archive-${Date.now()}-${idx}`;
+                        
                         // 後方互換
                         if (row[4] && row[4].match(/^[A-Z]+-\d+$/i)) {
                             const parsed = parseProjectNumberString(row[4]);
                             return {
-                                id: row[0] || '',
+                                id: itemId,
                                 serial: row[1] || '',
                                 category: row[2] || '',
                                 productName: row[3] || '',
@@ -423,7 +507,7 @@
                         }
                         
                         return {
-                            id: row[0] || '',
+                            id: itemId,
                             serial: row[1] || '',
                             category: row[2] || '',
                             productName: row[3] || '',
@@ -1137,7 +1221,9 @@
                                             <button onclick="printInventoryList()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">🖨️ 棚卸しリスト印刷</button>
                                             <button onclick="showMonthlyReport()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📈 月次在庫レポート</button>
                                             <div class="border-t dark:border-slate-600"></div>
-                                            <button onclick="showImportToProcurementModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white rounded-b-lg">📤 調達にインポート</button>
+                                            <button onclick="showImportToProcurementModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📤 調達にインポート</button>
+                                            <div class="border-t dark:border-slate-600"></div>
+                                            <button onclick="repairDuplicateIds()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 text-red-600 dark:text-red-400 rounded-b-lg">🔧 ID重複を修復</button>
                                         </div>
                                     </div>
                                     <a href="index.html" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-blue-600 text-white text-xs sm:text-sm rounded-lg hover:bg-blue-700">調達</a>
@@ -1649,7 +1735,7 @@
             const parsed = parseProjectNumberString(orderProjectInput);
             
             selectedItems.forEach(id => {
-                const item = inventory.find(i => i.id === id);
+                const item = inventory.find(i => String(i.id) === String(id));
                 if (item) {
                     item.orderPrefix = parsed.prefix;
                     item.orderNumber = parsed.number;
@@ -1688,7 +1774,7 @@
         function submitBulkShelf() {
             const shelfNo = document.getElementById('bulkShelfNo').value;
             selectedItems.forEach(id => {
-                const item = inventory.find(i => i.id === id);
+                const item = inventory.find(i => String(i.id) === String(id));
                 if (item) item.shelfNo = shelfNo;
             });
             saveData();
@@ -1725,7 +1811,7 @@
         function submitBulkLocation() {
             const location = document.getElementById('bulkLocation').value;
             selectedItems.forEach(id => {
-                const item = inventory.find(i => i.id === id);
+                const item = inventory.find(i => String(i.id) === String(id));
                 if (item) item.location = location;
             });
             saveData();
@@ -1737,7 +1823,7 @@
         // 一括入庫モーダル
         function bulkReceive() {
             const waitingItems = Array.from(selectedItems).filter(id => {
-                const item = inventory.find(i => i.id === id);
+                const item = inventory.find(i => String(i.id) === String(id));
                 return item && item.status === '入庫待ち';
             });
             
@@ -1771,7 +1857,7 @@
             const receiveDate = document.getElementById('bulkReceiveDate').value;
             
             const waitingItems = Array.from(selectedItems).filter(id => {
-                const item = inventory.find(i => i.id === id);
+                const item = inventory.find(i => String(i.id) === String(id));
                 return item && item.status === '入庫待ち';
             });
             
@@ -1779,7 +1865,7 @@
             const affectedProjects = new Set();
             
             waitingItems.forEach(id => {
-                const item = inventory.find(i => i.id === id);
+                const item = inventory.find(i => String(i.id) === String(id));
                 if (item) {
                     item.status = '在庫中';
                     item.receiveDate = receiveDate;
@@ -1803,7 +1889,7 @@
         // 一括出庫モーダル
         function showBulkShipModal() {
             const inStockItems = Array.from(selectedItems).filter(id => {
-                const item = inventory.find(i => i.id === id);
+                const item = inventory.find(i => String(i.id) === String(id));
                 return item && item.status === '在庫中';
             });
             
@@ -1902,12 +1988,12 @@
             const parsedShip = parseProjectNumberString(shipProjectInput);
             
             const inStockItems = Array.from(selectedItems).filter(id => {
-                const item = inventory.find(i => i.id === id);
+                const item = inventory.find(i => String(i.id) === String(id));
                 return item && item.status === '在庫中';
             });
             
             inStockItems.forEach(id => {
-                const item = inventory.find(i => i.id === id);
+                const item = inventory.find(i => String(i.id) === String(id));
                 if (item) {
                     item.shipPrefix = parsedShip.prefix;
                     item.shipNumber = parsedShip.number;
@@ -2334,9 +2420,13 @@
             // 既存案件かどうかをチェック
             const existingProject = parsedOrder.number ? findExistingProject(parsedOrder.prefix, parsedOrder.number) : null;
             
-            // 新規案件の場合のみサプライヤー必須
+            // サプライヤーIDの取得
             let supplierId = null;
-            if (parsedOrder.number && !existingProject) {
+            if (existingProject) {
+                // 既存案件がある場合は、その案件のサプライヤーIDを使う
+                supplierId = existingProject.supplierId || '';
+            } else if (parsedOrder.number) {
+                // 新規案件の場合はサプライヤー選択必須
                 const supplierSelect = document.getElementById('addSupplier');
                 supplierId = supplierSelect ? supplierSelect.value : '';
                 if (!supplierId) {
@@ -2736,7 +2826,7 @@
 
         // 入庫モーダル
         function showReceiveModal(id) {
-            const item = inventory.find(i => i.id === id);
+            const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
             
             const today = new Date().toISOString().split('T')[0];
@@ -2763,7 +2853,7 @@
         }
 
         async function submitReceive(id) {
-            const item = inventory.find(i => i.id === id);
+            const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
 
             const receiveDate = document.getElementById('receiveDate').value;
@@ -2843,7 +2933,7 @@
         const CARRIERS = ['西濃運輸', 'ヤマト運輸', '佐川急便', 'チャーター便', 'その他'];
 
         function showShipModal(id) {
-            const item = inventory.find(i => i.id === id);
+            const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
 
             const today = new Date().toISOString().split('T')[0];
@@ -2925,7 +3015,7 @@
         }
 
         function submitShip(id) {
-            const item = inventory.find(i => i.id === id);
+            const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
 
             const shipProject = document.getElementById('shipProject').value.trim();
@@ -2960,7 +3050,7 @@
 
         // 詳細モーダル（3タブ：詳細・スペック・編集）
         function showDetailModal(id) {
-            const item = inventory.find(i => i.id === id);
+            const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
 
             // 製品マスタからスペック情報を取得
@@ -3173,7 +3263,7 @@
 
         // 詳細モーダルからの編集保存
         function submitDetailEdit(id) {
-            const item = inventory.find(i => i.id === id);
+            const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
 
             item.serial = document.getElementById('detailEditSerial').value.trim();
@@ -3207,7 +3297,7 @@
 
         // 編集モーダル
         function editItem(id) {
-            const item = inventory.find(i => i.id === id);
+            const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
 
             // 製品マスタからスペック情報を取得
@@ -3469,7 +3559,7 @@
         }
 
         function submitEdit(id) {
-            const item = inventory.find(i => i.id === id);
+            const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
 
             item.serial = document.getElementById('editSerial').value.trim();
@@ -3513,7 +3603,7 @@
         function archiveItem(id) {
             if (!confirm('この在庫をアーカイブしますか？')) return;
             
-            const item = inventory.find(i => i.id === id);
+            const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
 
             archivedInventory.push(item);
