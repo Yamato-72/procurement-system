@@ -2300,10 +2300,12 @@
                 });
                 const rows = response.result.values || [];
                 
-                // 該当案件のアイテムを検索して更新
+                // 該当案件のアイテムを検索して更新（案件番号 + 製品名で一致）
                 const updates = [];
                 rows.forEach((row, idx) => {
-                    if (row[4] === parsed.prefix && row[5] === String(parsed.number)) {
+                    if (row[4] === parsed.prefix && 
+                        row[5] === String(parsed.number) &&
+                        row[3] === project.productName) {
                         updates.push({
                             range: `在庫!M${idx + 2}`,
                             values: [[costPerItem]]

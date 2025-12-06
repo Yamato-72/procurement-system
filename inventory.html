@@ -2199,11 +2199,28 @@
         }
 
         // 既存案件かどうかをチェック
-        function findExistingProject(prefix, number) {
+        function findExistingProject(prefix, number, productName = null) {
             if (!number) return null;
+            return projects.find(p => {
+                const prefixMatch = p.prefix.toUpperCase() === prefix.toUpperCase();
+                const numberMatch = String(p.number) === String(number);
+                if (!prefixMatch || !numberMatch) return false;
+                
+                // 製品名が指定されていれば製品名も一致チェック
+                if (productName) {
+                    return p.productName === productName;
+                }
+                return true;
+            });
+        }
+        
+        // 案件番号 + 製品名で既存案件を検索（完全一致）
+        function findExactProject(prefix, number, productName) {
+            if (!number || !productName) return null;
             return projects.find(p => 
                 p.prefix.toUpperCase() === prefix.toUpperCase() && 
-                String(p.number) === String(number)
+                String(p.number) === String(number) &&
+                p.productName === productName
             );
         }
 
@@ -2464,11 +2481,11 @@
                 }
             });
             
-            // 調達にない案件だけ抽出
+            // 調達にない案件だけ抽出（案件番号 + 製品名で判定）
             const missing = [];
             Object.keys(inventoryProjects).forEach(key => {
                 const proj = inventoryProjects[key];
-                const exists = findExistingProject(proj.prefix, proj.number);
+                const exists = findExactProject(proj.prefix, proj.number, proj.productName);
                 if (!exists) {
                     // Serialをまとめる（例: YS0554-1, YS0554-2 → YS0554(1-2)）
                     const serialDisplay = formatSerialRange(proj.serials);
