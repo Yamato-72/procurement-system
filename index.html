@@ -1266,64 +1266,67 @@
                                     <input type="checkbox" id="filterHideArchived" ${projectFilter.hideArchived ? 'checked' : ''} onchange="applyProjectFilter()">
                                     完了を非表示
                                 </label>
-                                <span class="text-xs text-slate-500 dark:text-slate-400 ml-auto">${getFilteredProjects().length}/${projects.length}件</span>
+                                <span class="text-xs text-slate-500 dark:text-slate-400 ml-auto">${getGroupedProjects().length}案件 (${getFilteredProjects().length}製品)</span>
                             </div>
                             
                             <div class="space-y-3 sm:space-y-4">
-                                ${getFilteredProjects().map(p => {
-                                    const supplier = suppliers.find(s => s.id === p.supplierId);
-                                    const paidCount = (p.depositSchedule || []).filter(d => d.paid).length;
-                                    const totalPaid = (p.depositSchedule || []).filter(d => d.paid).reduce((sum, d) => sum + (d.amountJPY || 0), 0);
-                                    const nextPayment = (p.depositSchedule || []).find(d => !d.paid);
-                                    const allPaid = paidCount === (p.depositSchedule || []).length && paidCount > 0;
-                                    const unitPrice = allPaid && (p.quantity || 1) > 0 ? Math.round(totalPaid / (p.quantity || 1)) : null;
+                                ${getGroupedProjects().map(g => {
+                                    const supplier = suppliers.find(s => s.id === g.supplierId);
+                                    const depositSchedule = g.depositSchedule || [];
+                                    const paidCount = depositSchedule.filter(d => d.paid).length;
+                                    const totalPaidJPY = depositSchedule.filter(d => d.paid).reduce((sum, d) => sum + (d.amountJPY || 0), 0);
+                                    const nextPayment = depositSchedule.find(d => !d.paid);
+                                    const allPaid = paidCount === depositSchedule.length && paidCount > 0;
                                     
-                                    // 集荷予定日を表示
-                                    const pickupDateDisplay = p.pickupDate ? p.pickupDate.replace(/-/g, '/') : '未設定';
-                                    const isExpanded = expandedProjects[p.id];
+                                    // グループ全体の合計
+                                    const totalUSD = g.items.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+                                    const totalQuantity = g.items.reduce((sum, p) => sum + (p.quantity || 1), 0);
                                     
-                                    // ステータス自動判定
-                                    const projectStatus = getProjectStatus(p);
+                                    // 集荷予定日
+                                    const pickupDateDisplay = g.pickupDate ? g.pickupDate.replace(/-/g, '/') : '未設定';
+                                    const isExpanded = expandedProjects[g.projectNumber];
                                     
-                                    return `<div id="project-${p.id}" class="border-2 rounded-lg transition-all ${nextPayment ? 'border-amber-300 bg-amber-50 dark:bg-amber-900/30 dark:border-amber-600' : 'border-green-300 bg-green-50 dark:bg-green-900/30 dark:border-green-600'}">
-                                        <div class="p-3 sm:p-5 cursor-pointer" onclick="toggleProject('${p.id}')">
+                                    // ステータス（代表行から）
+                                    const representativeProject = g.items.find(p => p.id === g.representativeId) || g.items[0];
+                                    const projectStatus = getProjectStatus(representativeProject);
+                                    
+                                    // 複数製品かどうか
+                                    const isMultiProduct = g.items.length > 1;
+                                    
+                                    return `<div id="project-${g.projectNumber}" class="border-2 rounded-lg transition-all ${nextPayment ? 'border-amber-300 bg-amber-50 dark:bg-amber-900/30 dark:border-amber-600' : 'border-green-300 bg-green-50 dark:bg-green-900/30 dark:border-green-600'}">
+                                        <div class="p-3 sm:p-5 cursor-pointer" onclick="toggleProject('${g.projectNumber}')">
                                             <div class="flex justify-between items-start">
                                                 <div class="flex-1">
                                                     <div class="flex items-center gap-2 mb-1 flex-wrap">
                                                         <span class="text-slate-400">${isExpanded ? '▼' : '▶'}</span>
-                                                        <h3 class="font-bold text-base sm:text-xl text-slate-900 dark:text-white">${formatProjectNumber(p)}</h3>
+                                                        <h3 class="font-bold text-base sm:text-xl text-slate-900 dark:text-white">${g.projectNumber}</h3>
+                                                        ${isMultiProduct ? `<span class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">${g.items.length}製品</span>` : ''}
                                                         <span class="px-2 py-0.5 text-xs rounded-full ${projectStatus.color}">${projectStatus.icon} ${projectStatus.status}</span>
-                                                        <button onclick="event.stopPropagation();editProjectDetails('${p.id}')" class="p-1 text-slate-400 hover:text-blue-600" title="編集">
+                                                        <button onclick="event.stopPropagation();editProjectDetails('${g.representativeId}')" class="p-1 text-slate-400 hover:text-blue-600" title="編集">
                                                             <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                                         </button>
-                                                        <button onclick="event.stopPropagation();showTemplateModal('${p.id}')" class="p-1 text-slate-400 hover:text-purple-600" title="複製">
-                                                            <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                                                        </button>
-                                                        <button onclick="event.stopPropagation();deleteProject('${p.id}')" class="p-1 text-slate-400 hover:text-red-600" title="削除">
-                                                            <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                        </button>
-                                                        <button onclick="event.stopPropagation();openInventoryForProject('${formatProjectNumber(p)}')" class="p-1 text-slate-400 hover:text-emerald-600" title="在庫を見る">
+                                                        <button onclick="event.stopPropagation();openInventoryForProject('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-emerald-600" title="在庫を見る">
                                                             <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
                                                         </button>
-                                                        ${folderCache[formatProjectNumber(p)] ? `
-                                                            <a href="${folderCache[formatProjectNumber(p)]}" target="_blank" onclick="event.stopPropagation()" class="text-blue-600 hover:text-blue-800" title="Driveを開く">
+                                                        ${folderCache[g.projectNumber] ? `
+                                                            <a href="${folderCache[g.projectNumber]}" target="_blank" onclick="event.stopPropagation()" class="text-blue-600 hover:text-blue-800" title="Driveを開く">
                                                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2z"/></svg>
                                                             </a>
-                                                        ` : `
-                                                            <span class="text-slate-300 dark:text-slate-600" title="フォルダ未検出">
-                                                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2z"/></svg>
-                                                            </span>
-                                                        `}
+                                                        ` : ''}
                                                     </div>
-                                                    <p class="text-xs sm:text-sm text-slate-700 dark:text-slate-300 ml-6">${p.productName}</p>
+                                                    ${isMultiProduct ? `
+                                                        <p class="text-xs sm:text-sm text-slate-700 dark:text-slate-300 ml-6">${g.items.map(p => p.productName).join(', ')}</p>
+                                                    ` : `
+                                                        <p class="text-xs sm:text-sm text-slate-700 dark:text-slate-300 ml-6">${g.items[0].productName}</p>
+                                                    `}
                                                     ${!isExpanded ? `
-                                                        <p class="text-xs text-slate-500 dark:text-slate-400 ml-6">${supplier?.name || ''} / $${(p.totalAmount || 0).toLocaleString()} / 集荷: ${pickupDateDisplay}</p>
+                                                        <p class="text-xs text-slate-500 dark:text-slate-400 ml-6">${supplier?.name || ''} / $${totalUSD.toLocaleString()} / 集荷: ${pickupDateDisplay}</p>
                                                     ` : ''}
                                                 </div>
                                                 <div class="text-right">
-                                                    <p class="text-sm sm:text-lg font-bold text-slate-900 dark:text-white">${formatJPY(totalPaid)}</p>
-                                                    <p class="text-xs sm:text-sm ${paidCount === (p.depositSchedule || []).length ? 'text-green-600 font-semibold' : 'text-amber-600 font-semibold'}">
-                                                        ${paidCount}/${(p.depositSchedule || []).length}回
+                                                    <p class="text-sm sm:text-lg font-bold text-slate-900 dark:text-white">${formatJPY(totalPaidJPY)}</p>
+                                                    <p class="text-xs sm:text-sm ${allPaid ? 'text-green-600 font-semibold' : 'text-amber-600 font-semibold'}">
+                                                        ${paidCount}/${depositSchedule.length}回
                                                     </p>
                                                 </div>
                                             </div>
@@ -1334,19 +1337,49 @@
                                                 <div class="pt-3 sm:pt-4 mb-3 sm:mb-4">
                                                     <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs sm:text-sm text-slate-600 mb-2">
                                                         <span>サプライヤー: ${supplier?.name || 'Unknown'}</span>
-                                                        <span>総額: $${(p.totalAmount || 0).toLocaleString()}</span>
-                                                        <span>数量: ${p.quantity || 1}</span>
+                                                        <span>総額: $${totalUSD.toLocaleString()}</span>
+                                                        <span>総数量: ${totalQuantity}</span>
                                                     </div>
                                                     <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs sm:text-sm text-slate-600">
-                                                        <span>Serial: <span class="font-mono font-semibold">${p.serial || '未設定'}</span></span>
                                                         <span>集荷: <span class="font-semibold text-blue-600">${pickupDateDisplay}</span></span>
-                                                        ${unitPrice ? `<span class="text-green-600 font-semibold">単価: ${formatJPY(unitPrice)}</span>` : ''}
                                                     </div>
-                                                    <button onclick="event.stopPropagation();copyInvoiceText('${p.id}')" class="mt-2 px-2 sm:px-3 py-1 bg-purple-600 text-white text-xs sm:text-sm rounded hover:bg-purple-700 inline-flex items-center gap-1" title="コピー">
-                                                        <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-                                                        コピー
-                                                    </button>
                                                 </div>
+                                                
+                                                <!-- 製品一覧 -->
+                                                ${isMultiProduct ? `
+                                                    <div class="bg-white dark:bg-slate-700 rounded-lg p-3 mb-3 border border-slate-200 dark:border-slate-600">
+                                                        <p class="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">📦 製品明細</p>
+                                                        <div class="space-y-2">
+                                                            ${g.items.map((p, idx) => {
+                                                                const itemPaidJPY = allPaid ? (p.totalAmount || 0) * (depositSchedule.find(d => d.paid && d.exchangeRate)?.exchangeRate || 0) : 0;
+                                                                const itemUnitPrice = allPaid && (p.quantity || 1) > 0 ? Math.round(itemPaidJPY / (p.quantity || 1)) : null;
+                                                                return `
+                                                                    <div class="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-600 rounded text-sm">
+                                                                        <div class="flex-1">
+                                                                            <span class="font-semibold text-slate-900 dark:text-white">${p.productName}</span>
+                                                                            <span class="text-slate-500 dark:text-slate-400 ml-2">${p.quantity || 1}台 / $${(p.totalAmount || 0).toLocaleString()}</span>
+                                                                        </div>
+                                                                        <div class="text-right">
+                                                                            ${itemUnitPrice ? `<span class="text-green-600 dark:text-green-400 font-semibold">${formatJPY(itemUnitPrice)}/台</span>` : ''}
+                                                                            <button onclick="event.stopPropagation();editProjectDetails('${p.id}')" class="ml-2 p-1 text-slate-400 hover:text-blue-600" title="編集">
+                                                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                `;
+                                                            }).join('')}
+                                                        </div>
+                                                    </div>
+                                                ` : `
+                                                    <div class="text-xs sm:text-sm text-slate-600 mb-3">
+                                                        <span>Serial: <span class="font-mono font-semibold">${g.items[0].serial || '未設定'}</span></span>
+                                                        <span class="ml-4">数量: ${g.items[0].quantity || 1}</span>
+                                                        ${(() => {
+                                                            const singleUnitPrice = allPaid && (g.items[0].quantity || 1) > 0 ? Math.round(totalPaidJPY / (g.items[0].quantity || 1)) : null;
+                                                            return singleUnitPrice ? `<span class="ml-4 text-green-600 font-semibold">単価: ${formatJPY(singleUnitPrice)}</span>` : '';
+                                                        })()}
+                                                    </div>
+                                                `}
                                                 
                                                 ${nextPayment ? `
                                                     <div class="bg-white dark:bg-slate-700 border-2 border-amber-400 dark:border-amber-500 rounded-lg p-3 sm:p-4 mb-3">
@@ -1356,7 +1389,7 @@
                                                                 <p class="font-bold text-sm sm:text-lg text-slate-900 dark:text-white">第${nextPayment.depositNumber}回: $${(nextPayment.amountUSD || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                                                                 <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400">(${nextPayment.percentage}%)</p>
                                                             </div>
-                                                            <button onclick="event.stopPropagation();markPaymentComplete('${p.id}', ${nextPayment.depositNumber})" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-600 text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-emerald-700">
+                                                            <button onclick="event.stopPropagation();markGroupPaymentComplete('${g.projectNumber}', ${nextPayment.depositNumber})" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-600 text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-emerald-700">
                                                                 支払完了
                                                             </button>
                                                         </div>
@@ -1364,9 +1397,8 @@
                                                 ` : `
                                                     <div class="bg-white dark:bg-slate-700 border-2 border-green-400 dark:border-green-500 rounded-lg p-3 sm:p-4 mb-3">
                                                         <p class="text-green-700 dark:text-green-300 text-xs sm:text-sm font-semibold text-center">✓ すべての支払いが完了</p>
-                                                        ${unitPrice ? `<p class="text-green-600 dark:text-green-400 text-xs sm:text-sm text-center mt-1">単価: ${formatJPY(unitPrice)}</p>` : ''}
                                                         <div class="text-center mt-2">
-                                                            <button onclick="event.stopPropagation();syncToInventory('${p.id}')" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-lg">
+                                                            <button onclick="event.stopPropagation();syncGroupToInventory('${g.projectNumber}')" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-lg">
                                                                 📦 在庫へ反映
                                                             </button>
                                                         </div>
@@ -1376,7 +1408,7 @@
                                                 <div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 sm:p-4">
                                                     <p class="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 sm:mb-3">支払履歴</p>
                                                     <div class="space-y-2">
-                                                        ${(p.depositSchedule || []).map(dep => `
+                                                        ${depositSchedule.map(dep => `
                                                             <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 sm:p-3 ${dep.paid ? 'bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700' : 'bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500'} rounded">
                                                                 <div class="flex-1">
                                                                     <span class="font-semibold text-xs sm:text-sm text-slate-900 dark:text-white">第${dep.depositNumber}回</span>
@@ -1388,14 +1420,8 @@
                                                                     ` : ''}
                                                                 </div>
                                                                 <div class="flex items-center gap-2">
-                                                                    ${dep.paid && (!dep.exchangeRate || !dep.amountJPY) ? `
-                                                                        <button onclick="event.stopPropagation();fixExchangeRate('${p.id}', ${dep.depositNumber})" 
-                                                                                class="px-2 py-0.5 bg-amber-500 text-white text-xs rounded hover:bg-amber-600" title="為替レートを設定">
-                                                                            ¥設定
-                                                                        </button>
-                                                                    ` : ''}
                                                                     ${dep.paid ? `
-                                                                        <button onclick="event.stopPropagation();editPaymentRate('${p.id}', ${dep.depositNumber})" 
+                                                                        <button onclick="event.stopPropagation();editGroupPaymentRate('${g.projectNumber}', ${dep.depositNumber})" 
                                                                                 class="p-1 text-slate-400 hover:text-blue-600" title="為替レート修正">
                                                                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                                                         </button>
@@ -1413,29 +1439,24 @@
                                                 <div class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 sm:p-4 mt-3">
                                                     <div class="flex justify-between items-center mb-2 sm:mb-3">
                                                         <p class="text-xs sm:text-sm font-semibold text-orange-700 dark:text-orange-400">📦 諸費用（国際送料・関税等）</p>
-                                                        <button onclick="event.stopPropagation();showAddExpenseModal('${p.id}')" class="px-2 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700">+ 追加</button>
+                                                        <button onclick="event.stopPropagation();showAddExpenseModal('${g.representativeId}')" class="px-2 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700">+ 追加</button>
                                                     </div>
-                                                    ${(p.expenses || []).length > 0 ? `
+                                                    ${g.expenses.length > 0 ? `
                                                         <div class="space-y-2">
-                                                            ${(p.expenses || []).map((exp, idx) => `
-                                                                <div class="flex justify-between items-center p-2 bg-white dark:bg-slate-800 border border-orange-200 dark:border-orange-700 rounded">
-                                                                    <div class="flex-1">
-                                                                        <span class="font-semibold text-xs sm:text-sm text-slate-900 dark:text-white">${exp.type}</span>
-                                                                        <span class="text-xs text-slate-500 dark:text-slate-400 ml-2">${exp.payee || ''}</span>
-                                                                        <div class="text-xs text-slate-600 dark:text-slate-400 mt-0.5">${exp.paidDate || '未払'}</div>
-                                                                    </div>
-                                                                    <div class="text-right flex items-center gap-2">
-                                                                        <span class="font-bold text-sm text-orange-700 dark:text-orange-400">${formatJPY(exp.amountJPY)}</span>
-                                                                        <button onclick="event.stopPropagation();deleteExpense('${p.id}', ${idx})" class="p-1 text-slate-400 hover:text-red-600" title="削除">
-                                                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                                                                        </button>
+                                                            ${g.expenses.map((exp, idx) => `
+                                                                <div class="flex justify-between items-center p-2 bg-white dark:bg-slate-700 rounded border border-orange-200 dark:border-orange-700">
+                                                                    <div>
+                                                                        <span class="font-semibold text-sm text-slate-900 dark:text-white">${exp.type || '諸費用'}</span>
+                                                                        <span class="text-sm text-slate-600 dark:text-slate-300 ml-2">${formatJPY(exp.amountJPY || 0)}</span>
+                                                                        ${exp.payee ? `<span class="text-xs text-slate-500 dark:text-slate-400 ml-2">(${exp.payee})</span>` : ''}
                                                                     </div>
                                                                 </div>
                                                             `).join('')}
-                                                            <div class="flex justify-between items-center pt-2 border-t border-orange-200 dark:border-orange-700">
-                                                                <span class="text-xs font-semibold text-orange-700 dark:text-orange-400">諸費用合計</span>
-                                                                <span class="font-bold text-sm text-orange-700 dark:text-orange-400">${formatJPY((p.expenses || []).reduce((sum, e) => sum + (e.amountJPY || 0), 0))}</span>
-                                                            </div>
+                                                        </div>
+                                                        <div class="mt-2 pt-2 border-t border-orange-200 dark:border-orange-700">
+                                                            <span class="text-sm font-semibold text-orange-700 dark:text-orange-400">
+                                                                諸費用計: ${formatJPY(g.expenses.reduce((sum, e) => sum + (e.amountJPY || 0), 0))}
+                                                            </span>
                                                         </div>
                                                     ` : `
                                                         <p class="text-xs text-slate-500 dark:text-slate-400 text-center py-2">諸費用の登録はありません</p>
@@ -1443,33 +1464,23 @@
                                                 </div>
                                                 
                                                 <!-- 総原価サマリー -->
-                                                ${(() => {
-                                                    const depositTotal = (p.depositSchedule || []).filter(d => d.paid).reduce((sum, d) => sum + (d.amountJPY || 0), 0);
-                                                    const expenseTotal = (p.expenses || []).reduce((sum, e) => sum + (e.amountJPY || 0), 0);
-                                                    const grandTotal = depositTotal + expenseTotal;
-                                                    const qty = p.quantity || 1;
-                                                    const unitCost = qty > 0 ? Math.round(grandTotal / qty) : 0;
-                                                    return grandTotal > 0 ? `
-                                                        <div class="bg-slate-800 dark:bg-slate-900 rounded-lg p-3 sm:p-4 mt-3">
-                                                            <p class="text-xs text-slate-400 mb-2">総原価サマリー</p>
-                                                            <div class="grid grid-cols-2 gap-2 text-sm">
-                                                                <div>
-                                                                    <span class="text-slate-400">製品代金:</span>
-                                                                    <span class="text-white ml-2">${formatJPY(depositTotal)}</span>
-                                                                </div>
-                                                                <div>
-                                                                    <span class="text-slate-400">諸費用:</span>
-                                                                    <span class="text-orange-400 ml-2">${formatJPY(expenseTotal)}</span>
-                                                                </div>
-                                                                <div class="col-span-2 pt-2 border-t border-slate-700">
-                                                                    <span class="text-slate-300 font-semibold">総原価:</span>
-                                                                    <span class="text-emerald-400 font-bold text-lg ml-2">${formatJPY(grandTotal)}</span>
-                                                                    <span class="text-slate-400 text-xs ml-2">(単価: ${formatJPY(unitCost)})</span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    ` : '';
-                                                })()}
+                                                <div class="bg-slate-100 dark:bg-slate-600 rounded-lg p-3 sm:p-4 mt-3">
+                                                    <p class="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">総原価サマリー</p>
+                                                    <div class="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                                                        <span>製品代金: <span class="font-bold">${formatJPY(totalPaidJPY)}</span></span>
+                                                        <span>諸費用: <span class="font-bold text-orange-600">${formatJPY(g.expenses.reduce((sum, e) => sum + (e.amountJPY || 0), 0))}</span></span>
+                                                    </div>
+                                                    <div class="mt-2 pt-2 border-t border-slate-300 dark:border-slate-500">
+                                                        <span class="text-base font-bold text-slate-900 dark:text-white">
+                                                            総原価: ${formatJPY(totalPaidJPY + g.expenses.reduce((sum, e) => sum + (e.amountJPY || 0), 0))}
+                                                        </span>
+                                                        ${allPaid && totalQuantity > 0 ? `
+                                                            <span class="text-sm text-slate-600 dark:text-slate-400 ml-2">
+                                                                (平均単価: ${formatJPY(Math.round((totalPaidJPY + g.expenses.reduce((sum, e) => sum + (e.amountJPY || 0), 0)) / totalQuantity))})
+                                                            </span>
+                                                        ` : ''}
+                                                    </div>
+                                                </div>
                                             </div>
                                         ` : ''}
                                     </div>`;
@@ -1523,6 +1534,89 @@
             
             await markPaymentPaid(projectId, depositNumber, paidDate, exchangeRate);
             renderMain();
+        }
+        
+        // グループ全体の支払い完了（同一案件番号の全製品に適用）
+        async function markGroupPaymentComplete(projectNumber, depositNumber) {
+            const paidDate = prompt('支払日 (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+            if (!paidDate) return;
+            
+            showStatus('為替レート取得中...');
+            const autoRate = await getExchangeRate(paidDate);
+            
+            let exchangeRate;
+            if (autoRate) {
+                const useAutoRate = confirm(`${paidDate}のレート: ¥${autoRate.toFixed(2)}\n\nこのレートを使用しますか？\n（キャンセルすると手動入力になります）`);
+                if (useAutoRate) {
+                    exchangeRate = autoRate;
+                } else {
+                    exchangeRate = parseFloat(prompt('為替レート (JPY/USD):', autoRate.toFixed(2)));
+                }
+            } else {
+                exchangeRate = parseFloat(prompt('為替レート (JPY/USD):'));
+            }
+            
+            if (!exchangeRate) return;
+            
+            // 同じ案件番号の全製品を取得
+            const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
+            
+            showStatus(`${groupProjects.length}製品の支払いを更新中...`);
+            
+            for (const p of groupProjects) {
+                await markPaymentPaid(p.id, depositNumber, paidDate, exchangeRate);
+            }
+            
+            showStatus(`✅ ${groupProjects.length}製品の支払いを完了`);
+            setTimeout(() => showStatus(''), 3000);
+            renderMain();
+        }
+        
+        // グループ全体の在庫反映
+        async function syncGroupToInventory(projectNumber) {
+            const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
+            
+            if (groupProjects.length === 0) {
+                alert('案件が見つかりません');
+                return;
+            }
+            
+            showStatus(`${groupProjects.length}製品の在庫を更新中...`);
+            
+            for (const p of groupProjects) {
+                await updateInventoryCost(p);
+            }
+            
+            showStatus(`✅ ${groupProjects.length}製品の在庫を更新しました`);
+            setTimeout(() => showStatus(''), 3000);
+        }
+        
+        // グループの為替レート編集
+        async function editGroupPaymentRate(projectNumber, depositNumber) {
+            const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
+            const representative = groupProjects[0];
+            
+            if (!representative) return;
+            
+            const dep = (representative.depositSchedule || []).find(d => d.depositNumber === depositNumber);
+            if (!dep) return;
+            
+            const newRate = parseFloat(prompt(`第${depositNumber}回の為替レートを修正:`, dep.exchangeRate || ''));
+            if (!newRate) return;
+            
+            // 全製品に適用
+            for (const p of groupProjects) {
+                const pDep = (p.depositSchedule || []).find(d => d.depositNumber === depositNumber);
+                if (pDep) {
+                    pDep.exchangeRate = newRate;
+                    pDep.amountJPY = Math.round((pDep.amountUSD || 0) * newRate);
+                }
+            }
+            
+            saveData();
+            renderMain();
+            showStatus(`✅ ${groupProjects.length}製品のレートを更新しました`);
+            setTimeout(() => showStatus(''), 3000);
         }
 
         function toggleSupplierSection() {
@@ -2960,6 +3054,64 @@
                 }
                 
                 return true;
+            });
+        }
+        
+        // 同一案件番号でグループ化
+        function getGroupedProjects() {
+            const filtered = getFilteredProjects();
+            const groups = {};
+            
+            filtered.forEach(p => {
+                const key = formatProjectNumber(p); // e.g. "SP-0029"
+                if (!groups[key]) {
+                    groups[key] = {
+                        projectNumber: key,
+                        prefix: p.projectPrefix,
+                        number: p.projectNumber,
+                        supplierId: p.supplierId,
+                        items: [],
+                        registeredDate: p.registeredDate,
+                        pickupDate: p.pickupDate,
+                        workingDays: p.workingDays,
+                        // 代表行のデポジット情報を使う（最初に見つかったもの）
+                        depositSchedule: null,
+                        expenses: [],
+                        receivedComplete: false
+                    };
+                }
+                
+                groups[key].items.push(p);
+                
+                // デポジット情報がある最初の製品を代表とする
+                if (!groups[key].depositSchedule && p.depositSchedule && p.depositSchedule.length > 0 && p.depositSchedule.some(d => d.amountUSD > 0)) {
+                    groups[key].depositSchedule = p.depositSchedule;
+                    groups[key].representativeId = p.id;
+                }
+                
+                // 諸費用をマージ
+                if (p.expenses && p.expenses.length > 0) {
+                    groups[key].expenses = groups[key].expenses.concat(p.expenses);
+                }
+                
+                // 入庫完了フラグ（全製品が完了なら完了）
+                if (p.receivedComplete) {
+                    groups[key].receivedComplete = true;
+                }
+            });
+            
+            // デポジット情報がない場合は最初の製品のものを使う
+            Object.values(groups).forEach(g => {
+                if (!g.depositSchedule && g.items.length > 0) {
+                    g.depositSchedule = g.items[0].depositSchedule || [];
+                    g.representativeId = g.items[0].id;
+                }
+            });
+            
+            // 配列に変換してソート
+            return Object.values(groups).sort((a, b) => {
+                if (a.prefix !== b.prefix) return a.prefix.localeCompare(b.prefix);
+                return b.number - a.number; // 番号降順
             });
         }
 
