@@ -442,6 +442,9 @@
                             location: row[15] || '',
                             supplierId: row[16] || ''
                         };
+                    });
+                } catch (e) {
+                    console.log('アーカイブシートがないため新規作成します');
                     archivedInventory = [];
                     await createArchiveSheet();
                 }
