@@ -672,7 +672,7 @@
         }
 
         async function markPaymentPaid(projectId, depositNumber, paidDate, exchangeRate) {
-            const project = projects.find(p => p.id === projectId);
+            const project = projects.find(p => String(p.id) === String(projectId));
             if (project) {
                 const deposit = project.depositSchedule.find(d => d.depositNumber === depositNumber);
                 if (deposit) {
@@ -748,7 +748,7 @@
         
         // 為替レート修正（支払い済みの場合）
         async function editPaymentRate(projectId, depositNumber) {
-            const project = projects.find(p => p.id === projectId);
+            const project = projects.find(p => String(p.id) === String(projectId));
             if (!project) return;
             
             const deposit = project.depositSchedule.find(d => d.depositNumber === depositNumber);
@@ -776,7 +776,7 @@
         
         // 為替レート設定（未設定の場合、支払日から自動取得を試みる）
         async function fixExchangeRate(projectId, depositNumber) {
-            const project = projects.find(p => p.id === projectId);
+            const project = projects.find(p => String(p.id) === String(projectId));
             if (!project) return;
             
             const deposit = project.depositSchedule.find(d => d.depositNumber === depositNumber);
@@ -1511,7 +1511,7 @@
 
         // 在庫に送る機能
         async function sendToInventory(projectId) {
-            const project = projects.find(p => p.id === projectId);
+            const project = projects.find(p => String(p.id) === String(projectId));
             if (!project) return;
 
             // 種別を選択
@@ -2092,7 +2092,7 @@
 
         // クリップボードにコピー
         function copyInvoiceText(projectId) {
-            const project = projects.find(p => p.id === projectId);
+            const project = projects.find(p => String(p.id) === String(projectId));
             if (!project) return;
             
             const text = generateInvoiceText(project);
@@ -2107,7 +2107,7 @@
 
         // 案件編集（Serial、数量、WorkingDays、集荷予定日）
         function editProjectDetails(projectId) {
-            const project = projects.find(p => p.id === projectId);
+            const project = projects.find(p => String(p.id) === String(projectId));
             if (!project) return;
             const supplier = suppliers.find(s => s.id === project.supplierId);
             
@@ -2221,7 +2221,7 @@
         }
 
         function submitEditProject(projectId) {
-            const project = projects.find(p => p.id === projectId);
+            const project = projects.find(p => String(p.id) === String(projectId));
             if (!project) return;
             
             const oldSerial = project.serial;
@@ -2414,7 +2414,7 @@
 
         // 1. 案件テンプレート機能
         function showTemplateModal(projectId) {
-            const project = projects.find(p => p.id === projectId);
+            const project = projects.find(p => String(p.id) === String(projectId));
             if (!project) return;
 
             const modal = document.createElement('div');
@@ -2460,7 +2460,7 @@
         }
 
         async function submitTemplate(originalProjectId) {
-            const original = projects.find(p => p.id === originalProjectId);
+            const original = projects.find(p => String(p.id) === String(originalProjectId));
             if (!original) return;
 
             const projectPrefix = document.getElementById('templateProjectPrefix').value;
@@ -2738,7 +2738,7 @@
 
         // 6. 案件削除機能
         function deleteProject(projectId) {
-            const project = projects.find(p => p.id === projectId);
+            const project = projects.find(p => String(p.id) === String(projectId));
             if (!project) return;
             
             const hasPaidDeposits = (project.depositSchedule || []).some(d => d.paid);
@@ -2755,7 +2755,7 @@
                 if (!confirm('本当に削除してよろしいですか？\n支払い履歴も削除されます。')) return;
             }
             
-            projects = projects.filter(p => p.id !== projectId);
+            projects = projects.filter(p => String(p.id) !== String(projectId));
             saveData();
             renderMain();
         }
@@ -2823,7 +2823,7 @@
 
         // 7. 諸費用管理
         function showAddExpenseModal(projectId) {
-            const project = projects.find(p => p.id === projectId);
+            const project = projects.find(p => String(p.id) === String(projectId));
             if (!project) return;
 
             const modal = document.createElement('div');
@@ -2873,7 +2873,7 @@
         }
 
         function submitExpense(projectId) {
-            const project = projects.find(p => p.id === projectId);
+            const project = projects.find(p => String(p.id) === String(projectId));
             if (!project) return;
 
             const type = document.getElementById('expenseType').value;
@@ -2906,7 +2906,7 @@
         }
 
         function deleteExpense(projectId, expenseIndex) {
-            const project = projects.find(p => p.id === projectId);
+            const project = projects.find(p => String(p.id) === String(projectId));
             if (!project || !project.expenses) return;
 
             const expense = project.expenses[expenseIndex];
@@ -3815,7 +3815,7 @@
                 return;
             }
             
-            const project = projects.find(p => p.id === parseInt(projectId));
+            const project = projects.find(p => String(p.id) === String(projectId));
             if (!project) return;
             
             if (!project.expenses) {
