@@ -149,6 +149,12 @@
                     <div class="kpi-sub t-sub">回/月</div>
                 </div>
                 <div class="kpi">
+                    <div class="kpi-icon" style="background:var(--green-bg)"><i data-lucide="bar-chart-2" class="w-4 h-4" style="color:var(--green)"></i></div>
+                    <div class="kpi-value" id="kpiSales7">-</div>
+                    <div class="kpi-label">7期売上</div>
+                    <div class="kpi-sub" id="kpiSales7Sub">-</div>
+                </div>
+                <div class="kpi">
                     <div class="kpi-icon" style="background:var(--red-bg)"><i data-lucide="alert-triangle" class="w-4 h-4" style="color:var(--red)"></i></div>
                     <div class="kpi-value" id="kpiOverdue">-</div>
                     <div class="kpi-label">支払遅延</div>
@@ -173,6 +179,7 @@
                         <button class="mode-btn active" data-mode="quick" onclick="setMode('quick')">クイック</button>
                         <button class="mode-btn" data-mode="detail" onclick="setMode('detail')">詳細</button>
                         <button class="mode-btn" data-mode="cost" onclick="setMode('cost')">コスト</button>
+                        <button class="mode-btn" data-mode="sales" onclick="setMode('sales')">売上</button>
                         <button class="mode-btn" data-mode="supplier" onclick="setMode('supplier')">サプライヤー</button>
                     </div>
                 </div>
@@ -186,21 +193,21 @@
                 </div>
             </div>
 
-            <!-- グラフ2つ -->
+            <!-- グラフ2つ（売上） -->
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <div class="flex items-center gap-1 mb-2">
-                        <i data-lucide="factory" class="w-3.5 h-3.5" style="color:var(--orange)"></i>
-                        <span class="text-xs font-medium">サプライヤー別</span>
+                        <i data-lucide="trending-up" class="w-3.5 h-3.5" style="color:var(--green)"></i>
+                        <span class="text-xs font-medium">売上推移（6ヶ月）</span>
                     </div>
-                    <div class="h-28"><canvas id="supplierChart"></canvas></div>
+                    <div class="h-28"><canvas id="salesChart"></canvas></div>
                 </div>
                 <div>
                     <div class="flex items-center gap-1 mb-2">
-                        <i data-lucide="pie-chart" class="w-3.5 h-3.5" style="color:var(--blue)"></i>
-                        <span class="text-xs font-medium">カテゴリ別在庫</span>
+                        <i data-lucide="pie-chart" class="w-3.5 h-3.5" style="color:var(--purple)"></i>
+                        <span class="text-xs font-medium">カテゴリ別売上</span>
                     </div>
-                    <div class="h-28"><canvas id="categoryChart"></canvas></div>
+                    <div class="h-28"><canvas id="salesCategoryChart"></canvas></div>
                 </div>
             </div>
 
@@ -346,9 +353,127 @@
     <script>
         const CLIENT_ID = '47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
         const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';
-        let accessToken = null, inventory = [], archivedInventory = [], projects = [], suppliers = [], knowledge = [];
+        let accessToken = null, inventory = [], archivedInventory = [], projects = [], suppliers = [], knowledge = [], salesData = [];
         let charts = {}, currentMode = 'quick';
         let apiKey = localStorage.getItem('anthropicApiKey') || '';
+        
+        // 売上データ（6期・7期）
+        const SALES_RAW_DATA = [
+            // 6期 2024年7月〜2025年6月
+            {period:'6期',month:'2024-07',category:'マルチディスプレイ',amount:4638400},
+            {period:'6期',month:'2024-07',category:'液晶ディスプレイ(屋外)',amount:4409800},
+            {period:'6期',month:'2024-07',category:'液晶ディスプレイ(屋内)',amount:912000},
+            {period:'6期',month:'2024-07',category:'LEDビジョン',amount:263000},
+            {period:'6期',month:'2024-07',category:'STUDIA(電子黒板)',amount:0},
+            {period:'6期',month:'2024-07',category:'レンタル',amount:497550},
+            {period:'6期',month:'2024-07',category:'その他',amount:1132700},
+            {period:'6期',month:'2024-08',category:'マルチディスプレイ',amount:4618700},
+            {period:'6期',month:'2024-08',category:'液晶ディスプレイ(屋外)',amount:2278670},
+            {period:'6期',month:'2024-08',category:'液晶ディスプレイ(屋内)',amount:472800},
+            {period:'6期',month:'2024-08',category:'LEDビジョン',amount:0},
+            {period:'6期',month:'2024-08',category:'STUDIA(電子黒板)',amount:0},
+            {period:'6期',month:'2024-08',category:'レンタル',amount:497550},
+            {period:'6期',month:'2024-08',category:'その他',amount:658000},
+            {period:'6期',month:'2024-09',category:'マルチディスプレイ',amount:6371600},
+            {period:'6期',month:'2024-09',category:'液晶ディスプレイ(屋外)',amount:4151850},
+            {period:'6期',month:'2024-09',category:'液晶ディスプレイ(屋内)',amount:1263500},
+            {period:'6期',month:'2024-09',category:'LEDビジョン',amount:424000},
+            {period:'6期',month:'2024-09',category:'STUDIA(電子黒板)',amount:0},
+            {period:'6期',month:'2024-09',category:'レンタル',amount:497550},
+            {period:'6期',month:'2024-09',category:'その他',amount:163400},
+            {period:'6期',month:'2024-10',category:'マルチディスプレイ',amount:14377550},
+            {period:'6期',month:'2024-10',category:'液晶ディスプレイ(屋外)',amount:1189000},
+            {period:'6期',month:'2024-10',category:'液晶ディスプレイ(屋内)',amount:1549450},
+            {period:'6期',month:'2024-10',category:'LEDビジョン',amount:3943600},
+            {period:'6期',month:'2024-10',category:'STUDIA(電子黒板)',amount:0},
+            {period:'6期',month:'2024-10',category:'レンタル',amount:564550},
+            {period:'6期',month:'2024-10',category:'その他',amount:4329500},
+            {period:'6期',month:'2024-11',category:'マルチディスプレイ',amount:2508000},
+            {period:'6期',month:'2024-11',category:'液晶ディスプレイ(屋外)',amount:3125000},
+            {period:'6期',month:'2024-11',category:'液晶ディスプレイ(屋内)',amount:1608500},
+            {period:'6期',month:'2024-11',category:'LEDビジョン',amount:3600000},
+            {period:'6期',month:'2024-11',category:'STUDIA(電子黒板)',amount:0},
+            {period:'6期',month:'2024-11',category:'レンタル',amount:590400},
+            {period:'6期',month:'2024-11',category:'その他',amount:615081},
+            {period:'6期',month:'2024-12',category:'マルチディスプレイ',amount:2272600},
+            {period:'6期',month:'2024-12',category:'液晶ディスプレイ(屋外)',amount:4912500},
+            {period:'6期',month:'2024-12',category:'液晶ディスプレイ(屋内)',amount:0},
+            {period:'6期',month:'2024-12',category:'LEDビジョン',amount:8018000},
+            {period:'6期',month:'2024-12',category:'STUDIA(電子黒板)',amount:0},
+            {period:'6期',month:'2024-12',category:'レンタル',amount:564550},
+            {period:'6期',month:'2024-12',category:'その他',amount:1912400},
+            {period:'6期',month:'2025-01',category:'マルチディスプレイ',amount:5888600},
+            {period:'6期',month:'2025-01',category:'液晶ディスプレイ(屋外)',amount:0},
+            {period:'6期',month:'2025-01',category:'液晶ディスプレイ(屋内)',amount:0},
+            {period:'6期',month:'2025-01',category:'LEDビジョン',amount:0},
+            {period:'6期',month:'2025-01',category:'STUDIA(電子黒板)',amount:0},
+            {period:'6期',month:'2025-01',category:'レンタル',amount:590200},
+            {period:'6期',month:'2025-01',category:'その他',amount:2430950},
+            {period:'6期',month:'2025-02',category:'マルチディスプレイ',amount:10515000},
+            {period:'6期',month:'2025-02',category:'液晶ディスプレイ(屋外)',amount:16768000},
+            {period:'6期',month:'2025-02',category:'液晶ディスプレイ(屋内)',amount:2808000},
+            {period:'6期',month:'2025-02',category:'LEDビジョン',amount:0},
+            {period:'6期',month:'2025-02',category:'STUDIA(電子黒板)',amount:0},
+            {period:'6期',month:'2025-02',category:'レンタル',amount:855700},
+            {period:'6期',month:'2025-02',category:'その他',amount:5633600},
+            {period:'6期',month:'2025-03',category:'マルチディスプレイ',amount:24491800},
+            {period:'6期',month:'2025-03',category:'液晶ディスプレイ(屋外)',amount:13100700},
+            {period:'6期',month:'2025-03',category:'液晶ディスプレイ(屋内)',amount:4173340},
+            {period:'6期',month:'2025-03',category:'LEDビジョン',amount:0},
+            {period:'6期',month:'2025-03',category:'STUDIA(電子黒板)',amount:0},
+            {period:'6期',month:'2025-03',category:'レンタル',amount:1105450},
+            {period:'6期',month:'2025-03',category:'その他',amount:4537025},
+            {period:'6期',month:'2025-04',category:'マルチディスプレイ',amount:11374400},
+            {period:'6期',month:'2025-04',category:'液晶ディスプレイ(屋外)',amount:2429500},
+            {period:'6期',month:'2025-04',category:'液晶ディスプレイ(屋内)',amount:0},
+            {period:'6期',month:'2025-04',category:'LEDビジョン',amount:8966600},
+            {period:'6期',month:'2025-04',category:'STUDIA(電子黒板)',amount:0},
+            {period:'6期',month:'2025-04',category:'レンタル',amount:650100},
+            {period:'6期',month:'2025-04',category:'その他',amount:737850},
+            {period:'6期',month:'2025-05',category:'マルチディスプレイ',amount:8712000},
+            {period:'6期',month:'2025-05',category:'液晶ディスプレイ(屋外)',amount:0},
+            {period:'6期',month:'2025-05',category:'液晶ディスプレイ(屋内)',amount:0},
+            {period:'6期',month:'2025-05',category:'LEDビジョン',amount:4941000},
+            {period:'6期',month:'2025-05',category:'STUDIA(電子黒板)',amount:0},
+            {period:'6期',month:'2025-05',category:'レンタル',amount:650100},
+            {period:'6期',month:'2025-05',category:'その他',amount:137250},
+            {period:'6期',month:'2025-06',category:'マルチディスプレイ',amount:16854000},
+            {period:'6期',month:'2025-06',category:'液晶ディスプレイ(屋外)',amount:23601980},
+            {period:'6期',month:'2025-06',category:'液晶ディスプレイ(屋内)',amount:2253000},
+            {period:'6期',month:'2025-06',category:'LEDビジョン',amount:7223900},
+            {period:'6期',month:'2025-06',category:'STUDIA(電子黒板)',amount:537800},
+            {period:'6期',month:'2025-06',category:'レンタル',amount:650100},
+            {period:'6期',month:'2025-06',category:'その他',amount:2383950},
+            // 7期 2025年7月〜
+            {period:'7期',month:'2025-07',category:'マルチディスプレイ',amount:9185000},
+            {period:'7期',month:'2025-07',category:'液晶ディスプレイ(屋外)',amount:3776000},
+            {period:'7期',month:'2025-07',category:'液晶ディスプレイ(屋内)',amount:0},
+            {period:'7期',month:'2025-07',category:'LEDビジョン',amount:3359000},
+            {period:'7期',month:'2025-07',category:'STUDIA(電子黒板)',amount:1126000},
+            {period:'7期',month:'2025-07',category:'レンタル',amount:650100},
+            {period:'7期',month:'2025-07',category:'その他',amount:1511750},
+            {period:'7期',month:'2025-08',category:'マルチディスプレイ',amount:0},
+            {period:'7期',month:'2025-08',category:'液晶ディスプレイ(屋外)',amount:1603000},
+            {period:'7期',month:'2025-08',category:'液晶ディスプレイ(屋内)',amount:0},
+            {period:'7期',month:'2025-08',category:'LEDビジョン',amount:358000},
+            {period:'7期',month:'2025-08',category:'STUDIA(電子黒板)',amount:3924240},
+            {period:'7期',month:'2025-08',category:'レンタル',amount:650100},
+            {period:'7期',month:'2025-08',category:'その他',amount:4249250},
+            {period:'7期',month:'2025-09',category:'マルチディスプレイ',amount:4692640},
+            {period:'7期',month:'2025-09',category:'液晶ディスプレイ(屋外)',amount:773000},
+            {period:'7期',month:'2025-09',category:'液晶ディスプレイ(屋内)',amount:283800},
+            {period:'7期',month:'2025-09',category:'LEDビジョン',amount:4000000},
+            {period:'7期',month:'2025-09',category:'STUDIA(電子黒板)',amount:537800},
+            {period:'7期',month:'2025-09',category:'レンタル',amount:650100},
+            {period:'7期',month:'2025-09',category:'その他',amount:2302750},
+            {period:'7期',month:'2025-10',category:'マルチディスプレイ',amount:9579564},
+            {period:'7期',month:'2025-10',category:'液晶ディスプレイ(屋外)',amount:2735000},
+            {period:'7期',month:'2025-10',category:'液晶ディスプレイ(屋内)',amount:395000},
+            {period:'7期',month:'2025-10',category:'LEDビジョン',amount:0},
+            {period:'7期',month:'2025-10',category:'STUDIA(電子黒板)',amount:11516700},
+            {period:'7期',month:'2025-10',category:'レンタル',amount:361600},
+            {period:'7期',month:'2025-10',category:'その他',amount:6681527}
+        ];
         
         // カラーパレット
         const colors = {
@@ -482,6 +607,11 @@
             if (stale60 > 0) healthHtml += `<div class="tag tag-yellow">長期滞留 ${stale60}</div>`;
             if (!healthHtml) healthHtml = '<div class="tag tag-green">問題なし</div>';
 
+            // 7期売上集計
+            const sales7 = SALES_RAW_DATA.filter(s => s.period === '7期').reduce((a, s) => a + s.amount, 0);
+            const sales7Months = SALES_RAW_DATA.filter(s => s.period === '7期').map(s => s.month);
+            const uniqueMonths7 = [...new Set(sales7Months)].length;
+
             document.getElementById('kpiInStock').textContent = inStock.length + '件';
             document.getElementById('kpiInStockSub').textContent = '¥' + (inStockValue / 10000).toFixed(0) + '万';
             document.getElementById('kpiWaiting').textContent = waiting.length + '件';
@@ -493,6 +623,8 @@
             document.getElementById('kpiAvgStay').textContent = avgStay + '日';
             document.getElementById('kpiAvgStaySub').innerHTML = avgStay > 45 ? '<span class="tag tag-yellow">長め</span>' : '<span class="tag tag-green">良好</span>';
             document.getElementById('kpiTurnover').textContent = turnover;
+            document.getElementById('kpiSales7').textContent = '¥' + (sales7 / 10000 / 100).toFixed(1) + '億';
+            document.getElementById('kpiSales7Sub').textContent = uniqueMonths7 + 'ヶ月経過';
             document.getElementById('kpiOverdue').textContent = overdueCount + '件';
             document.getElementById('kpiOverdueSub').innerHTML = overdueCount > 0 ? '<span class="tag tag-red">要対応</span>' : '<span class="tag tag-gray">-</span>';
             document.getElementById('healthMini').innerHTML = healthHtml;
@@ -619,27 +751,36 @@
             const inStock = inventory.filter(i => i.status === '在庫中');
             const defaultOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
 
-            // サプライヤー別
-            const supplierData = {};
-            projects.forEach(p => { const name = suppliers.find(s => s.id === p.supplierId)?.name || '他'; supplierData[name] = (supplierData[name] || 0) + p.totalAmount; });
-            const supLabels = Object.keys(supplierData).slice(0, 5);
-            const supValues = supLabels.map(l => supplierData[l]);
-            if (charts.supplier) charts.supplier.destroy();
-            charts.supplier = new Chart(document.getElementById('supplierChart'), {
-                type: 'doughnut',
-                data: { labels: supLabels, datasets: [{ data: supValues, backgroundColor: colors.chart }] },
-                options: { ...defaultOpts, cutout: '55%', plugins: { legend: { display: true, position: 'right', labels: { boxWidth: 8, padding: 4, font: { size: 9 } } } } }
+            // 売上推移（直近6ヶ月）
+            const salesMonths = [];
+            for (let i = 5; i >= 0; i--) { 
+                const d = new Date(today.getFullYear(), today.getMonth() - i, 1); 
+                salesMonths.push({ key: d.toISOString().slice(0, 7), label: `${d.getMonth() + 1}月`, total: 0 }); 
+            }
+            SALES_RAW_DATA.forEach(s => {
+                const m = salesMonths.find(m => m.key === s.month);
+                if (m) m.total += s.amount;
+            });
+            if (charts.sales) charts.sales.destroy();
+            charts.sales = new Chart(document.getElementById('salesChart'), {
+                type: 'bar',
+                data: { labels: salesMonths.map(m => m.label), datasets: [{ data: salesMonths.map(m => m.total), backgroundColor: colors.green, borderRadius: 3 }] },
+                options: { ...defaultOpts, scales: { x: { grid: { display: false }, ticks: { font: { size: 10 } } }, y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 }, callback: v => (v / 10000000).toFixed(0) + '千万' } } } }
             });
 
-            // カテゴリ別
-            const catData = {};
-            inStock.forEach(i => { catData[i.category] = (catData[i.category] || 0) + 1; });
-            const catLabels = Object.keys(catData).slice(0, 5);
-            const catValues = catLabels.map(l => catData[l]);
-            if (charts.category) charts.category.destroy();
-            charts.category = new Chart(document.getElementById('categoryChart'), {
+            // カテゴリ別売上（直近6ヶ月合計）
+            const salesCatData = {};
+            const recentMonths = salesMonths.map(m => m.key);
+            SALES_RAW_DATA.filter(s => recentMonths.includes(s.month)).forEach(s => {
+                const cat = s.category.replace('液晶ディスプレイ', '液晶').replace('STUDIA(電子黒板)', '電子黒板');
+                salesCatData[cat] = (salesCatData[cat] || 0) + s.amount;
+            });
+            const salesCatLabels = Object.keys(salesCatData).sort((a, b) => salesCatData[b] - salesCatData[a]).slice(0, 5);
+            const salesCatValues = salesCatLabels.map(l => salesCatData[l]);
+            if (charts.salesCategory) charts.salesCategory.destroy();
+            charts.salesCategory = new Chart(document.getElementById('salesCategoryChart'), {
                 type: 'doughnut',
-                data: { labels: catLabels, datasets: [{ data: catValues, backgroundColor: colors.chart }] },
+                data: { labels: salesCatLabels, datasets: [{ data: salesCatValues, backgroundColor: colors.chart }] },
                 options: { ...defaultOpts, cutout: '55%', plugins: { legend: { display: true, position: 'right', labels: { boxWidth: 8, padding: 4, font: { size: 9 } } } } }
             });
 
@@ -703,12 +844,13 @@
             lucide.createIcons();
             const d = prepareData();
             const prompts = {
-                quick: '今すぐ対応すべき3〜5項目を優先度順に。形式: ● 高/中/低 タイトル: 内容',
-                detail: '1. 現状サマリー 2. リスク・課題 3. 改善案 を簡潔に',
+                quick: '今すぐ対応すべき3〜5項目を優先度順に。売上・在庫・支払いの観点から。形式: ● 高/中/低 タイトル: 内容',
+                detail: '1. 現状サマリー（売上・在庫・支払い） 2. リスク・課題 3. 改善案 を簡潔に',
                 cost: '1. キャッシュフロー状況 2. 来月支払い予測 3. コスト削減提案',
-                supplier: '1. サプライヤー依存度リスク 2. 各社評価 3. 戦略提案'
+                supplier: '1. サプライヤー依存度リスク 2. 各社評価 3. 戦略提案',
+                sales: '1. 売上トレンド分析 2. カテゴリ別成長率 3. 来月予測と在庫推奨'
             };
-            const prompt = `調達在庫データ: ${JSON.stringify(d)}\n\nナレッジ: ${knowledge.map(k => k.content).join('; ')}\n\n${prompts[currentMode]}\n\n日本語で簡潔に。`;
+            const prompt = `調達在庫・売上データ: ${JSON.stringify(d)}\n\nナレッジ: ${knowledge.map(k => k.content).join('; ')}\n\n${prompts[currentMode]}\n\n日本語で簡潔に。現在は7期（2025年7月〜）です。`;
             try {
                 const r = await fetch('https://api.anthropic.com/v1/messages', { 
                     method: 'POST', 
@@ -777,7 +919,38 @@
             projects.forEach(p => { const n = suppliers.find(s => s.id === p.supplierId)?.name || '他'; supplierStats[n] = (supplierStats[n] || 0) + p.totalAmount; });
             const categoryStats = {};
             inStock.forEach(i => { categoryStats[i.category] = (categoryStats[i.category] || 0) + 1; });
-            return { inStock: inStock.length, waiting: inventory.filter(i => i.status === '入庫待ち').length, unpaid: uc, unpaidTotal: ut, supplierStats, categoryStats };
+            
+            // 売上データ集計（直近6ヶ月）
+            const salesMonths = [];
+            for (let i = 5; i >= 0; i--) { 
+                const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                salesMonths.push(d.toISOString().slice(0, 7));
+            }
+            const salesByCategory = {};
+            const salesByMonth = {};
+            SALES_RAW_DATA.filter(s => salesMonths.includes(s.month)).forEach(s => {
+                salesByCategory[s.category] = (salesByCategory[s.category] || 0) + s.amount;
+                salesByMonth[s.month] = (salesByMonth[s.month] || 0) + s.amount;
+            });
+            const totalSales6m = Object.values(salesByMonth).reduce((a, b) => a + b, 0);
+            
+            // 7期売上（今期）
+            const sales7 = SALES_RAW_DATA.filter(s => s.period === '7期').reduce((a, s) => a + s.amount, 0);
+            
+            return { 
+                inStock: inStock.length, 
+                waiting: inventory.filter(i => i.status === '入庫待ち').length, 
+                unpaid: uc, 
+                unpaidTotal: ut, 
+                supplierStats, 
+                categoryStats,
+                salesByCategory,
+                salesByMonth,
+                totalSales6m,
+                sales7期: sales7,
+                currentPeriod: '7期',
+                currentMonth: today.toISOString().slice(0, 7)
+            };
         }
 
         // ナレッジ
