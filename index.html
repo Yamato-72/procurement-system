@@ -2288,10 +2288,20 @@
                 const quantity = project.quantity || 1;
                 const costPerItem = Math.round(grandTotal / quantity);
                 
-                if (costPerItem <= 0) return;
+                console.log('=== 在庫更新処理 ===');
+                console.log('totalJPY:', totalJPY, 'expenseTotal:', expenseTotal, 'grandTotal:', grandTotal);
+                console.log('quantity:', quantity, 'costPerItem:', costPerItem);
+                console.log('productName:', project.productName);
+                
+                if (costPerItem <= 0) {
+                    console.log('単価が0以下のためスキップ');
+                    return;
+                }
                 
                 const projectNumber = formatProjectNumber(project);
                 const parsed = parseProjectNumberString(projectNumber);
+                
+                console.log('検索条件 - prefix:', parsed.prefix, 'number:', parsed.number);
                 
                 // 在庫シートを読み込み
                 const response = await gapi.client.sheets.spreadsheets.values.get({
@@ -2300,18 +2310,28 @@
                 });
                 const rows = response.result.values || [];
                 
+                console.log('在庫行数:', rows.length);
+                
                 // 該当案件のアイテムを検索して更新（案件番号 + 製品名で一致）
                 const updates = [];
                 rows.forEach((row, idx) => {
-                    if (row[4] === parsed.prefix && 
-                        row[5] === String(parsed.number) &&
-                        row[3] === project.productName) {
+                    const prefixMatch = row[4] === parsed.prefix;
+                    const numberMatch = row[5] === String(parsed.number);
+                    const productMatch = row[3] === project.productName;
+                    
+                    if (prefixMatch && numberMatch) {
+                        console.log(`行${idx+2}: prefix=${row[4]}, number=${row[5]}, product="${row[3]}" vs "${project.productName}" => ${productMatch ? '✓' : '✗'}`);
+                    }
+                    
+                    if (prefixMatch && numberMatch && productMatch) {
                         updates.push({
                             range: `在庫!M${idx + 2}`,
                             values: [[costPerItem]]
                         });
                     }
                 });
+                
+                console.log('更新対象:', updates.length, '件');
                 
                 if (updates.length > 0) {
                     await gapi.client.sheets.spreadsheets.values.batchUpdate({
