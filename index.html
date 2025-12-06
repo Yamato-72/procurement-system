@@ -2502,7 +2502,7 @@
             }
         }
 
-        // 在庫シートの案件情報更新（Serial、案件番号）
+        // 在庫シートの案件情報更新（Serial、案件番号、製品名）
         async function updateInventoryFromProject(oldProjectNumber, oldSerial, newProjectNumber, newSerial, quantity, oldProductName, newProductName) {
             try {
                 showStatus('在庫シートを更新中...');
@@ -2510,16 +2510,18 @@
                 // 新しい案件番号を分解
                 const newParsed = parseProjectNumberString(newProjectNumber);
                 
-                // 在庫データを取得（新形式16列）
+                // 在庫データを取得
                 const response = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: SPREADSHEET_ID,
                     range: '在庫!A2:Q',
                 });
                 const rows = response.result.values || [];
                 
-                let updateCount = 0;
+                const updates = [];
                 
                 rows.forEach((row, index) => {
+                    const rowNum = index + 2; // 実際の行番号（ヘッダー分+1）
+                    
                     // 新形式: 接頭辞（E列）+ 番号（F列）を結合して比較
                     const itemProjectNumber = formatProjectNumber({
                         projectPrefix: row[4] || '',
@@ -2528,42 +2530,56 @@
                     const itemSerial = row[1] || ''; // Serial（B列）
                     const itemProductName = row[3] || ''; // 製品名（D列）
                     
-                    // 旧案件番号に一致し、かつ旧製品名にも一致する場合（製品名がある場合のみ）
+                    // 旧案件番号に一致し、かつ旧製品名にも一致する場合
                     const projectMatch = itemProjectNumber === oldProjectNumber;
                     const productMatch = !oldProductName || itemProductName === oldProductName;
                     
                     if (projectMatch && productMatch) {
-                        // 案件番号を更新（新形式：接頭辞・番号を別々に）
-                        row[4] = newParsed.prefix;
-                        row[5] = padProjectNumber(newParsed.number);
+                        // 案件番号を更新（E列：接頭辞、F列：番号）
+                        updates.push({
+                            range: `在庫!E${rowNum}`,
+                            values: [[newParsed.prefix]]
+                        });
+                        updates.push({
+                            range: `在庫!F${rowNum}`,
+                            values: [[padProjectNumber(newParsed.number)]]
+                        });
                         
-                        // 製品名が変更されていれば更新
+                        // 製品名が変更されていれば更新（D列）
                         if (oldProductName && newProductName && oldProductName !== newProductName) {
-                            row[3] = newProductName;
+                            updates.push({
+                                range: `在庫!D${rowNum}`,
+                                values: [[newProductName]]
+                            });
                         }
                         
-                        // Serialも変更されていれば更新
+                        // Serialも変更されていれば更新（B列）
                         if (oldSerial !== newSerial && itemSerial.startsWith(oldSerial.split('(')[0])) {
                             const branchMatch = itemSerial.match(/\((\d+)\)$/);
+                            let newSerialValue;
                             if (branchMatch) {
-                                row[1] = `${newSerial.split('(')[0]}(${branchMatch[1]})`;
+                                newSerialValue = `${newSerial.split('(')[0]}(${branchMatch[1]})`;
                             } else {
-                                row[1] = newSerial;
+                                newSerialValue = newSerial;
                             }
+                            updates.push({
+                                range: `在庫!B${rowNum}`,
+                                values: [[newSerialValue]]
+                            });
                         }
-                        updateCount++;
                     }
                 });
                 
-                if (updateCount > 0) {
-                    await gapi.client.sheets.spreadsheets.values.update({
+                if (updates.length > 0) {
+                    await gapi.client.sheets.spreadsheets.values.batchUpdate({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫!A2:Q',
-                        valueInputOption: 'RAW',
-                        resource: { values: rows }
+                        resource: {
+                            valueInputOption: 'RAW',
+                            data: updates
+                        }
                     });
                     
-                    showStatus(`✅ 在庫シート ${updateCount}件を更新しました`);
+                    showStatus(`✅ 在庫シート更新完了`);
                     setTimeout(() => showStatus(''), 3000);
                 } else {
                     showStatus('');
