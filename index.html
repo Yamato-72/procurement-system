@@ -350,7 +350,8 @@
                         workingDays: parseInt(row[9] || 30),
                         pickupDate: (row[10] && row[10].includes('-')) ? row[10] : '',  // 日付形式のみ
                         registeredDate: row[11] || '',
-                        expenses: []
+                        expenses: [],
+                        receivedComplete: row[13] === 'true' || row[13] === true
                     };
                     
                     // 諸費用をパース
@@ -495,7 +496,7 @@
                 });
 
                 const projectData = [
-                    ['ID', '接頭辞', '番号', 'サプライヤーID', '製品名', '総額USD', 'デポジット予定', 'Serial', '数量', 'WorkingDays', '集荷予定日', '発注日', '諸費用'],
+                    ['ID', '接頭辞', '番号', 'サプライヤーID', '製品名', '総額USD', 'デポジット予定', 'Serial', '数量', 'WorkingDays', '集荷予定日', '発注日', '諸費用', '入庫完了'],
                     ...projects.map(p => [
                         p.id, 
                         p.projectPrefix || 'AD', 
@@ -509,7 +510,8 @@
                         p.workingDays || 30, 
                         p.pickupDate || '',
                         p.registeredDate || '',
-                        JSON.stringify(p.expenses || [])
+                        JSON.stringify(p.expenses || []),
+                        p.receivedComplete ? 'true' : ''
                     ])
                 ];
                 // まずクリアしてから書き込み（削除された行も反映）
@@ -2546,7 +2548,12 @@
             const allPaid = deposits.length > 0 && deposits.every(d => d.paid);
             const somePaid = deposits.some(d => d.paid);
             
-            // 集荷予定日チェック
+            // 入庫完了フラグがtrueなら入庫完了
+            if (project.receivedComplete) {
+                return { status: '入庫完了', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300', icon: '✅' };
+            }
+            
+            // 集荷予定日チェック（フォールバック）
             const today = new Date();
             const pickupDate = project.pickupDate ? new Date(project.pickupDate) : null;
             const isPickupPassed = pickupDate && pickupDate < today;

@@ -1767,7 +1767,7 @@
             document.body.appendChild(modal);
         }
 
-        function submitBulkReceive() {
+        async function submitBulkReceive() {
             const receiveDate = document.getElementById('bulkReceiveDate').value;
             
             const waitingItems = Array.from(selectedItems).filter(id => {
@@ -1775,17 +1775,29 @@
                 return item && item.status === '入庫待ち';
             });
             
+            // 影響を受ける案件を収集
+            const affectedProjects = new Set();
+            
             waitingItems.forEach(id => {
                 const item = inventory.find(i => i.id === id);
                 if (item) {
                     item.status = '在庫中';
                     item.receiveDate = receiveDate;
+                    const projectNumber = formatProjectNumber(item.orderPrefix, item.orderNumber);
+                    if (projectNumber) {
+                        affectedProjects.add(projectNumber);
+                    }
                 }
             });
             
             saveData();
             closeModal('bulkReceiveModal');
             cancelBulkSelect();
+            
+            // 各案件について全台入庫チェック
+            for (const projectNumber of affectedProjects) {
+                await checkAndUpdateProcurement(projectNumber);
+            }
         }
 
         // 一括出庫モーダル
@@ -2733,7 +2745,7 @@
             document.body.appendChild(modal);
         }
 
-        function submitReceive(id) {
+        async function submitReceive(id) {
             const item = inventory.find(i => i.id === id);
             if (!item) return;
 
@@ -2750,6 +2762,63 @@
             saveData();
             closeModal('receiveModal');
             renderMain();
+            
+            // 同じ案件の全アイテムが入庫済みかチェック
+            const projectNumber = formatProjectNumber(item.orderPrefix, item.orderNumber);
+            if (projectNumber) {
+                await checkAndUpdateProcurement(projectNumber);
+            }
+        }
+        
+        // 全台入庫チェック → 調達シート更新
+        async function checkAndUpdateProcurement(projectNumber) {
+            try {
+                // 同じ案件のアイテムを取得
+                const projectItems = inventory.filter(i => 
+                    formatProjectNumber(i.orderPrefix, i.orderNumber) === projectNumber
+                );
+                
+                // 全て「在庫中」または「出庫済」か確認
+                const allReceived = projectItems.every(i => 
+                    i.status === '在庫中' || i.status === '出庫済'
+                );
+                
+                if (!allReceived || projectItems.length === 0) return;
+                
+                // 調達シートを読み込み
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '案件!A2:N',
+                });
+                const rows = response.result.values || [];
+                
+                // 該当案件を検索
+                const parsed = parseProjectNumberString(projectNumber);
+                let rowIndex = -1;
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (row[1] === parsed.prefix && parseInt(row[2]) === parseInt(parsed.number)) {
+                        rowIndex = i + 2; // 1-indexed + ヘッダー行
+                        break;
+                    }
+                }
+                
+                if (rowIndex === -1) return;
+                
+                // N列（入庫完了）を更新
+                await gapi.client.sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `案件!N${rowIndex}`,
+                    valueInputOption: 'RAW',
+                    resource: { values: [['true']] }
+                });
+                
+                showStatus(`✅ ${projectNumber} 全台入庫完了 → 調達に反映`);
+                setTimeout(() => showStatus(''), 3000);
+                
+            } catch (err) {
+                console.error('調達シート更新エラー:', err);
+            }
         }
 
         // 出庫モーダル
