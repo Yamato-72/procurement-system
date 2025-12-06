@@ -3097,6 +3097,10 @@
                                         <td class="py-2 dark:text-white font-medium">${formatProjectNumber(item.orderPrefix, item.orderNumber) || '-'}</td>
                                     </tr>
                                     <tr class="border-b border-slate-200 dark:border-slate-600">
+                                        <td class="py-2 text-slate-500 dark:text-slate-400">サプライヤー</td>
+                                        <td class="py-2 dark:text-white font-medium">${getSupplierName(item.supplierId)}</td>
+                                    </tr>
+                                    <tr class="border-b border-slate-200 dark:border-slate-600">
                                         <td class="py-2 text-slate-500 dark:text-slate-400">発注日</td>
                                         <td class="py-2 dark:text-white">${item.orderDate || '-'}</td>
                                     </tr>
@@ -3200,9 +3204,16 @@
                                     <input type="text" id="detailEditOrderProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${formatProjectNumber(item.orderPrefix, item.orderNumber)}">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">発注日</label>
-                                    <input type="date" id="detailEditOrderDate" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.orderDate}">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">サプライヤー</label>
+                                    <select id="detailEditSupplierId" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                        <option value="">未設定</option>
+                                        ${suppliers.map(s => `<option value="${s.id}" ${String(item.supplierId) === String(s.id) ? 'selected' : ''}>${s.name}</option>`).join('')}
+                                    </select>
                                 </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">発注日</label>
+                                <input type="date" id="detailEditOrderDate" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.orderDate}">
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
@@ -3279,6 +3290,7 @@
             item.orderNumber = parsedOrder.number;
             
             item.orderDate = document.getElementById('detailEditOrderDate').value;
+            item.supplierId = document.getElementById('detailEditSupplierId').value;
             item.receiveDate = document.getElementById('detailEditReceiveDate').value;
             item.costJPY = document.getElementById('detailEditCostJPY').value;
             item.shipDate = document.getElementById('detailEditShipDate').value;
@@ -3357,9 +3369,16 @@
                                     <input type="text" id="editOrderProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${formatProjectNumber(item.orderPrefix, item.orderNumber)}">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">発注日</label>
-                                    <input type="date" id="editOrderDate" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.orderDate}">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">サプライヤー</label>
+                                    <select id="editSupplierId" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                        <option value="">未設定</option>
+                                        ${suppliers.map(s => `<option value="${s.id}" ${String(item.supplierId) === String(s.id) ? 'selected' : ''}>${s.name}</option>`).join('')}
+                                    </select>
                                 </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">発注日</label>
+                                <input type="date" id="editOrderDate" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.orderDate}">
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
@@ -3574,6 +3593,7 @@
             item.orderNumber = parsedOrder.number;
             
             item.orderDate = document.getElementById('editOrderDate').value;
+            item.supplierId = document.getElementById('editSupplierId').value;
             item.receiveDate = document.getElementById('editReceiveDate').value;
             item.costJPY = document.getElementById('editCostJPY').value;
             item.status = document.getElementById('editStatus').value;
