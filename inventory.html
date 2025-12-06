@@ -2643,7 +2643,7 @@
             try {
                 showStatus('インポート中...');
                 
-                const rows = toImport.map(p => {
+                const rows = toImport.map((p, idx) => {
                     const supplier = suppliers.find(s => s.id === parseInt(p.supplierId));
                     
                     // 取得金がある場合は支払済みとして登録
