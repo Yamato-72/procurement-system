@@ -2167,6 +2167,42 @@
                             </div>
                         </div>
                         
+                        <!-- デポジット編集 -->
+                        <div class="mt-6 border-t dark:border-slate-700 pt-4">
+                            <h4 class="text-sm font-bold mb-3 dark:text-white">💰 デポジット情報</h4>
+                            <div id="editDepositSection" class="space-y-3">
+                                ${(project.depositSchedule || []).map((d, idx) => `
+                                    <div class="p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <span class="text-sm font-semibold dark:text-white">第${idx + 1}回 (${d.percentage}%)</span>
+                                            <label class="flex items-center gap-1 ml-auto">
+                                                <input type="checkbox" id="editDepPaid_${idx}" ${d.paid ? 'checked' : ''} onchange="toggleEditDepositFields(${idx})" class="rounded">
+                                                <span class="text-xs dark:text-slate-300">支払済</span>
+                                            </label>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label class="block text-xs text-slate-500 dark:text-slate-400">USD</label>
+                                                <input type="number" id="editDepUSD_${idx}" value="${d.amountUSD || ''}" step="0.01" class="w-full px-2 py-1 text-sm border rounded dark:bg-slate-600 dark:border-slate-500 dark:text-white">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs text-slate-500 dark:text-slate-400">支払日</label>
+                                                <input type="date" id="editDepDate_${idx}" value="${d.paidDate || ''}" ${!d.paid ? 'disabled' : ''} class="w-full px-2 py-1 text-sm border rounded dark:bg-slate-600 dark:border-slate-500 dark:text-white disabled:opacity-50">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs text-slate-500 dark:text-slate-400">レート</label>
+                                                <input type="number" id="editDepRate_${idx}" value="${d.exchangeRate || ''}" step="0.01" ${!d.paid ? 'disabled' : ''} class="w-full px-2 py-1 text-sm border rounded dark:bg-slate-600 dark:border-slate-500 dark:text-white disabled:opacity-50">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs text-slate-500 dark:text-slate-400">JPY</label>
+                                                <input type="number" id="editDepJPY_${idx}" value="${d.amountJPY || ''}" ${!d.paid ? 'disabled' : ''} class="w-full px-2 py-1 text-sm border rounded dark:bg-slate-600 dark:border-slate-500 dark:text-white disabled:opacity-50">
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
                         <p class="text-xs text-slate-500 dark:text-slate-400 mt-4">※ 案件番号やSerial変更時は在庫シートも自動更新されます</p>
                         
                         <div class="flex gap-3 mt-6">
@@ -2209,20 +2245,16 @@
             project.workingDays = parseInt(document.getElementById('editWorkingDays').value) || 30;
             project.pickupDate = document.getElementById('editPickupDate').value;
             
-            const newProjectNumberFull = formatProjectNumber(project);
+            // デポジット情報を更新
+            (project.depositSchedule || []).forEach((dep, idx) => {
+                dep.paid = document.getElementById(`editDepPaid_${idx}`)?.checked || false;
+                dep.amountUSD = parseFloat(document.getElementById(`editDepUSD_${idx}`)?.value) || 0;
+                dep.paidDate = document.getElementById(`editDepDate_${idx}`)?.value || null;
+                dep.exchangeRate = parseFloat(document.getElementById(`editDepRate_${idx}`)?.value) || null;
+                dep.amountJPY = parseFloat(document.getElementById(`editDepJPY_${idx}`)?.value) || null;
+            });
             
-            // 総額変更時は支払スケジュールも再計算するか確認
-            const oldTotal = project.depositSchedule?.reduce((sum, d) => sum + (d.amountUSD || 0), 0) || 0;
-            if (Math.abs(oldTotal - newTotalAmount) > 0.01 && project.depositSchedule?.length > 0) {
-                const unpaidDeposits = project.depositSchedule.filter(d => !d.paid);
-                if (unpaidDeposits.length > 0 && confirm('総額が変更されました。未払いの支払スケジュールを再計算しますか？')) {
-                    project.depositSchedule.forEach(dep => {
-                        if (!dep.paid) {
-                            dep.amountUSD = Math.round(newTotalAmount * dep.percentage / 100 * 100) / 100;
-                        }
-                    });
-                }
-            }
+            const newProjectNumberFull = formatProjectNumber(project);
             
             saveData();
             closeEditProjectModal();
@@ -2232,6 +2264,68 @@
             if (oldSerial !== newSerial || oldProjectNumberFull !== newProjectNumberFull) {
                 updateInventoryFromProject(oldProjectNumberFull, oldSerial, newProjectNumberFull, newSerial, newQuantity);
             }
+            
+            // 支払い完了時に在庫の取得金を更新
+            const allPaid = (project.depositSchedule || []).every(d => d.paid);
+            if (allPaid && project.depositSchedule?.length > 0) {
+                updateInventoryCostFromProject(project);
+            }
+        }
+        
+        // 支払い完了時に在庫の取得金を更新
+        async function updateInventoryCostFromProject(project) {
+            try {
+                const totalJPY = (project.depositSchedule || []).reduce((sum, d) => sum + (d.amountJPY || 0), 0);
+                const expenseTotal = (project.expenses || []).reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+                const grandTotal = totalJPY + expenseTotal;
+                const quantity = project.quantity || 1;
+                const costPerItem = Math.round(grandTotal / quantity);
+                
+                if (costPerItem <= 0) return;
+                
+                const projectNumber = formatProjectNumber(project);
+                const parsed = parseProjectNumberString(projectNumber);
+                
+                // 在庫シートを読み込み
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '在庫!A2:Q',
+                });
+                const rows = response.result.values || [];
+                
+                // 該当案件のアイテムを検索して更新
+                const updates = [];
+                rows.forEach((row, idx) => {
+                    if (row[4] === parsed.prefix && row[5] === String(parsed.number)) {
+                        updates.push({
+                            range: `在庫!M${idx + 2}`,
+                            values: [[costPerItem]]
+                        });
+                    }
+                });
+                
+                if (updates.length > 0) {
+                    await gapi.client.sheets.spreadsheets.values.batchUpdate({
+                        spreadsheetId: SPREADSHEET_ID,
+                        resource: {
+                            valueInputOption: 'RAW',
+                            data: updates
+                        }
+                    });
+                    showStatus(`✅ 在庫の取得金を更新（¥${costPerItem.toLocaleString()}/台 × ${updates.length}台）`);
+                    setTimeout(() => showStatus(''), 3000);
+                }
+            } catch (err) {
+                console.error('在庫取得金更新エラー:', err);
+            }
+        }
+        
+        // デポジット編集の有効/無効切り替え
+        function toggleEditDepositFields(idx) {
+            const paid = document.getElementById(`editDepPaid_${idx}`).checked;
+            document.getElementById(`editDepDate_${idx}`).disabled = !paid;
+            document.getElementById(`editDepRate_${idx}`).disabled = !paid;
+            document.getElementById(`editDepJPY_${idx}`).disabled = !paid;
         }
 
         // 在庫シートの案件情報更新（Serial、案件番号）
