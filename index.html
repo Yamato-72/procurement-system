@@ -1302,7 +1302,7 @@
                                                         <h3 class="font-bold text-base sm:text-xl text-slate-900 dark:text-white">${g.projectNumber}</h3>
                                                         ${isMultiProduct ? `<span class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">${g.items.length}製品</span>` : ''}
                                                         <span class="px-2 py-0.5 text-xs rounded-full ${projectStatus.color}">${projectStatus.icon} ${projectStatus.status}</span>
-                                                        <button onclick="event.stopPropagation();editProjectDetails('${g.representativeId}')" class="p-1 text-slate-400 hover:text-blue-600" title="編集">
+                                                        <button onclick="event.stopPropagation();editGroupDetails('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-blue-600" title="グループ編集">
                                                             <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                                         </button>
                                                         <button onclick="event.stopPropagation();openInventoryForProject('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-emerald-600" title="在庫を見る">
@@ -2322,6 +2322,304 @@
         }
 
         // 案件編集（Serial、数量、WorkingDays、集荷予定日）
+        // グループ編集モーダル
+        function editGroupDetails(projectNumber) {
+            const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
+            if (groupProjects.length === 0) return;
+            
+            // 代表製品（デポジット情報を持つもの、または最初のもの）
+            const representative = groupProjects.find(p => p.depositSchedule && p.depositSchedule.length > 0 && p.depositSchedule.some(d => d.amountUSD > 0)) || groupProjects[0];
+            const supplier = suppliers.find(s => s.id === representative.supplierId);
+            
+            // グループ全体の合計
+            const totalUSD = groupProjects.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+            const totalQuantity = groupProjects.reduce((sum, p) => sum + (p.quantity || 1), 0);
+            
+            const modal = document.createElement('div');
+            modal.id = 'editGroupModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <h3 class="text-xl font-bold mb-4 dark:text-white">✏️ グループ編集 - ${projectNumber}</h3>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">${groupProjects.length}製品 / ${totalQuantity}台</p>
+                        
+                        <!-- 共通設定 -->
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">サプライヤー</label>
+                                <select id="editGroupSupplierId" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" onchange="updateGroupDepositPattern()">
+                                    <option value="">-- 選択 --</option>
+                                    ${suppliers.map(s => `<option value="${s.id}" ${s.id === representative.supplierId ? 'selected' : ''}>${s.name}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">発注日</label>
+                                <input type="date" id="editGroupOrderDate" value="${representative.registeredDate || ''}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">集荷予定日</label>
+                                <input type="date" id="editGroupPickupDate" value="${representative.pickupDate || ''}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">Working Days</label>
+                                <input type="number" id="editGroupWorkingDays" value="${representative.workingDays || 30}" min="1" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                            </div>
+                        </div>
+                        
+                        <!-- 総額設定 -->
+                        <div class="border-t dark:border-slate-700 pt-4 mb-4">
+                            <h4 class="text-sm font-bold mb-3 dark:text-white">💰 総額設定</h4>
+                            <div class="flex gap-4 items-end">
+                                <div class="flex-1">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">グループ総額 (USD)</label>
+                                    <input type="number" id="editGroupTotalUSD" value="${totalUSD}" step="0.01" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white text-lg font-bold">
+                                </div>
+                                <button onclick="distributeByQuantity()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+                                    📊 数量比で按分
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 製品明細 -->
+                        <div class="border-t dark:border-slate-700 pt-4 mb-4">
+                            <h4 class="text-sm font-bold mb-3 dark:text-white">📦 製品明細</h4>
+                            <div class="space-y-2" id="groupProductList">
+                                ${groupProjects.map((p, idx) => `
+                                    <div class="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                                        <div class="flex-1">
+                                            <p class="font-semibold text-sm dark:text-white">${p.productName}</p>
+                                            <p class="text-xs text-slate-500 dark:text-slate-400">${p.quantity || 1}台 / Serial: ${p.serial || '未設定'}</p>
+                                        </div>
+                                        <div class="w-32">
+                                            <input type="number" id="editProductUSD_${idx}" value="${p.totalAmount || 0}" step="0.01" 
+                                                   data-project-id="${p.id}"
+                                                   oninput="updateGroupTotal()"
+                                                   class="w-full px-2 py-1 border rounded dark:bg-slate-600 dark:border-slate-500 dark:text-white text-right">
+                                        </div>
+                                        <span class="text-xs text-slate-500 dark:text-slate-400">USD</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="mt-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded flex justify-between">
+                                <span class="text-sm text-slate-600 dark:text-slate-300">製品小計:</span>
+                                <span id="groupProductSubtotal" class="font-bold text-blue-600 dark:text-blue-400">$${totalUSD.toLocaleString()}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- デポジット設定 -->
+                        <div class="border-t dark:border-slate-700 pt-4 mb-4">
+                            <h4 class="text-sm font-bold mb-3 dark:text-white">💳 デポジット設定</h4>
+                            <div class="mb-3">
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">支払いパターン</label>
+                                <select id="editGroupDepositPattern" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" onchange="applyGroupDepositPattern()">
+                                    <option value="">-- 選択 --</option>
+                                    ${supplier ? supplier.paymentPatterns.map((pat, idx) => `
+                                        <option value="${idx}">${pat.name}: ${pat.rates.join('→')}%</option>
+                                    `).join('') : ''}
+                                </select>
+                            </div>
+                            <div id="groupDepositPreview" class="space-y-2">
+                                ${(representative.depositSchedule || []).map((d, idx) => `
+                                    <div class="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-700 rounded">
+                                        <span class="text-sm dark:text-white">第${d.depositNumber}回 (${d.percentage}%)</span>
+                                        <span class="font-semibold text-sm dark:text-white">$${(d.amountUSD || 0).toLocaleString()}</span>
+                                    </div>
+                                `).join('') || '<p class="text-xs text-slate-500 dark:text-slate-400">パターンを選択してください</p>'}
+                            </div>
+                        </div>
+                        
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">※ 保存すると全製品に共通設定が適用されます</p>
+                        
+                        <div class="flex gap-3">
+                            <button onclick="closeGroupEditModal()" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
+                            <button onclick="submitGroupEdit('${projectNumber}')" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">保存</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        function closeGroupEditModal() {
+            const modal = document.getElementById('editGroupModal');
+            if (modal) modal.remove();
+        }
+        
+        // 数量比で按分
+        function distributeByQuantity() {
+            const totalUSD = parseFloat(document.getElementById('editGroupTotalUSD').value) || 0;
+            
+            // 各製品の数量を取得
+            const productInputs = document.querySelectorAll('[id^="editProductUSD_"]');
+            let totalQuantity = 0;
+            const quantities = [];
+            
+            productInputs.forEach((input, idx) => {
+                const projectId = input.dataset.projectId;
+                const project = projects.find(p => String(p.id) === String(projectId));
+                const qty = project ? (project.quantity || 1) : 1;
+                quantities.push(qty);
+                totalQuantity += qty;
+            });
+            
+            // 按分して設定
+            let remaining = totalUSD;
+            productInputs.forEach((input, idx) => {
+                if (idx === productInputs.length - 1) {
+                    // 最後は端数調整
+                    input.value = remaining.toFixed(2);
+                } else {
+                    const amount = Math.round(totalUSD * quantities[idx] / totalQuantity * 100) / 100;
+                    input.value = amount.toFixed(2);
+                    remaining -= amount;
+                }
+            });
+            
+            updateGroupTotal();
+        }
+        
+        // 製品小計を更新
+        function updateGroupTotal() {
+            const productInputs = document.querySelectorAll('[id^="editProductUSD_"]');
+            let subtotal = 0;
+            productInputs.forEach(input => {
+                subtotal += parseFloat(input.value) || 0;
+            });
+            
+            const subtotalEl = document.getElementById('groupProductSubtotal');
+            if (subtotalEl) {
+                subtotalEl.textContent = '$' + subtotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            }
+            
+            // デポジットプレビューも更新
+            updateGroupDepositPreview();
+        }
+        
+        // サプライヤー変更時にパターン選択肢を更新
+        function updateGroupDepositPattern() {
+            const supplierId = parseInt(document.getElementById('editGroupSupplierId').value);
+            const supplier = suppliers.find(s => s.id === supplierId);
+            const patternSelect = document.getElementById('editGroupDepositPattern');
+            
+            if (!supplier || !patternSelect) return;
+            
+            patternSelect.innerHTML = '<option value="">-- 選択 --</option>' +
+                supplier.paymentPatterns.map((pat, idx) => `
+                    <option value="${idx}">${pat.name}: ${pat.rates.join('→')}%</option>
+                `).join('');
+        }
+        
+        // パターン選択時にプレビュー更新
+        function applyGroupDepositPattern() {
+            updateGroupDepositPreview();
+        }
+        
+        function updateGroupDepositPreview() {
+            const supplierId = parseInt(document.getElementById('editGroupSupplierId').value);
+            const patternIdx = document.getElementById('editGroupDepositPattern').value;
+            const supplier = suppliers.find(s => s.id === supplierId);
+            const previewEl = document.getElementById('groupDepositPreview');
+            
+            if (!previewEl) return;
+            
+            // 製品小計を計算
+            const productInputs = document.querySelectorAll('[id^="editProductUSD_"]');
+            let totalUSD = 0;
+            productInputs.forEach(input => {
+                totalUSD += parseFloat(input.value) || 0;
+            });
+            
+            if (!supplier || patternIdx === '') {
+                previewEl.innerHTML = '<p class="text-xs text-slate-500 dark:text-slate-400">パターンを選択してください</p>';
+                return;
+            }
+            
+            const pattern = supplier.paymentPatterns[parseInt(patternIdx)];
+            if (!pattern) return;
+            
+            previewEl.innerHTML = pattern.rates.map((rate, idx) => {
+                const amount = totalUSD * rate / 100;
+                return `
+                    <div class="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-700 rounded">
+                        <span class="text-sm dark:text-white">第${idx + 1}回 (${rate}%)</span>
+                        <span class="font-semibold text-sm dark:text-white">$${amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // グループ編集保存
+        async function submitGroupEdit(projectNumber) {
+            const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
+            if (groupProjects.length === 0) return;
+            
+            // 共通設定を取得
+            const supplierId = parseInt(document.getElementById('editGroupSupplierId').value) || null;
+            const orderDate = document.getElementById('editGroupOrderDate').value;
+            const pickupDate = document.getElementById('editGroupPickupDate').value;
+            const workingDays = parseInt(document.getElementById('editGroupWorkingDays').value) || 30;
+            
+            // デポジットパターン
+            const supplier = suppliers.find(s => s.id === supplierId);
+            const patternIdx = document.getElementById('editGroupDepositPattern').value;
+            
+            // 各製品の金額を取得
+            const productInputs = document.querySelectorAll('[id^="editProductUSD_"]');
+            const productAmounts = {};
+            let totalUSD = 0;
+            
+            productInputs.forEach(input => {
+                const projectId = input.dataset.projectId;
+                const amount = parseFloat(input.value) || 0;
+                productAmounts[projectId] = amount;
+                totalUSD += amount;
+            });
+            
+            // デポジットスケジュールを作成
+            let depositSchedule = [];
+            if (supplier && patternIdx !== '') {
+                const pattern = supplier.paymentPatterns[parseInt(patternIdx)];
+                if (pattern) {
+                    depositSchedule = pattern.rates.map((rate, idx) => ({
+                        depositNumber: idx + 1,
+                        percentage: rate,
+                        amountUSD: Math.round(totalUSD * rate / 100 * 100) / 100,
+                        paid: false,
+                        paidDate: null,
+                        exchangeRate: null,
+                        amountJPY: null
+                    }));
+                }
+            }
+            
+            // 各製品を更新
+            groupProjects.forEach((p, idx) => {
+                p.supplierId = supplierId;
+                p.registeredDate = orderDate;
+                p.pickupDate = pickupDate;
+                p.workingDays = workingDays;
+                p.totalAmount = productAmounts[p.id] || 0;
+                
+                // デポジットは各製品の金額に応じて按分
+                if (depositSchedule.length > 0 && totalUSD > 0) {
+                    const ratio = (productAmounts[p.id] || 0) / totalUSD;
+                    p.depositSchedule = depositSchedule.map(d => ({
+                        ...d,
+                        amountUSD: Math.round(d.amountUSD * ratio * 100) / 100
+                    }));
+                } else if (depositSchedule.length > 0) {
+                    p.depositSchedule = depositSchedule.map(d => ({ ...d }));
+                }
+            });
+            
+            saveData();
+            closeGroupEditModal();
+            renderMain();
+            
+            showStatus(`✅ ${groupProjects.length}製品を更新しました`);
+            setTimeout(() => showStatus(''), 3000);
+        }
+
         function editProjectDetails(projectId) {
             const project = projects.find(p => String(p.id) === String(projectId));
             if (!project) return;
