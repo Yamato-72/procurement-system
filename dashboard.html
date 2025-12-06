@@ -391,7 +391,8 @@
             let thisMonthCount = 0;
             projects.forEach(p => {
                 (p.depositSchedule || []).forEach(d => {
-                    if (d.paid && d.paidDate && d.paidDate.startsWith(thisMonth)) {
+                    const paidDateStr = d.paidDate ? String(d.paidDate) : '';
+                    if (d.paid && paidDateStr && paidDateStr.startsWith(thisMonth)) {
                         thisMonthTotal += d.amountJPY || 0;
                         thisMonthCount++;
                     }
@@ -506,11 +507,11 @@
                 monthlyFlow[key] = { receive: 0, ship: 0 };
             }
             allItems.forEach(item => {
-                if (item.receiveDate) {
+                if (item.receiveDate && typeof item.receiveDate === 'string') {
                     const month = item.receiveDate.substring(0, 7);
                     if (monthlyFlow[month]) monthlyFlow[month].receive++;
                 }
-                if (item.shipDate) {
+                if (item.shipDate && typeof item.shipDate === 'string') {
                     const month = item.shipDate.substring(0, 7);
                     if (monthlyFlow[month]) monthlyFlow[month].ship++;
                 }
@@ -556,8 +557,9 @@
             }
             projects.forEach(p => {
                 (p.depositSchedule || []).forEach(d => {
-                    if (d.paid && d.paidDate) {
-                        const month = d.paidDate.substring(0, 7);
+                    const paidDateStr = d.paidDate ? String(d.paidDate) : '';
+                    if (d.paid && paidDateStr.length >= 7) {
+                        const month = paidDateStr.substring(0, 7);
                         if (monthlyPayment[month] !== undefined) {
                             monthlyPayment[month] += d.amountJPY || 0;
                         }
