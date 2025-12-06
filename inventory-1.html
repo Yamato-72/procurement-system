@@ -1652,7 +1652,7 @@
             const parsed = parseProjectNumberString(orderProjectInput);
             
             selectedItems.forEach(id => {
-                const item = inventory.find(i => i.id === id);
+                const item = inventory.find(i => String(i.id) === String(id));
                 if (item) {
                     item.orderPrefix = parsed.prefix;
                     item.orderNumber = parsed.number;
@@ -1691,7 +1691,7 @@
         function submitBulkShelf() {
             const shelfNo = document.getElementById('bulkShelfNo').value;
             selectedItems.forEach(id => {
-                const item = inventory.find(i => i.id === id);
+                const item = inventory.find(i => String(i.id) === String(id));
                 if (item) item.shelfNo = shelfNo;
             });
             saveData();
@@ -1728,7 +1728,7 @@
         function submitBulkLocation() {
             const location = document.getElementById('bulkLocation').value;
             selectedItems.forEach(id => {
-                const item = inventory.find(i => i.id === id);
+                const item = inventory.find(i => String(i.id) === String(id));
                 if (item) item.location = location;
             });
             saveData();
@@ -1740,7 +1740,7 @@
         // 一括入庫モーダル
         function bulkReceive() {
             const waitingItems = Array.from(selectedItems).filter(id => {
-                const item = inventory.find(i => i.id === id);
+                const item = inventory.find(i => String(i.id) === String(id));
                 return item && item.status === '入庫待ち';
             });
             
@@ -1774,7 +1774,7 @@
             const receiveDate = document.getElementById('bulkReceiveDate').value;
             
             const waitingItems = Array.from(selectedItems).filter(id => {
-                const item = inventory.find(i => i.id === id);
+                const item = inventory.find(i => String(i.id) === String(id));
                 return item && item.status === '入庫待ち';
             });
             
@@ -1782,7 +1782,7 @@
             const affectedProjects = new Set();
             
             waitingItems.forEach(id => {
-                const item = inventory.find(i => i.id === id);
+                const item = inventory.find(i => String(i.id) === String(id));
                 if (item) {
                     item.status = '在庫中';
                     item.receiveDate = receiveDate;
@@ -1806,7 +1806,7 @@
         // 一括出庫モーダル
         function showBulkShipModal() {
             const inStockItems = Array.from(selectedItems).filter(id => {
-                const item = inventory.find(i => i.id === id);
+                const item = inventory.find(i => String(i.id) === String(id));
                 return item && item.status === '在庫中';
             });
             
@@ -1905,12 +1905,12 @@
             const parsedShip = parseProjectNumberString(shipProjectInput);
             
             const inStockItems = Array.from(selectedItems).filter(id => {
-                const item = inventory.find(i => i.id === id);
+                const item = inventory.find(i => String(i.id) === String(id));
                 return item && item.status === '在庫中';
             });
             
             inStockItems.forEach(id => {
-                const item = inventory.find(i => i.id === id);
+                const item = inventory.find(i => String(i.id) === String(id));
                 if (item) {
                     item.shipPrefix = parsedShip.prefix;
                     item.shipNumber = parsedShip.number;
@@ -2743,7 +2743,7 @@
 
         // 入庫モーダル
         function showReceiveModal(id) {
-            const item = inventory.find(i => i.id === id);
+            const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
             
             const today = new Date().toISOString().split('T')[0];
@@ -2770,7 +2770,7 @@
         }
 
         async function submitReceive(id) {
-            const item = inventory.find(i => i.id === id);
+            const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
 
             const receiveDate = document.getElementById('receiveDate').value;
@@ -2850,7 +2850,7 @@
         const CARRIERS = ['西濃運輸', 'ヤマト運輸', '佐川急便', 'チャーター便', 'その他'];
 
         function showShipModal(id) {
-            const item = inventory.find(i => i.id === id);
+            const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
 
             const today = new Date().toISOString().split('T')[0];
@@ -2932,7 +2932,7 @@
         }
 
         function submitShip(id) {
-            const item = inventory.find(i => i.id === id);
+            const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
 
             const shipProject = document.getElementById('shipProject').value.trim();
@@ -2967,7 +2967,7 @@
 
         // 詳細モーダル（3タブ：詳細・スペック・編集）
         function showDetailModal(id) {
-            const item = inventory.find(i => i.id === id);
+            const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
 
             // 製品マスタからスペック情報を取得
@@ -3180,7 +3180,7 @@
 
         // 詳細モーダルからの編集保存
         function submitDetailEdit(id) {
-            const item = inventory.find(i => i.id === id);
+            const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
 
             item.serial = document.getElementById('detailEditSerial').value.trim();
@@ -3214,7 +3214,7 @@
 
         // 編集モーダル
         function editItem(id) {
-            const item = inventory.find(i => i.id === id);
+            const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
 
             // 製品マスタからスペック情報を取得
@@ -3476,7 +3476,7 @@
         }
 
         function submitEdit(id) {
-            const item = inventory.find(i => i.id === id);
+            const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
 
             item.serial = document.getElementById('editSerial').value.trim();
@@ -3520,7 +3520,7 @@
         function archiveItem(id) {
             if (!confirm('この在庫をアーカイブしますか？')) return;
             
-            const item = inventory.find(i => i.id === id);
+            const item = inventory.find(i => String(i.id) === String(id));
             if (!item) return;
 
             archivedInventory.push(item);
