@@ -4,278 +4,214 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YS調達ナビ</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text x='50' y='70' font-size='60' text-anchor='middle'>🧭</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2337352f' stroke-width='2'><circle cx='12' cy='12' r='10'/><polygon points='16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76'/></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://apis.google.com/js/api.js"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600&display=swap');
-        
-        :root {
-            --text-primary: rgb(55, 53, 47);
-            --text-secondary: rgba(55, 53, 47, 0.65);
-            --text-tertiary: rgba(55, 53, 47, 0.45);
-            --bg-primary: #ffffff;
-            --bg-hover: rgba(55, 53, 47, 0.08);
-            --bg-active: rgba(55, 53, 47, 0.16);
-            --border: rgba(55, 53, 47, 0.09);
-        }
-        
-        .dark {
-            --text-primary: rgba(255, 255, 255, 0.9);
-            --text-secondary: rgba(255, 255, 255, 0.6);
-            --text-tertiary: rgba(255, 255, 255, 0.4);
-            --bg-primary: #191919;
-            --bg-hover: rgba(255, 255, 255, 0.055);
-            --bg-active: rgba(255, 255, 255, 0.1);
-            --border: rgba(255, 255, 255, 0.094);
-        }
-        
-        * { font-family: 'Noto Sans JP', ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif; }
-        body { background: var(--bg-primary); color: var(--text-primary); }
-        
-        .text-secondary { color: var(--text-secondary); }
-        .text-tertiary { color: var(--text-tertiary); }
-        .border-default { border-color: var(--border); }
-        
-        .hoverable { 
-            transition: background 80ms ease-in; 
-            border-radius: 4px;
-        }
-        .hoverable:hover { background: var(--bg-hover); }
-        
-        .clickable {
-            cursor: pointer;
-            transition: background 80ms ease-in;
-            border-radius: 4px;
-        }
-        .clickable:hover { background: var(--bg-hover); }
-        .clickable:active { background: var(--bg-active); }
-        
-        /* タイムライン */
-        .tl-line { width: 2px; background: var(--border); }
-        
-        /* 入力 */
-        input, textarea, select {
-            background: var(--bg-primary);
-            border: 1px solid var(--border);
-            color: var(--text-primary);
-        }
-        input:focus, textarea:focus, select:focus {
-            outline: none;
-            border-color: rgba(55, 53, 47, 0.3);
-        }
-        .dark input:focus, .dark textarea:focus, .dark select:focus {
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-        
-        /* スクロールバー */
-        ::-webkit-scrollbar { width: 10px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(55, 53, 47, 0.2); }
-        
-        /* チャート */
-        canvas { filter: grayscale(30%); }
+        :root { --text: #37352f; --text-sub: rgba(55,53,47,0.65); --bg: #fff; --bg-hover: rgba(55,53,47,0.04); --bg-card: #f7f6f3; --border: rgba(55,53,47,0.09); --accent: #2383e2; --green: #0f7b6c; --red: #eb5757; --yellow: #dfab01; }
+        .dark { --text: rgba(255,255,255,0.9); --text-sub: rgba(255,255,255,0.5); --bg: #191919; --bg-hover: rgba(255,255,255,0.03); --bg-card: #252525; --border: rgba(255,255,255,0.08); }
+        * { font-family: 'Noto Sans JP', -apple-system, sans-serif; }
+        body { background: var(--bg); color: var(--text); }
+        .t-sub { color: var(--text-sub); }
+        .bg-card { background: var(--bg-card); }
+        .border-def { border-color: var(--border); }
+        .hover-bg { transition: background 80ms; border-radius: 4px; }
+        .hover-bg:hover { background: var(--bg-hover); }
+        .btn { padding: 6px 12px; border-radius: 4px; font-size: 14px; transition: opacity 80ms; }
+        .btn:hover { opacity: 0.85; }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-success { background: var(--green); color: #fff; }
+        .mode-btn { padding: 4px 10px; font-size: 13px; border-radius: 4px; color: var(--text-sub); transition: all 80ms; }
+        .mode-btn:hover { background: var(--bg-hover); }
+        .mode-btn.active { background: rgba(35,131,226,0.1); color: var(--accent); }
+        input, textarea, select { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 8px 10px; font-size: 14px; }
+        input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
     </style>
 </head>
 <body class="min-h-screen">
-    <div id="app" class="max-w-4xl mx-auto px-6 py-4">
+    <div id="app" class="max-w-4xl mx-auto px-4 sm:px-6 py-4">
         
         <!-- ヘッダー -->
         <header class="flex items-center justify-between py-2 mb-6">
             <div class="flex items-center gap-2">
-                <span class="text-2xl">🧭</span>
-                <span class="font-semibold">YS調達ナビ</span>
-                <span class="text-secondary text-sm" id="lastUpdate"></span>
+                <i data-lucide="compass" class="w-6 h-6 stroke-[1.5]"></i>
+                <span class="font-semibold text-lg">YS調達ナビ</span>
+                <span class="t-sub text-xs" id="lastUpdate"></span>
             </div>
             <div class="flex items-center gap-1 text-sm">
-                <a href="index.html" class="hoverable px-2 py-1 text-secondary">調達</a>
-                <a href="inventory.html" class="hoverable px-2 py-1 text-secondary">在庫</a>
-                <button onclick="loadData()" class="hoverable px-2 py-1 text-secondary">↻</button>
-                <button onclick="toggleDarkMode()" class="hoverable px-2 py-1 text-secondary">◐</button>
+                <a href="index.html" class="hover-bg px-2 py-1.5 t-sub flex items-center gap-1"><i data-lucide="clipboard-list" class="w-4 h-4"></i><span class="hidden sm:inline">調達</span></a>
+                <a href="inventory.html" class="hover-bg px-2 py-1.5 t-sub flex items-center gap-1"><i data-lucide="package" class="w-4 h-4"></i><span class="hidden sm:inline">在庫</span></a>
+                <button onclick="loadData()" class="hover-bg p-2 t-sub"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+                <button onclick="toggleDarkMode()" class="hover-bg p-2 t-sub"><i data-lucide="moon" class="w-4 h-4"></i></button>
             </div>
         </header>
 
-        <!-- ログイン -->
-        <div id="loginSection" class="py-24 text-center">
-            <span class="text-5xl block mb-4">🧭</span>
-            <p class="text-secondary mb-6">Googleアカウントでログイン</p>
-            <button onclick="handleAuth()" class="clickable px-4 py-2 border border-default">
-                ログイン
-            </button>
+        <!-- ログイン前 -->
+        <div id="loginSection" class="py-20 text-center">
+            <i data-lucide="compass" class="w-16 h-16 mx-auto mb-4 stroke-[1]"></i>
+            <h2 class="text-lg font-semibold mb-1">YS調達ナビ</h2>
+            <p class="t-sub text-sm mb-6">Googleアカウントでログイン</p>
+            <button onclick="handleAuth()" class="btn btn-primary">Googleでログイン</button>
         </div>
 
         <!-- メイン -->
-        <div id="mainContent" class="hidden space-y-10">
+        <div id="mainContent" class="hidden space-y-8">
             
             <!-- サマリー -->
-            <section>
-                <div class="grid grid-cols-4 gap-6 text-center">
-                    <a href="inventory.html?status=在庫中" class="clickable py-3">
-                        <p class="text-2xl font-semibold" id="statInStock">-</p>
-                        <p class="text-tertiary text-sm">在庫中</p>
-                    </a>
-                    <a href="inventory.html?status=入庫待ち" class="clickable py-3">
-                        <p class="text-2xl font-semibold" id="statWaiting">-</p>
-                        <p class="text-tertiary text-sm">入庫待ち</p>
-                    </a>
-                    <a href="index.html" class="clickable py-3">
-                        <p class="text-2xl font-semibold" id="statUnpaid">-</p>
-                        <p class="text-tertiary text-sm">未払い</p>
-                    </a>
-                    <div class="py-3">
-                        <p class="text-2xl font-semibold" id="statThisMonth">-</p>
-                        <p class="text-tertiary text-sm">今月支払</p>
-                    </div>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <a href="inventory.html?status=在庫中" class="hover-bg p-3 cursor-pointer">
+                    <div class="flex items-center gap-2 mb-2"><i data-lucide="package" class="w-4 h-4 t-sub"></i><span class="text-xs t-sub">在庫中</span></div>
+                    <p class="text-2xl font-semibold" id="statInStock">-</p>
+                    <p class="text-xs t-sub mt-1" id="statInStockDetail">-</p>
+                </a>
+                <a href="inventory.html?status=入庫待ち" class="hover-bg p-3 cursor-pointer">
+                    <div class="flex items-center gap-2 mb-2"><i data-lucide="truck" class="w-4 h-4 t-sub"></i><span class="text-xs t-sub">入庫待ち</span></div>
+                    <p class="text-2xl font-semibold" id="statWaiting">-</p>
+                    <p class="text-xs mt-1" style="color:var(--red)" id="statWaitingDetail">-</p>
+                </a>
+                <a href="index.html" class="hover-bg p-3 cursor-pointer">
+                    <div class="flex items-center gap-2 mb-2"><i data-lucide="wallet" class="w-4 h-4 t-sub"></i><span class="text-xs t-sub">未払い</span></div>
+                    <p class="text-2xl font-semibold" id="statUnpaid">-</p>
+                    <p class="text-xs t-sub mt-1" id="statUnpaidDetail">-</p>
+                </a>
+                <div class="p-3">
+                    <div class="flex items-center gap-2 mb-2"><i data-lucide="credit-card" class="w-4 h-4 t-sub"></i><span class="text-xs t-sub">今月支払い</span></div>
+                    <p class="text-2xl font-semibold" id="statThisMonth">-</p>
+                    <p class="text-xs t-sub mt-1" id="statThisMonthDetail">-</p>
                 </div>
-            </section>
+            </div>
 
             <!-- AI分析 -->
             <section>
-                <h2 class="flex items-center gap-2 text-sm text-secondary mb-3">
-                    <span>🧠</span> AI分析
-                </h2>
+                <div class="flex items-center gap-2 mb-3">
+                    <i data-lucide="sparkles" class="w-5 h-5"></i>
+                    <h2 class="font-semibold">AI分析</h2>
+                </div>
+                <div class="flex flex-wrap gap-1 mb-3">
+                    <button class="mode-btn active" data-mode="quick" onclick="setAnalysisMode('quick')"><i data-lucide="zap" class="w-3 h-3 inline mr-1"></i>クイック</button>
+                    <button class="mode-btn" data-mode="detail" onclick="setAnalysisMode('detail')"><i data-lucide="bar-chart-2" class="w-3 h-3 inline mr-1"></i>詳細</button>
+                    <button class="mode-btn" data-mode="cost" onclick="setAnalysisMode('cost')"><i data-lucide="coins" class="w-3 h-3 inline mr-1"></i>コスト</button>
+                    <button class="mode-btn" data-mode="supplier" onclick="setAnalysisMode('supplier')"><i data-lucide="factory" class="w-3 h-3 inline mr-1"></i>サプライヤー</button>
+                    <button class="mode-btn" data-mode="forecast" onclick="setAnalysisMode('forecast')"><i data-lucide="trending-up" class="w-3 h-3 inline mr-1"></i>予測</button>
+                </div>
+                <div id="analysisResult" class="bg-card p-4 rounded-lg mb-3 min-h-[80px] text-sm">
+                    <p class="t-sub">モードを選んで「分析開始」をクリック</p>
+                </div>
+                <div class="flex gap-2 mb-6">
+                    <button onclick="runAnalysis()" class="btn btn-primary flex items-center gap-1"><i data-lucide="play" class="w-4 h-4"></i>分析開始</button>
+                    <button onclick="saveToKnowledge()" id="saveKnowledgeBtn" class="btn btn-success flex items-center gap-1 hidden"><i data-lucide="bookmark" class="w-4 h-4"></i>保存</button>
+                </div>
                 
-                <div class="flex flex-wrap gap-2 mb-4 text-sm">
-                    <button class="analysis-mode clickable px-2 py-1" data-mode="quick">クイック</button>
-                    <button class="analysis-mode clickable px-2 py-1 text-secondary" data-mode="detail">詳細</button>
-                    <button class="analysis-mode clickable px-2 py-1 text-secondary" data-mode="cost">コスト</button>
-                    <button class="analysis-mode clickable px-2 py-1 text-secondary" data-mode="supplier">サプライヤー</button>
-                    <button class="analysis-mode clickable px-2 py-1 text-secondary" data-mode="forecast">予測</button>
-                </div>
-
-                <div id="analysisResult" class="text-sm leading-relaxed mb-4 min-h-[60px]">
-                    <p class="text-tertiary">モードを選択して「分析」をクリック</p>
-                </div>
-                
-                <div class="flex gap-3 text-sm">
-                    <button onclick="runAnalysis()" class="clickable px-3 py-1.5 border border-default">分析</button>
-                    <button onclick="saveToKnowledge()" id="saveKnowledgeBtn" class="clickable px-3 py-1.5 border border-default text-secondary hidden">保存</button>
-                </div>
-            </section>
-
-            <!-- チャット -->
-            <section>
-                <h2 class="flex items-center gap-2 text-sm text-secondary mb-3">
-                    <span>💬</span> 質問
-                </h2>
-                <div id="chatHistory" class="space-y-3 mb-3 max-h-[200px] overflow-y-auto text-sm"></div>
-                <div class="flex gap-2">
-                    <input type="text" id="chatInput" placeholder="例: 来月の支払いは？" 
-                        class="flex-1 px-3 py-2 text-sm rounded"
-                        onkeypress="if(event.key==='Enter')sendChat()">
-                    <button onclick="sendChat()" class="clickable px-3 py-1.5 border border-default text-sm">送信</button>
+                <!-- チャット -->
+                <div class="border-t border-def pt-4">
+                    <p class="text-xs t-sub mb-3 flex items-center gap-1"><i data-lucide="message-circle" class="w-3 h-3"></i>AIに質問</p>
+                    <div id="chatHistory" class="space-y-2 mb-3 max-h-[200px] overflow-y-auto"></div>
+                    <div class="flex gap-2">
+                        <input type="text" id="chatInput" placeholder="例: 来月の支払いは？" class="flex-1" onkeypress="if(event.key==='Enter')sendChat()">
+                        <button onclick="sendChat()" class="btn" style="background:var(--text);color:var(--bg)">送信</button>
+                    </div>
                 </div>
             </section>
 
             <!-- ナレッジ -->
             <section>
                 <div class="flex items-center justify-between mb-3">
-                    <h2 class="flex items-center gap-2 text-sm text-secondary">
-                        <span>📚</span> ナレッジ
-                        <span class="text-tertiary" id="knowledgeCount"></span>
-                    </h2>
-                    <button onclick="showKnowledgeModal()" class="text-sm text-secondary hoverable px-2 py-1">すべて →</button>
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="book-open" class="w-5 h-5"></i>
+                        <h2 class="font-semibold">ナレッジ</h2>
+                        <span id="knowledgeCount" class="text-xs t-sub">0件</span>
+                    </div>
+                    <button onclick="showKnowledgeModal()" class="text-sm hover-bg px-2 py-1" style="color:var(--accent)">すべて見る</button>
                 </div>
-                <div id="knowledgePreview" class="space-y-1 text-sm"></div>
-            </section>
-
-            <hr class="border-default">
-
-            <!-- タイムライン -->
-            <section>
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="flex items-center gap-2 text-sm text-secondary">
-                        <span>📅</span> 今週
-                    </h2>
-                    <span class="text-tertiary text-sm" id="timelineWeek"></span>
+                <div id="knowledgePreview" class="space-y-1">
+                    <p class="text-sm t-sub">ナレッジはまだありません</p>
                 </div>
-                <div id="timeline" class="text-sm"></div>
             </section>
 
-            <!-- ヘルスチェック -->
-            <section>
-                <h2 class="flex items-center gap-2 text-sm text-secondary mb-3">
-                    <span>🏥</span> ステータス
-                </h2>
-                <div id="healthCheck" class="text-sm space-y-1"></div>
-            </section>
+            <!-- タイムライン & ヘルス -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <section class="lg:col-span-2">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2"><i data-lucide="calendar" class="w-5 h-5"></i><h2 class="font-semibold">今週のスケジュール</h2></div>
+                        <span class="text-xs t-sub" id="timelineWeek">-</span>
+                    </div>
+                    <div id="timeline" class="space-y-2"><p class="text-sm t-sub">読み込み中...</p></div>
+                </section>
+                <section>
+                    <div class="flex items-center gap-2 mb-3"><i data-lucide="activity" class="w-5 h-5"></i><h2 class="font-semibold">ヘルスチェック</h2></div>
+                    <div id="healthCheck" class="space-y-2"><p class="text-sm t-sub">読み込み中...</p></div>
+                </section>
+            </div>
 
             <!-- クイックアクション -->
             <section>
-                <h2 class="flex items-center gap-2 text-sm text-secondary mb-3">
-                    <span>⚡</span> アクション
-                </h2>
-                <div id="quickActions" class="grid grid-cols-2 gap-2 text-sm"></div>
+                <div class="flex items-center gap-2 mb-3"><i data-lucide="zap" class="w-5 h-5"></i><h2 class="font-semibold">クイックアクション</h2></div>
+                <div id="quickActions" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2"><p class="text-sm t-sub">読み込み中...</p></div>
             </section>
-
-            <hr class="border-default">
 
             <!-- グラフ -->
-            <section class="grid grid-cols-2 gap-8">
-                <div>
-                    <p class="text-sm text-secondary mb-2">入出庫</p>
-                    <div class="h-40"><canvas id="flowChart"></canvas></div>
-                </div>
-                <div>
-                    <p class="text-sm text-secondary mb-2">支払い</p>
-                    <div class="h-40"><canvas id="paymentChart"></canvas></div>
-                </div>
-            </section>
-
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div><p class="text-sm font-medium mb-3">月別入出庫</p><div class="h-44"><canvas id="flowChart"></canvas></div></div>
+                <div><p class="text-sm font-medium mb-3">月別支払い</p><div class="h-44"><canvas id="paymentChart"></canvas></div></div>
+            </div>
         </div>
     </div>
 
     <!-- ナレッジモーダル -->
-    <div id="knowledgeModal" class="fixed inset-0 bg-black/20 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-[var(--bg-primary)] rounded max-w-lg w-full max-h-[70vh] flex flex-col shadow-lg">
-            <div class="p-4 flex justify-between items-center border-b border-default">
-                <span class="font-medium">📚 ナレッジ</span>
-                <button onclick="closeKnowledgeModal()" class="hoverable px-2 py-1 text-secondary">✕</button>
+    <div id="knowledgeModal" class="fixed inset-0 bg-black/40 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-card rounded-lg max-w-xl w-full max-h-[80vh] overflow-hidden flex flex-col" style="background:var(--bg)">
+            <div class="p-4 flex justify-between items-center border-b border-def">
+                <h3 class="font-semibold flex items-center gap-2"><i data-lucide="book-open" class="w-4 h-4"></i>ナレッジベース</h3>
+                <button onclick="closeKnowledgeModal()" class="hover-bg p-1"><i data-lucide="x" class="w-4 h-4"></i></button>
             </div>
-            <div class="p-3 border-b border-default flex gap-1 flex-wrap text-sm">
-                <button class="knowledge-filter clickable px-2 py-1" data-filter="all">すべて</button>
-                <button class="knowledge-filter clickable px-2 py-1 text-secondary" data-filter="important">📌</button>
-                <button class="knowledge-filter clickable px-2 py-1 text-secondary" data-filter="supplier">🏭</button>
-                <button class="knowledge-filter clickable px-2 py-1 text-secondary" data-filter="cost">💰</button>
-                <button class="knowledge-filter clickable px-2 py-1 text-secondary" data-filter="pattern">📊</button>
+            <div class="p-3 border-b border-def flex gap-1 flex-wrap">
+                <button class="knowledge-filter mode-btn active" data-filter="all">すべて</button>
+                <button class="knowledge-filter mode-btn" data-filter="important"><i data-lucide="pin" class="w-3 h-3 inline mr-1"></i>重要</button>
+                <button class="knowledge-filter mode-btn" data-filter="supplier"><i data-lucide="factory" class="w-3 h-3 inline mr-1"></i>サプライヤー</button>
+                <button class="knowledge-filter mode-btn" data-filter="cost"><i data-lucide="coins" class="w-3 h-3 inline mr-1"></i>コスト</button>
+                <button class="knowledge-filter mode-btn" data-filter="pattern"><i data-lucide="bar-chart-2" class="w-3 h-3 inline mr-1"></i>パターン</button>
             </div>
-            <div id="knowledgeList" class="flex-1 overflow-y-auto p-4 text-sm space-y-2"></div>
-            <div class="p-3 border-t border-default">
-                <button onclick="showAddKnowledgeForm()" class="w-full clickable py-2 text-sm text-secondary">+ 追加</button>
+            <div id="knowledgeList" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
+            <div class="p-4 border-t border-def">
+                <button onclick="showAddKnowledgeForm()" class="w-full text-sm hover-bg py-2 flex items-center justify-center gap-1" style="color:var(--accent)"><i data-lucide="plus" class="w-4 h-4"></i>ナレッジを追加</button>
             </div>
         </div>
     </div>
 
-    <!-- 追加モーダル -->
-    <div id="addKnowledgeModal" class="fixed inset-0 bg-black/20 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-[var(--bg-primary)] rounded max-w-sm w-full p-5 shadow-lg">
-            <p class="font-medium mb-4">📝 ナレッジ追加</p>
-            <div class="space-y-3 text-sm">
+    <!-- ナレッジ追加モーダル -->
+    <div id="addKnowledgeModal" class="fixed inset-0 bg-black/40 z-50 hidden flex items-center justify-center p-4">
+        <div class="rounded-lg max-w-md w-full p-6" style="background:var(--bg)">
+            <h3 class="font-semibold mb-4 flex items-center gap-2"><i data-lucide="file-plus" class="w-4 h-4"></i>ナレッジを追加</h3>
+            <div class="space-y-4">
                 <div>
-                    <label class="block text-tertiary text-xs mb-1">カテゴリ</label>
-                    <select id="newKnowledgeCategory" class="w-full px-3 py-2 rounded text-sm">
-                        <option value="important">📌 重要</option>
-                        <option value="supplier">🏭 サプライヤー</option>
-                        <option value="cost">💰 コスト</option>
-                        <option value="pattern">📊 パターン</option>
-                        <option value="note">📝 メモ</option>
+                    <label class="block text-xs t-sub mb-1">カテゴリ</label>
+                    <select id="newKnowledgeCategory" class="w-full">
+                        <option value="important">重要な気づき</option>
+                        <option value="supplier">サプライヤー</option>
+                        <option value="cost">コスト</option>
+                        <option value="pattern">パターン</option>
+                        <option value="seasonal">季節性</option>
+                        <option value="note">メモ</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-tertiary text-xs mb-1">内容</label>
-                    <textarea id="newKnowledgeContent" rows="3" class="w-full px-3 py-2 rounded text-sm resize-none"></textarea>
+                    <label class="block text-xs t-sub mb-1">内容</label>
+                    <textarea id="newKnowledgeContent" rows="3" class="w-full resize-none" placeholder="例: OKViewは年末に納期遅れ傾向"></textarea>
                 </div>
                 <div>
-                    <label class="block text-tertiary text-xs mb-1">タグ</label>
-                    <input type="text" id="newKnowledgeTags" class="w-full px-3 py-2 rounded text-sm">
+                    <label class="block text-xs t-sub mb-1">タグ（任意）</label>
+                    <input type="text" id="newKnowledgeTags" class="w-full" placeholder="例: OKView, LED">
                 </div>
             </div>
-            <div class="flex gap-2 mt-5 text-sm">
-                <button onclick="closeAddKnowledgeModal()" class="flex-1 clickable py-2 text-secondary">キャンセル</button>
-                <button onclick="addKnowledge()" class="flex-1 clickable py-2 border border-default">保存</button>
+            <div class="flex gap-2 mt-6">
+                <button onclick="closeAddKnowledgeModal()" class="flex-1 btn hover-bg">キャンセル</button>
+                <button onclick="addKnowledge()" class="flex-1 btn btn-primary">保存</button>
             </div>
         </div>
     </div>
@@ -283,16 +219,17 @@
     <script>
         const CLIENT_ID = '47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
         const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';
-        
         let accessToken = null, inventory = [], archivedInventory = [], projects = [], suppliers = [], knowledge = [];
         let charts = {}, currentAnalysisMode = 'quick', lastAnalysisResult = null, chatHistory = [];
+        const icons = { important: 'pin', supplier: 'factory', cost: 'coins', pattern: 'bar-chart-2', seasonal: 'calendar-days', note: 'file-text' };
 
         function init() {
             initDarkMode();
+            lucide.createIcons();
             gapi.load('client', async () => {
                 await gapi.client.init({ discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'] });
-                const savedToken = sessionStorage.getItem('googleAccessToken');
-                if (savedToken) { accessToken = savedToken; gapi.client.setToken({ access_token: accessToken }); showMain(); loadData(); }
+                const t = sessionStorage.getItem('googleAccessToken');
+                if (t) { accessToken = t; gapi.client.setToken({ access_token: accessToken }); showMain(); loadData(); }
             });
         }
 
@@ -303,7 +240,7 @@
             }).requestAccessToken();
         }
 
-        function showMain() { document.getElementById('loginSection').classList.add('hidden'); document.getElementById('mainContent').classList.remove('hidden'); }
+        function showMain() { document.getElementById('loginSection').classList.add('hidden'); document.getElementById('mainContent').classList.remove('hidden'); lucide.createIcons(); }
 
         async function loadData() {
             if (!accessToken) return;
@@ -313,203 +250,231 @@
                     gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: '案件!A2:N' }),
                     gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: '在庫!A2:Q' })
                 ]);
-                suppliers = (supRes.result.values || []).map(r => ({ id: parseInt(r[0] || 0), name: r[1] || '' }));
-                projects = (prjRes.result.values || []).map(r => ({ id: r[0], projectPrefix: r[1] || 'AD', projectNumber: parseInt(r[2]) || 0, supplierId: parseInt(r[3] || 0), productName: r[4] || '', totalAmount: parseFloat(r[5] || 0), depositSchedule: JSON.parse(r[6] || '[]'), pickupDate: r[10] || '', registeredDate: r[11] || '', receivedComplete: r[13] === 'true' }));
-                inventory = (invRes.result.values || []).map(r => ({ serial: r[1] || '', category: r[2] || '', productName: r[3] || '', receiveDate: r[7] || '', status: r[8] || '', shipDate: r[9] || '', costJPY: r[12] || '', shelfNo: r[14] || '' }));
-                try { const arcRes = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: '在庫アーカイブ!A2:Q' }); archivedInventory = (arcRes.result.values || []).map(r => ({ receiveDate: r[7] || '', shipDate: r[9] || '' })); } catch(e) { archivedInventory = []; }
+                suppliers = (supRes.result.values || []).map(r => ({ id: parseInt(r[0] || 0), name: r[1] || '', paymentPatterns: JSON.parse(r[2] || '[]') }));
+                projects = (prjRes.result.values || []).map(r => ({ id: r[0], projectPrefix: r[1] || 'AD', projectNumber: parseInt(r[2]) || 0, supplierId: parseInt(r[3] || 0), productName: r[4] || '', totalAmount: parseFloat(r[5] || 0), depositSchedule: JSON.parse(r[6] || '[]'), serial: r[7] || '', quantity: parseInt(r[8] || 1), workingDays: parseInt(r[9] || 30), pickupDate: r[10] || '', registeredDate: r[11] || '', expenses: JSON.parse(r[12] || '[]'), receivedComplete: r[13] === 'true' }));
+                inventory = (invRes.result.values || []).map(r => ({ id: r[0] || '', serial: r[1] || '', category: r[2] || '', productName: r[3] || '', orderPrefix: r[4] || '', orderNumber: r[5] || '', orderDate: r[6] || '', receiveDate: r[7] || '', status: r[8] || '', shipDate: r[9] || '', shipPrefix: r[10] || '', shipNumber: r[11] || '', costJPY: r[12] || '', note: r[13] || '', shelfNo: r[14] || '', location: r[15] || '', supplierId: r[16] || '' }));
+                try { const a = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: '在庫アーカイブ!A2:Q' }); archivedInventory = (a.result.values || []).map(r => ({ receiveDate: r[7] || '', shipDate: r[9] || '' })); } catch { archivedInventory = []; }
                 await loadKnowledge();
-                updateAll();
-                document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'});
-            } catch (err) { console.error(err); }
+                updateSummary(); updateTimeline(); updateHealthCheck(); updateQuickActions(); updateCharts(); updateKnowledgePreview();
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+                lucide.createIcons();
+            } catch (e) { console.error(e); }
         }
 
-        function updateAll() { updateSummary(); updateTimeline(); updateHealthCheck(); updateQuickActions(); updateCharts(); updateKnowledgePreview(); }
-
-        // ナレッジ
         async function loadKnowledge() {
             try {
-                const res = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'ナレッジ!A2:F' });
-                knowledge = (res.result.values || []).map((r, idx) => ({ id: idx + 2, date: r[0] || '', category: r[1] || 'note', content: r[2] || '', tags: r[4] || '', source: r[5] || 'manual' }));
-            } catch (e) {
-                await gapi.client.sheets.spreadsheets.batchUpdate({ spreadsheetId: SPREADSHEET_ID, resource: { requests: [{ addSheet: { properties: { title: 'ナレッジ' } } }] } });
-                await gapi.client.sheets.spreadsheets.values.update({ spreadsheetId: SPREADSHEET_ID, range: 'ナレッジ!A1:F1', valueInputOption: 'RAW', resource: { values: [['日付', 'カテゴリ', '内容', '重要度', 'タグ', 'ソース']] } });
-                knowledge = [];
-            }
+                const r = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'ナレッジ!A2:F' });
+                knowledge = (r.result.values || []).map((v, i) => ({ id: i + 2, date: v[0] || '', category: v[1] || 'note', content: v[2] || '', importance: v[3] || '中', tags: v[4] || '', source: v[5] || 'manual' }));
+            } catch { await createKnowledgeSheet(); knowledge = []; }
         }
 
-        async function saveKnowledgeItem(category, content, tags = '', source = 'ai') {
-            const date = new Date().toISOString().split('T')[0];
-            await gapi.client.sheets.spreadsheets.values.append({ spreadsheetId: SPREADSHEET_ID, range: 'ナレッジ!A:F', valueInputOption: 'RAW', resource: { values: [[date, category, content, '中', tags, source]] } });
-            await loadKnowledge(); updateKnowledgePreview();
+        async function createKnowledgeSheet() {
+            try {
+                await gapi.client.sheets.spreadsheets.batchUpdate({ spreadsheetId: SPREADSHEET_ID, resource: { requests: [{ addSheet: { properties: { title: 'ナレッジ' } } }] } });
+                await gapi.client.sheets.spreadsheets.values.update({ spreadsheetId: SPREADSHEET_ID, range: 'ナレッジ!A1:F1', valueInputOption: 'RAW', resource: { values: [['日付', 'カテゴリ', '内容', '重要度', 'タグ', 'ソース']] } });
+            } catch (e) { console.error(e); }
+        }
+
+        async function saveKnowledgeItem(cat, content, imp = '中', tags = '', src = 'ai') {
+            try {
+                await gapi.client.sheets.spreadsheets.values.append({ spreadsheetId: SPREADSHEET_ID, range: 'ナレッジ!A:F', valueInputOption: 'RAW', resource: { values: [[new Date().toISOString().split('T')[0], cat, content, imp, tags, src]] } });
+                await loadKnowledge(); updateKnowledgePreview(); return true;
+            } catch { return false; }
         }
 
         function updateKnowledgePreview() {
-            const container = document.getElementById('knowledgePreview');
-            document.getElementById('knowledgeCount').textContent = knowledge.length ? `(${knowledge.length})` : '';
-            if (!knowledge.length) { container.innerHTML = '<p class="text-tertiary">まだありません</p>'; return; }
-            const icons = { important: '📌', supplier: '🏭', cost: '💰', pattern: '📊', note: '📝' };
-            container.innerHTML = [...knowledge].reverse().slice(0, 3).map(k => `
-                <div class="clickable px-2 py-1.5 flex gap-2">
-                    <span>${icons[k.category] || '📝'}</span>
-                    <span class="truncate">${k.content}</span>
+            const c = document.getElementById('knowledgePreview');
+            document.getElementById('knowledgeCount').textContent = knowledge.length + '件';
+            if (!knowledge.length) { c.innerHTML = '<p class="text-sm t-sub">ナレッジはまだありません</p>'; return; }
+            c.innerHTML = [...knowledge].reverse().slice(0, 4).map(k => `
+                <div class="hover-bg p-2 flex items-start gap-2 text-sm">
+                    <i data-lucide="${icons[k.category] || 'file-text'}" class="w-4 h-4 t-sub flex-shrink-0 mt-0.5"></i>
+                    <div class="min-w-0"><p class="truncate">${k.content}</p><p class="text-xs t-sub">${k.date}</p></div>
                 </div>
             `).join('');
+            lucide.createIcons();
         }
 
-        // 分析
-        document.querySelectorAll('.analysis-mode').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.analysis-mode').forEach(b => b.classList.add('text-secondary'));
-                btn.classList.remove('text-secondary');
-                currentAnalysisMode = btn.dataset.mode;
-            });
-        });
+        function setAnalysisMode(m) {
+            currentAnalysisMode = m;
+            document.querySelectorAll('.mode-btn[data-mode]').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
+        }
 
         async function runAnalysis() {
-            const resultEl = document.getElementById('analysisResult');
-            document.getElementById('saveKnowledgeBtn').classList.add('hidden');
-            resultEl.innerHTML = '<p class="text-tertiary">分析中...</p>';
-            const data = prepareAnalysisData();
-            const prompt = buildPrompt(currentAnalysisMode, data);
+            const el = document.getElementById('analysisResult'), btn = document.getElementById('saveKnowledgeBtn');
+            el.innerHTML = '<p class="t-sub flex items-center gap-2"><i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>分析中...</p>';
+            lucide.createIcons(); btn.classList.add('hidden');
+            const d = prepareAnalysisData(), p = buildPrompt(currentAnalysisMode, d);
             try {
-                const res = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1200, messages: [{ role: 'user', content: prompt }] }) });
-                lastAnalysisResult = (await res.json()).content?.[0]?.text || '';
-                resultEl.innerHTML = lastAnalysisResult.split('\n').filter(l => l.trim()).map(l => `<p class="mb-1">${l}</p>`).join('');
-                document.getElementById('saveKnowledgeBtn').classList.remove('hidden');
-            } catch (e) { resultEl.innerHTML = '<p class="text-tertiary">エラーが発生しました</p>'; }
+                const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1500, messages: [{ role: 'user', content: p }] }) });
+                const j = await r.json();
+                lastAnalysisResult = j.content?.[0]?.text || '';
+                el.innerHTML = formatResult(lastAnalysisResult);
+                btn.classList.remove('hidden');
+            } catch { el.innerHTML = '<p style="color:var(--red)">エラーが発生しました</p>' + localAnalysis(d); lastAnalysisResult = null; }
+            lucide.createIcons();
         }
 
         function prepareAnalysisData() {
-            const today = new Date();
-            const inStock = inventory.filter(i => i.status === '在庫中');
-            let unpaidTotal = 0, unpaidCount = 0, oldestDays = 0;
-            projects.forEach(p => { (p.depositSchedule || []).forEach((d, i) => { if (!d.paid) { unpaidTotal += d.amountJPY || (d.amountUSD * 150) || 0; unpaidCount++; if (i === 0 && p.registeredDate) { const days = Math.floor((today - new Date(p.registeredDate)) / 86400000); if (days > oldestDays) oldestDays = days; } } }); });
-            const supplierStats = {};
-            projects.forEach(p => { const name = suppliers.find(s => s.id === p.supplierId)?.name || '不明'; supplierStats[name] = (supplierStats[name] || 0) + 1; });
-            return { inStock: inStock.length, waiting: inventory.filter(i => i.status === '入庫待ち').length, unpaidTotal, unpaidCount, oldestDays, noShelf: inStock.filter(i => !i.shelfNo).length, supplierStats, knowledge: knowledge.slice(-5).map(k => k.content).join('; ') };
+            const today = new Date(), inStock = inventory.filter(i => i.status === '在庫中');
+            const supplierStats = {}; projects.forEach(p => { const n = suppliers.find(s => s.id === p.supplierId)?.name || '不明'; if (!supplierStats[n]) supplierStats[n] = { count: 0, total: 0, unpaid: 0 }; supplierStats[n].count++; supplierStats[n].total += p.totalAmount; (p.depositSchedule || []).forEach(d => { if (!d.paid) supplierStats[n].unpaid += d.amountUSD || 0; }); });
+            const catStats = {}; inStock.forEach(i => { catStats[i.category] = (catStats[i.category] || 0) + 1; });
+            const mp = {}; for (let i = 5; i >= 0; i--) { const d = new Date(today.getFullYear(), today.getMonth() - i, 1); mp[d.toISOString().slice(0, 7)] = 0; }
+            projects.forEach(p => { (p.depositSchedule || []).forEach(d => { if (d.paid && d.paidDate && mp[d.paidDate.slice(0, 7)] !== undefined) mp[d.paidDate.slice(0, 7)] += d.amountJPY || 0; }); });
+            let ut = 0, uc = 0, od = 0;
+            projects.forEach(p => { (p.depositSchedule || []).forEach((d, i) => { if (!d.paid) { ut += d.amountJPY || (d.amountUSD * 150) || 0; uc++; if (i === 0 && p.registeredDate) { const days = Math.floor((today - new Date(p.registeredDate)) / 86400000); if (days > od) od = days; } } }); });
+            const stay = inStock.filter(i => i.receiveDate).map(i => Math.floor((today - new Date(i.receiveDate)) / 86400000));
+            const avg = stay.length ? Math.round(stay.reduce((a, b) => a + b, 0) / stay.length) : 0;
+            const nm = new Date(today.getFullYear(), today.getMonth() + 1, 1), nme = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+            let nmp = 0; projects.forEach(p => { (p.depositSchedule || []).forEach((d, i) => { if (d.paid) return; let due; if (i === 0 && p.registeredDate) { due = new Date(p.registeredDate); due.setDate(due.getDate() + 14); } else if (p.pickupDate) due = new Date(p.pickupDate); if (due && due >= nm && due <= nme) nmp += d.amountJPY || (d.amountUSD * 150) || 0; }); });
+            return { inStockCount: inStock.length, inStockValue: inStock.reduce((s, i) => s + (parseInt(i.costJPY) || 0), 0), waitingCount: inventory.filter(i => i.status === '入庫待ち').length, unpaidTotal: ut, unpaidCount: uc, oldestUnpaidDays: od, supplierStats, categoryStats: catStats, monthlyPayments: mp, avgStayDays: avg, noShelfCount: inStock.filter(i => !i.shelfNo).length, staleCount: stay.filter(d => d >= 60).length, nextMonthPayment: nmp, knowledgeItems: knowledge.slice(-10).map(k => `[${k.category}] ${k.content}`).join('\n') };
         }
 
-        function buildPrompt(mode, d) {
-            const base = `データ: 在庫${d.inStock}件, 入庫待ち${d.waiting}件, 未払い${d.unpaidCount}件(¥${Math.round(d.unpaidTotal/10000)}万), 最長${d.oldestDays}日, 棚番なし${d.noShelf}件, サプライヤー${JSON.stringify(d.supplierStats)}, ナレッジ: ${d.knowledge || 'なし'}`;
-            const modes = {
-                quick: `${base}\n\n優先度順に3-4個、簡潔に。形式: 絵文字 内容`,
-                detail: `${base}\n\n現状・リスク・改善点を簡潔に`,
-                cost: `${base}\n\nキャッシュフローと来月予測を簡潔に`,
-                supplier: `${base}\n\nサプライヤー依存度と提案を簡潔に`,
-                forecast: `${base}\n\n今後1-2ヶ月の予測を簡潔に`
-            };
-            return modes[mode] + '\n\n※日本語、箇条書き不要、段落で。';
+        function buildPrompt(m, d) {
+            const base = `調達・在庫データ:\n- 在庫: ${d.inStockCount}件 (¥${d.inStockValue.toLocaleString()})\n- 入庫待ち: ${d.waitingCount}件\n- 未払い: ${d.unpaidCount}件 (¥${Math.round(d.unpaidTotal/10000)}万)\n- 最長未払い: ${d.oldestUnpaidDays}日\n- 平均滞留: ${d.avgStayDays}日\n- 棚番未設定: ${d.noShelfCount}件\n- 長期滞留: ${d.staleCount}件\n- 来月予測: ¥${Math.round(d.nextMonthPayment/10000)}万\n\nサプライヤー: ${JSON.stringify(d.supplierStats)}\nカテゴリ: ${JSON.stringify(d.categoryStats)}\n月別: ${JSON.stringify(d.monthlyPayments)}\n\nナレッジ:\n${d.knowledgeItems || 'なし'}`;
+            const prompts = { quick: '今すぐ対応すべき事項を3〜5個、優先度順に。形式: ● 重要度(高/中/低) タイトル: アクション', detail: '詳細分析:\n1. 現状サマリー\n2. リスク・課題\n3. 改善提案\n4. トレンド', cost: 'コスト分析:\n1. キャッシュフロー\n2. 支払いトレンド\n3. 遅延リスク\n4. 来月予測', supplier: 'サプライヤー分析:\n1. 依存度\n2. 取引状況\n3. リスク\n4. 戦略提案', forecast: '1〜2ヶ月予測:\n1. 支払い予測\n2. 入庫予測\n3. 注意イベント\n4. 推奨アクション' };
+            return base + '\n\n' + prompts[m] + '\n\n※日本語で簡潔に、数値を含めて。';
+        }
+
+        function formatResult(t) {
+            if (!t) return '<p class="t-sub">結果なし</p>';
+            return '<div class="space-y-2">' + t.split('\n').filter(l => l.trim()).map(l => {
+                if (l.match(/^[●○◎]/)) return `<div class="p-2 bg-card rounded">${l}</div>`;
+                if (l.match(/^\d+\./)) return `<div class="ml-2">${l}</div>`;
+                return `<p class="t-sub">${l}</p>`;
+            }).join('') + '</div>';
+        }
+
+        function localAnalysis(d) {
+            const items = [];
+            if (d.oldestUnpaidDays > 30) items.push(`<div class="p-2 bg-card rounded">● 高 支払い${d.oldestUnpaidDays}日超過</div>`);
+            if (d.noShelfCount > 0) items.push(`<div class="p-2 bg-card rounded">● 中 棚番未設定${d.noShelfCount}件</div>`);
+            if (d.staleCount > 0) items.push(`<div class="p-2 bg-card rounded">● 中 長期滞留${d.staleCount}件</div>`);
+            return '<div class="space-y-2 mt-2">' + (items.length ? items.join('') : '<p class="t-sub">問題なし</p>') + '</div>';
         }
 
         async function saveToKnowledge() {
             if (!lastAnalysisResult) return;
-            const map = { quick: 'important', detail: 'pattern', cost: 'cost', supplier: 'supplier', forecast: 'pattern' };
-            await saveKnowledgeItem(map[currentAnalysisMode], lastAnalysisResult.slice(0, 200), '', 'ai');
-            document.getElementById('saveKnowledgeBtn').classList.add('hidden');
+            const s = lastAnalysisResult.slice(0, 200) + (lastAnalysisResult.length > 200 ? '...' : '');
+            const m = { quick: 'important', detail: 'pattern', cost: 'cost', supplier: 'supplier', forecast: 'pattern' };
+            if (await saveKnowledgeItem(m[currentAnalysisMode] || 'note', `[${currentAnalysisMode}] ` + s, '中', '', 'ai')) { alert('保存しました'); document.getElementById('saveKnowledgeBtn').classList.add('hidden'); }
         }
 
-        // チャット
         async function sendChat() {
-            const input = document.getElementById('chatInput');
-            const msg = input.value.trim();
+            const inp = document.getElementById('chatInput'), msg = inp.value.trim();
             if (!msg) return;
-            input.value = '';
-            chatHistory.push({ role: 'user', content: msg });
-            updateChatUI();
-            const data = prepareAnalysisData();
+            inp.value = ''; chatHistory.push({ role: 'user', content: msg }); updateChatUI();
+            const d = prepareAnalysisData(), ctx = `調達・在庫アシスタントとして回答。データ: ${JSON.stringify(d)}\n\n質問: ${msg}\n\n簡潔に。`;
             try {
-                const res = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 600, messages: [{ role: 'user', content: `データ: ${JSON.stringify(data)}\n質問: ${msg}\n簡潔に回答。` }] }) });
-                chatHistory.push({ role: 'assistant', content: (await res.json()).content?.[0]?.text || '...' });
-            } catch (e) { chatHistory.push({ role: 'assistant', content: 'エラー' }); }
+                const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 800, messages: [{ role: 'user', content: ctx }] }) });
+                const j = await r.json();
+                chatHistory.push({ role: 'assistant', content: j.content?.[0]?.text || '回答を生成できませんでした' });
+            } catch { chatHistory.push({ role: 'assistant', content: 'エラーが発生しました' }); }
             updateChatUI();
         }
 
         function updateChatUI() {
             const c = document.getElementById('chatHistory');
-            c.innerHTML = chatHistory.slice(-8).map(m => `<div class="${m.role === 'user' ? 'text-right' : ''}"><span class="inline-block px-3 py-1.5 rounded ${m.role === 'user' ? 'bg-[var(--bg-hover)]' : ''}">${m.content}</span></div>`).join('');
+            c.innerHTML = chatHistory.slice(-10).map(m => `<div class="flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}"><div class="max-w-[85%] px-3 py-2 rounded-lg text-sm ${m.role === 'user' ? 'bg-card' : 'border border-def'}">${m.content}</div></div>`).join('');
             c.scrollTop = c.scrollHeight;
         }
 
-        // モーダル
-        function showKnowledgeModal() { document.getElementById('knowledgeModal').classList.remove('hidden'); renderKnowledgeList('all'); }
+        function showKnowledgeModal() { document.getElementById('knowledgeModal').classList.remove('hidden'); renderKnowledgeList('all'); lucide.createIcons(); }
         function closeKnowledgeModal() { document.getElementById('knowledgeModal').classList.add('hidden'); }
-        function showAddKnowledgeForm() { document.getElementById('addKnowledgeModal').classList.remove('hidden'); }
-        function closeAddKnowledgeModal() { document.getElementById('addKnowledgeModal').classList.add('hidden'); }
-
-        function renderKnowledgeList(filter) {
-            const icons = { important: '📌', supplier: '🏭', cost: '💰', pattern: '📊', note: '📝' };
-            let list = filter === 'all' ? knowledge : knowledge.filter(k => k.category === filter);
-            document.getElementById('knowledgeList').innerHTML = list.length ? [...list].reverse().map(k => `<div class="clickable px-2 py-2"><span class="mr-2">${icons[k.category] || '📝'}</span>${k.content}<span class="text-tertiary ml-2">${k.date}</span></div>`).join('') : '<p class="text-tertiary text-center py-8">なし</p>';
-            document.querySelectorAll('.knowledge-filter').forEach(b => b.classList.toggle('text-secondary', b.dataset.filter !== filter));
+        function renderKnowledgeList(f) {
+            const c = document.getElementById('knowledgeList');
+            let list = f === 'all' ? knowledge : knowledge.filter(k => k.category === f);
+            if (!list.length) { c.innerHTML = '<p class="text-center t-sub py-8">該当なし</p>'; return; }
+            c.innerHTML = [...list].reverse().map(k => `<div class="hover-bg p-3 flex items-start gap-2"><i data-lucide="${icons[k.category] || 'file-text'}" class="w-4 h-4 t-sub flex-shrink-0 mt-0.5"></i><div><p class="text-sm">${k.content}</p><p class="text-xs t-sub mt-1">${k.date}${k.tags ? ' · ' + k.tags : ''}</p></div></div>`).join('');
+            document.querySelectorAll('.knowledge-filter').forEach(b => b.classList.toggle('active', b.dataset.filter === f));
+            lucide.createIcons();
         }
         document.addEventListener('click', e => { if (e.target.classList.contains('knowledge-filter')) renderKnowledgeList(e.target.dataset.filter); });
-
+        function showAddKnowledgeForm() { document.getElementById('addKnowledgeModal').classList.remove('hidden'); lucide.createIcons(); }
+        function closeAddKnowledgeModal() { document.getElementById('addKnowledgeModal').classList.add('hidden'); }
         async function addKnowledge() {
-            const content = document.getElementById('newKnowledgeContent').value.trim();
-            if (!content) return;
-            await saveKnowledgeItem(document.getElementById('newKnowledgeCategory').value, content, document.getElementById('newKnowledgeTags').value, 'manual');
-            closeAddKnowledgeModal();
-            renderKnowledgeList('all');
-            document.getElementById('newKnowledgeContent').value = '';
-            document.getElementById('newKnowledgeTags').value = '';
+            const cat = document.getElementById('newKnowledgeCategory').value, content = document.getElementById('newKnowledgeContent').value.trim(), tags = document.getElementById('newKnowledgeTags').value.trim();
+            if (!content) { alert('内容を入力してください'); return; }
+            if (await saveKnowledgeItem(cat, content, '中', tags, 'manual')) { closeAddKnowledgeModal(); renderKnowledgeList('all'); document.getElementById('newKnowledgeContent').value = ''; document.getElementById('newKnowledgeTags').value = ''; }
         }
 
-        // UI更新
         function updateSummary() {
-            const inStock = inventory.filter(i => i.status === '在庫中');
-            let unpaidTotal = 0;
-            projects.forEach(p => (p.depositSchedule || []).forEach(d => { if (!d.paid) unpaidTotal += d.amountJPY || (d.amountUSD * 150) || 0; }));
-            const thisMonth = new Date().toISOString().slice(0, 7);
-            let monthTotal = 0;
-            projects.forEach(p => (p.depositSchedule || []).forEach(d => { if (d.paid && d.paidDate?.startsWith(thisMonth)) monthTotal += d.amountJPY || 0; }));
-            document.getElementById('statInStock').textContent = inStock.length;
-            document.getElementById('statWaiting').textContent = inventory.filter(i => i.status === '入庫待ち').length;
-            document.getElementById('statUnpaid').textContent = `¥${Math.round(unpaidTotal/10000)}万`;
-            document.getElementById('statThisMonth').textContent = `¥${Math.round(monthTotal/10000)}万`;
+            const today = new Date(), inStock = inventory.filter(i => i.status === '在庫中'), waiting = inventory.filter(i => i.status === '入庫待ち');
+            const val = inStock.reduce((s, i) => s + (parseInt(i.costJPY) || 0), 0);
+            const we = new Date(today); we.setDate(we.getDate() + 7);
+            const arr = projects.filter(p => p.pickupDate && !p.receivedComplete && new Date(p.pickupDate) >= today && new Date(p.pickupDate) <= we);
+            let ut = 0, uc = 0, urg = 0;
+            projects.forEach(p => { (p.depositSchedule || []).forEach((d, i) => { if (!d.paid) { ut += d.amountJPY || (d.amountUSD * 150) || 0; uc++; if (i === 0 && p.registeredDate && Math.floor((today - new Date(p.registeredDate)) / 86400000) > 30) urg++; } }); });
+            const tm = today.toISOString().slice(0, 7); let tmt = 0, tmc = 0;
+            projects.forEach(p => { (p.depositSchedule || []).forEach(d => { if (d.paid && d.paidDate?.startsWith(tm)) { tmt += d.amountJPY || 0; tmc++; } }); });
+            document.getElementById('statInStock').textContent = inStock.length + '件';
+            document.getElementById('statInStockDetail').textContent = `¥${val.toLocaleString()}`;
+            document.getElementById('statWaiting').textContent = waiting.length + '件';
+            document.getElementById('statWaitingDetail').textContent = arr.length ? `今週 ${arr.length}件` : '';
+            document.getElementById('statUnpaid').textContent = `¥${Math.round(ut / 10000)}万`;
+            document.getElementById('statUnpaidDetail').textContent = urg ? `${urg}件が30日超` : `${uc}件`;
+            document.getElementById('statThisMonth').textContent = `¥${Math.round(tmt / 10000)}万`;
+            document.getElementById('statThisMonthDetail').textContent = `${tmc}件`;
         }
 
         function updateTimeline() {
-            const today = new Date(); today.setHours(0,0,0,0);
-            const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + 7);
-            document.getElementById('timelineWeek').textContent = `${today.getMonth()+1}/${today.getDate()} - ${new Date(today.getTime() + 6*86400000).getMonth()+1}/${new Date(today.getTime() + 6*86400000).getDate()}`;
+            const today = new Date(); today.setHours(0, 0, 0, 0); const we = new Date(today); we.setDate(we.getDate() + 7);
+            const wed = new Date(today); wed.setDate(wed.getDate() + 6);
+            document.getElementById('timelineWeek').textContent = `${today.getMonth() + 1}/${today.getDate()} - ${wed.getMonth() + 1}/${wed.getDate()}`;
             const events = [];
             projects.forEach(p => {
-                if (p.pickupDate && !p.receivedComplete) { const d = new Date(p.pickupDate); if (d >= today && d <= weekEnd) events.push({ date: d, icon: '🚚', text: `${p.projectPrefix}-${String(p.projectNumber).padStart(4,'0')} ${p.productName.slice(0,15)}` }); }
-                (p.depositSchedule || []).forEach((dep, i) => { if (dep.paid) return; let due = i === 0 && p.registeredDate ? new Date(new Date(p.registeredDate).getTime() + 7*86400000) : p.pickupDate ? new Date(new Date(p.pickupDate).getTime() - 7*86400000) : null; if (due && due >= today && due <= weekEnd) events.push({ date: due, icon: '💰', text: `${p.projectPrefix}-${String(p.projectNumber).padStart(4,'0')} ${dep.percentage}%` }); });
+                if (p.pickupDate && !p.receivedComplete) { const d = new Date(p.pickupDate); if (d >= today && d <= we) events.push({ date: d, icon: 'truck', title: `${p.projectPrefix}-${String(p.projectNumber).padStart(4, '0')}`, detail: p.productName, link: `index.html?project=${p.projectPrefix}-${String(p.projectNumber).padStart(4, '0')}` }); }
+                if (p.registeredDate) { (p.depositSchedule || []).forEach((dep, i) => { if (dep.paid) return; let due; if (i === 0) { due = new Date(p.registeredDate); due.setDate(due.getDate() + 7); } else if (p.pickupDate) { due = new Date(p.pickupDate); due.setDate(due.getDate() - 7); } if (due && due >= today && due <= we) events.push({ date: due, icon: 'wallet', title: `${p.projectPrefix}-${String(p.projectNumber).padStart(4, '0')}`, detail: `${dep.percentage}%`, link: `index.html?project=${p.projectPrefix}-${String(p.projectNumber).padStart(4, '0')}` }); }); }
             });
             events.sort((a, b) => a.date - b.date);
-            document.getElementById('timeline').innerHTML = events.length ? events.map(e => { const d = e.date; const isToday = d.toDateString() === today.toDateString(); return `<div class="clickable px-2 py-1.5 flex items-center gap-3"><span class="text-tertiary w-16">${d.getMonth()+1}/${d.getDate()}${isToday ? ' 今日' : ''}</span><span>${e.icon}</span><span>${e.text}</span></div>`; }).join('') : '<p class="text-tertiary">予定なし</p>';
+            const c = document.getElementById('timeline');
+            if (!events.length) { c.innerHTML = '<p class="text-sm t-sub py-4 text-center">今週の予定はありません</p>'; return; }
+            const grouped = {}; events.forEach(e => { const k = e.date.toISOString().split('T')[0]; (grouped[k] = grouped[k] || []).push(e); });
+            let html = '';
+            Object.entries(grouped).forEach(([ds, de]) => {
+                const d = new Date(ds), isToday = d.toDateString() === today.toDateString(), dn = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+                html += `<div class="flex gap-3"><div class="w-16 flex-shrink-0 text-right"><span class="text-xs ${isToday ? 'font-semibold' : 't-sub'}">${d.getMonth() + 1}/${d.getDate()}</span><span class="text-xs t-sub ml-1">${dn}</span></div><div class="flex-1 space-y-1">`;
+                de.forEach(e => { html += `<a href="${e.link}" class="hover-bg p-2 flex items-center gap-2 text-sm"><i data-lucide="${e.icon}" class="w-4 h-4 t-sub"></i><span class="font-medium">${e.title}</span><span class="t-sub truncate">${e.detail}</span></a>`; });
+                html += '</div></div>';
+            });
+            c.innerHTML = html;
+            lucide.createIcons();
         }
 
         function updateHealthCheck() {
             const today = new Date(), checks = [];
-            const noShelf = inventory.filter(i => i.status === '在庫中' && !i.shelfNo).length;
-            if (noShelf) checks.push(`📍 棚番未設定 ${noShelf}件`);
-            const stale = inventory.filter(i => i.status === '在庫中' && i.receiveDate && (today - new Date(i.receiveDate)) / 86400000 >= 60).length;
-            if (stale) checks.push(`⏰ 長期滞留 ${stale}件`);
-            let overdue = 0;
-            projects.forEach(p => { if (p.registeredDate && (p.depositSchedule || [])[0] && !(p.depositSchedule || [])[0].paid && (today - new Date(p.registeredDate)) / 86400000 > 30) overdue++; });
-            if (overdue) checks.push(`⚠️ 支払遅延 ${overdue}件`);
-            document.getElementById('healthCheck').innerHTML = checks.length ? checks.map(c => `<p>${c}</p>`).join('') : '<p class="text-tertiary">✓ 問題なし</p>';
+            const ns = inventory.filter(i => i.status === '在庫中' && !i.shelfNo).length;
+            if (ns) checks.push({ icon: 'map-pin', text: `棚番未設定 ${ns}件`, color: 'var(--yellow)' });
+            const st = inventory.filter(i => i.status === '在庫中' && i.receiveDate && Math.floor((today - new Date(i.receiveDate)) / 86400000) >= 60).length;
+            if (st) checks.push({ icon: 'clock', text: `長期滞留 ${st}件`, color: 'var(--yellow)' });
+            let od = 0; projects.forEach(p => { if (p.registeredDate && (p.depositSchedule || [])[0] && !(p.depositSchedule || [])[0].paid && Math.floor((today - new Date(p.registeredDate)) / 86400000) > 30) od++; });
+            if (od) checks.push({ icon: 'alert-triangle', text: `支払い遅延 ${od}件`, color: 'var(--red)' });
+            if (!checks.length) checks.push({ icon: 'check-circle', text: '問題なし', color: 'var(--green)' });
+            document.getElementById('healthCheck').innerHTML = checks.map(c => `<div class="flex items-center gap-2 p-2 text-sm"><i data-lucide="${c.icon}" class="w-4 h-4" style="color:${c.color}"></i><span>${c.text}</span></div>`).join('');
+            lucide.createIcons();
         }
 
         function updateQuickActions() {
             const actions = [];
-            inventory.filter(i => i.status === '入庫待ち').slice(0, 2).forEach(i => actions.push({ icon: '📦', text: i.serial, link: `inventory.html?search=${i.serial}` }));
-            projects.forEach(p => { const u = (p.depositSchedule || []).find(d => !d.paid); if (u) actions.push({ icon: '💳', text: `${p.projectPrefix}-${String(p.projectNumber).padStart(4,'0')}`, link: `index.html?project=${p.projectPrefix}-${String(p.projectNumber).padStart(4,'0')}` }); });
-            document.getElementById('quickActions').innerHTML = actions.length ? actions.slice(0, 4).map(a => `<a href="${a.link}" class="clickable px-2 py-1.5 flex items-center gap-2"><span>${a.icon}</span><span>${a.text}</span></a>`).join('') : '<p class="text-tertiary col-span-2">なし</p>';
+            inventory.filter(i => i.status === '入庫待ち').slice(0, 3).forEach(i => { actions.push({ icon: 'package', title: i.serial, detail: i.productName.slice(0, 15), link: `inventory.html?search=${i.serial}` }); });
+            const up = []; projects.forEach(p => { const u = (p.depositSchedule || []).find(d => !d.paid); if (u && p.registeredDate) up.push({ p, u, d: new Date(p.registeredDate) }); });
+            up.sort((a, b) => a.d - b.d).slice(0, 3).forEach(({ p, u }) => { const pn = `${p.projectPrefix}-${String(p.projectNumber).padStart(4, '0')}`; actions.push({ icon: 'credit-card', title: pn, detail: `${u.percentage}%`, link: `index.html?project=${pn}` }); });
+            const c = document.getElementById('quickActions');
+            if (!actions.length) { c.innerHTML = '<p class="text-sm t-sub">アクションなし</p>'; return; }
+            c.innerHTML = actions.slice(0, 6).map(a => `<a href="${a.link}" class="hover-bg p-3 flex items-center gap-3"><i data-lucide="${a.icon}" class="w-5 h-5 t-sub"></i><div class="min-w-0"><p class="font-medium text-sm truncate">${a.title}</p><p class="text-xs t-sub truncate">${a.detail}</p></div></a>`).join('');
+            lucide.createIcons();
         }
 
         function updateCharts() {
-            const now = new Date(), months = [];
-            for (let i = 5; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); months.push({ key: d.toISOString().slice(0, 7), label: `${d.getMonth()+1}月`, r: 0, s: 0, p: 0 }); }
-            [...inventory, ...archivedInventory].forEach(i => { const mr = months.find(m => m.key === (i.receiveDate || '').slice(0, 7)); if (mr) mr.r++; const ms = months.find(m => m.key === (i.shipDate || '').slice(0, 7)); if (ms) ms.s++; });
-            projects.forEach(p => (p.depositSchedule || []).forEach(d => { if (d.paid && d.paidDate) { const m = months.find(m => m.key === d.paidDate.slice(0, 7)); if (m) m.p += d.amountJPY || 0; } }));
-            const opts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { color: 'rgba(55,53,47,0.5)' } }, y: { grid: { color: 'rgba(55,53,47,0.08)' }, ticks: { color: 'rgba(55,53,47,0.5)' }, beginAtZero: true } } };
+            const now = new Date(), all = [...inventory, ...archivedInventory], months = [];
+            for (let i = 5; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); months.push({ key: d.toISOString().slice(0, 7), label: `${d.getMonth() + 1}月`, receive: 0, ship: 0, payment: 0 }); }
+            all.forEach(item => { if (item.receiveDate) { const m = months.find(m => m.key === item.receiveDate.slice(0, 7)); if (m) m.receive++; } if (item.shipDate) { const m = months.find(m => m.key === item.shipDate.slice(0, 7)); if (m) m.ship++; } });
+            projects.forEach(p => { (p.depositSchedule || []).forEach(d => { if (d.paid && d.paidDate) { const m = months.find(m => m.key === d.paidDate.slice(0, 7)); if (m) m.payment += d.amountJPY || 0; } }); });
+            const opts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { font: { size: 11 } } }, y: { grid: { color: 'rgba(0,0,0,0.05)' }, beginAtZero: true, ticks: { font: { size: 11 } } } } };
             if (charts.flow) charts.flow.destroy();
-            charts.flow = new Chart(document.getElementById('flowChart'), { type: 'line', data: { labels: months.map(m => m.label), datasets: [{ data: months.map(m => m.r), borderColor: 'rgba(55,53,47,0.6)', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 }, { data: months.map(m => m.s), borderColor: 'rgba(55,53,47,0.3)', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 }] }, options: opts });
+            charts.flow = new Chart(document.getElementById('flowChart'), { type: 'line', data: { labels: months.map(m => m.label), datasets: [{ label: '入庫', data: months.map(m => m.receive), borderColor: '#37352f', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3, borderWidth: 2 }, { label: '出庫', data: months.map(m => m.ship), borderColor: '#37352f', borderDash: [4, 4], backgroundColor: 'transparent', tension: 0.3, pointRadius: 3, borderWidth: 2 }] }, options: { ...opts, plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 12, padding: 15, font: { size: 11 } } } } } });
             if (charts.payment) charts.payment.destroy();
-            charts.payment = new Chart(document.getElementById('paymentChart'), { type: 'bar', data: { labels: months.map(m => m.label), datasets: [{ data: months.map(m => m.p), backgroundColor: 'rgba(55,53,47,0.15)', borderRadius: 2 }] }, options: { ...opts, scales: { ...opts.scales, y: { ...opts.scales.y, ticks: { ...opts.scales.y.ticks, callback: v => (v/10000) + '万' } } } } });
+            charts.payment = new Chart(document.getElementById('paymentChart'), { type: 'bar', data: { labels: months.map(m => m.label), datasets: [{ data: months.map(m => m.payment), backgroundColor: '#37352f', borderRadius: 2 }] }, options: { ...opts, scales: { ...opts.scales, y: { ...opts.scales.y, ticks: { ...opts.scales.y.ticks, callback: v => '¥' + (v / 10000).toFixed(0) + '万' } } } } });
         }
 
         function toggleDarkMode() { document.documentElement.classList.toggle('dark'); localStorage.setItem('darkMode', document.documentElement.classList.contains('dark')); }
