@@ -183,8 +183,7 @@
 
     <script>
         // 設定
-        const CLIENT_ID = '758aborelj5-cak05t9kfp3lp1qhp0o9lqhaqvf2duif.apps.googleusercontent.com';
-        const API_KEY = 'AIzaSyBi-H1ug_OJBXKOATN5waYKq_jyaqhxJjE';
+        const CLIENT_ID = '47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
         const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';
 
         // データ
@@ -201,12 +200,11 @@
         function init() {
             gapi.load('client', async () => {
                 await gapi.client.init({
-                    apiKey: API_KEY,
                     discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
                 });
                 
                 // トークンチェック
-                const savedToken = sessionStorage.getItem('gapi_token');
+                const savedToken = sessionStorage.getItem('googleAccessToken');
                 if (savedToken) {
                     accessToken = savedToken;
                     gapi.client.setToken({ access_token: accessToken });
@@ -223,7 +221,7 @@
                 callback: (response) => {
                     if (response.access_token) {
                         accessToken = response.access_token;
-                        sessionStorage.setItem('gapi_token', accessToken);
+                        sessionStorage.setItem('googleAccessToken', accessToken);
                         gapi.client.setToken({ access_token: accessToken });
                         showMain();
                         loadData();
