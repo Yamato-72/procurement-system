@@ -360,14 +360,13 @@
                 try {
                     const supplierResponse = await gapi.client.sheets.spreadsheets.values.get({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: 'サプライヤー!A2:D',
+                        range: 'サプライヤー!A2:C',
                     });
                     const supplierRows = supplierResponse.result.values || [];
                     suppliers = supplierRows.map(row => ({
                         id: parseInt(row[0] || Date.now()),
                         name: row[1] || '',
-                        depositCount: parseInt(row[2] || 2),
-                        depositRates: JSON.parse(row[3] || '[50,50]')
+                        paymentPatterns: JSON.parse(row[2] || '[{"name":"標準","rates":[50,50]}]')
                     }));
                 } catch (e) {
                     console.log('サプライヤーシートの読み込みに失敗しました', e);
@@ -2339,7 +2338,8 @@
         async function addToProcurement(parsedOrder, supplierId, productName, serial, quantity, orderDate, category) {
             try {
                 const supplier = suppliers.find(s => s.id === parseInt(supplierId));
-                const depositSchedule = supplier ? supplier.depositRates.map((rate, idx) => ({
+                const defaultPattern = supplier && supplier.paymentPatterns ? supplier.paymentPatterns[0] : { rates: [50, 50] };
+                const depositSchedule = defaultPattern.rates.map((rate, idx) => ({
                     depositNumber: idx + 1,
                     percentage: rate,
                     amountUSD: 0, // 金額未定
@@ -2347,7 +2347,7 @@
                     paidDate: null,
                     exchangeRate: null,
                     amountJPY: null
-                })) : [];
+                }));
                 
                 const serialDisplay = quantity > 1 ? `${serial}(1-${quantity})` : serial;
                 
@@ -2607,7 +2607,8 @@
                         }];
                     } else {
                         // 取得金がない場合はサプライヤーのデポジット設定を使用
-                        depositSchedule = supplier ? supplier.depositRates.map((rate, idx) => ({
+                        const defaultPattern = supplier && supplier.paymentPatterns ? supplier.paymentPatterns[0] : { rates: [50, 50] };
+                        depositSchedule = defaultPattern.rates.map((rate, idx) => ({
                             depositNumber: idx + 1,
                             percentage: rate,
                             amountUSD: 0,
@@ -2615,7 +2616,7 @@
                             paidDate: null,
                             exchangeRate: null,
                             amountJPY: null
-                        })) : [];
+                        }));
                     }
                     
                     return [

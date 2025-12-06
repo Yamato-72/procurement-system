@@ -303,14 +303,13 @@
                 
                 const supplierResponse = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: 'サプライヤー!A2:D',
+                    range: 'サプライヤー!A2:C',
                 });
                 const supplierRows = supplierResponse.result.values || [];
                 suppliers = supplierRows.map(row => ({
                     id: parseInt(row[0] || Date.now()),
                     name: row[1] || '',
-                    depositCount: parseInt(row[2] || 2),
-                    depositRates: JSON.parse(row[3] || '[50,50]')
+                    paymentPatterns: JSON.parse(row[2] || '[{"name":"標準","rates":[50,50]}]')
                 }));
 
                 const projectResponse = await gapi.client.sheets.spreadsheets.values.get({
@@ -366,7 +365,8 @@
                         data.depositSchedule = JSON.parse(row[6] || '[]');
                     } catch (e) {
                         if (supplier) {
-                            data.depositSchedule = supplier.depositRates.map((rate, idx) => ({
+                            const defaultPattern = supplier.paymentPatterns[0] || {rates: [50, 50]};
+                            data.depositSchedule = defaultPattern.rates.map((rate, idx) => ({
                                 depositNumber: idx + 1,
                                 percentage: rate,
                                 amountUSD: (data.totalAmount * rate / 100),
@@ -476,8 +476,8 @@
                 showStatus('保存中...');
                 
                 const supplierData = [
-                    ['ID', 'サプライヤー名', 'デポジット回数', 'デポジット率'],
-                    ...suppliers.map(s => [s.id, s.name, s.depositCount, JSON.stringify(s.depositRates)])
+                    ['ID', 'サプライヤー名', '支払いパターン'],
+                    ...suppliers.map(s => [s.id, s.name, JSON.stringify(s.paymentPatterns)])
                 ];
                 // まずクリアしてから書き込み（削除された行も反映）
                 await gapi.client.sheets.spreadsheets.values.clear({
@@ -529,17 +529,21 @@
             }
         }
 
-        function addSupplier(name, depositCount, depositRates) {
-            suppliers.push({ id: Date.now(), name, depositCount, depositRates });
+        function addSupplier(name, paymentPatterns) {
+            suppliers.push({ id: Date.now(), name, paymentPatterns });
             saveData();
         }
 
-        async function addProject(projectNumberInput, supplierId, productName, totalAmount, quantity, workingDays, category) {
+        async function addProject(projectNumberInput, supplierId, productName, totalAmount, quantity, workingDays, category, patternIndex = 0) {
             // 案件番号を解析（AD-1234 形式または 1234 形式）
             const parsed = parseProjectNumberString(projectNumberInput);
             
             const supplier = suppliers.find(s => s.id === parseInt(supplierId));
-            const depositSchedule = supplier ? supplier.depositRates.map((rate, idx) => ({
+            let depositRates = [50, 50]; // デフォルト
+            if (supplier && supplier.paymentPatterns && supplier.paymentPatterns[patternIndex]) {
+                depositRates = supplier.paymentPatterns[patternIndex].rates;
+            }
+            const depositSchedule = depositRates.map((rate, idx) => ({
                 depositNumber: idx + 1,
                 percentage: rate,
                 amountUSD: (parseFloat(totalAmount) * rate / 100),
@@ -547,7 +551,7 @@
                 paidDate: null,
                 exchangeRate: null,
                 amountJPY: null
-            })) : [];
+            }));
             
             const serial = generateSerial(quantity);
             
@@ -1094,8 +1098,11 @@
                                                 <div class="flex justify-between items-start mb-2">
                                                     <div class="flex-1">
                                                         <h3 class="font-bold text-sm sm:text-lg dark:text-white">${s.name}</h3>
-                                                        <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400">デポジット: ${s.depositCount}回</p>
-                                                        <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400">割合: ${s.depositRates.join('%, ')}%</p>
+                                                        <div class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">
+                                                            ${(s.paymentPatterns || []).map(p => `
+                                                                <span class="inline-block mr-2 mb-1 px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded">${p.name}: ${p.rates.join('→')}%</span>
+                                                            `).join('')}
+                                                        </div>
                                                     </div>
                                                     <div class="flex gap-1 sm:gap-2">
                                                         <button onclick="editSupplier(${s.id})" class="px-2 sm:px-3 py-1 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700" title="編集">
@@ -1427,50 +1434,50 @@
             const name = prompt('サプライヤー名:', supplier.name);
             if (!name) return;
             
-            const count = parseInt(prompt('デポジット回数:', supplier.depositCount));
-            if (!count || count < 1) return;
+            // 既存パターンを表示
+            const existingPatterns = (supplier.paymentPatterns || []).map((p, idx) => 
+                `${idx + 1}. ${p.name}: ${p.rates.join('→')}%`
+            ).join('\n');
             
-            const rates = [];
-            let total = 0;
+            const action = prompt(`現在の支払いパターン:\n${existingPatterns}\n\n操作を選択:\n1: パターン追加\n2: パターン削除\n3: 名前変更のみ\n\n番号を入力:`, '3');
             
-            for (let i = 0; i < count; i++) {
-                const defaultRate = supplier.depositRates[i] || '';
-                const rate = parseFloat(prompt(`第${i + 1}回目のデポジット割合 (%):\n残り: ${100 - total}%`, defaultRate));
-                if (rate === null || rate === '' || isNaN(rate)) {
-                    alert('入力がキャンセルされました');
+            if (action === '1') {
+                // パターン追加
+                const patternName = prompt('新しい支払いパターン名:', '');
+                if (!patternName) return;
+                
+                const count = parseInt(prompt(`「${patternName}」のデポジット回数:`, '1'));
+                if (!count || count < 1) return;
+                
+                const rates = [];
+                let total = 0;
+                
+                for (let i = 0; i < count; i++) {
+                    const rate = parseFloat(prompt(`第${i + 1}回目のデポジット割合 (%):\n残り: ${100 - total}%`, count === 1 ? '100' : ''));
+                    if (rate === null || rate === '' || isNaN(rate)) return;
+                    rates.push(rate);
+                    total += rate;
+                }
+                
+                if (Math.abs(total - 100) > 0.01) {
+                    alert(`エラー: 合計が${total}%です。100%になるように入力してください。`);
                     return;
                 }
-                rates.push(rate);
-                total += rate;
-            }
-            
-            if (Math.abs(total - 100) > 0.01) {
-                alert(`エラー: 合計が${total}%です。100%になるように入力してください。`);
-                return;
+                
+                supplier.paymentPatterns.push({ name: patternName, rates });
+            } else if (action === '2') {
+                // パターン削除
+                if (supplier.paymentPatterns.length <= 1) {
+                    alert('最低1つのパターンが必要です');
+                    return;
+                }
+                const delIdx = parseInt(prompt('削除するパターン番号:', '')) - 1;
+                if (delIdx >= 0 && delIdx < supplier.paymentPatterns.length) {
+                    supplier.paymentPatterns.splice(delIdx, 1);
+                }
             }
             
             supplier.name = name;
-            supplier.depositCount = count;
-            supplier.depositRates = rates;
-            
-            // 関連する案件のデポジット予定を更新
-            projects.forEach(p => {
-                if (p.supplierId === supplierId) {
-                    p.depositSchedule = rates.map((rate, idx) => {
-                        const existingDeposit = p.depositSchedule[idx];
-                        return {
-                            depositNumber: idx + 1,
-                            percentage: rate,
-                            amountUSD: (p.totalAmount * rate / 100),
-                            paid: existingDeposit ? existingDeposit.paid : false,
-                            paidDate: existingDeposit ? existingDeposit.paidDate : null,
-                            exchangeRate: existingDeposit ? existingDeposit.exchangeRate : null,
-                            amountJPY: existingDeposit && existingDeposit.paid ? 
-                                (p.totalAmount * rate / 100) * existingDeposit.exchangeRate : null
-                        };
-                    });
-                }
-            });
             
             saveData();
             renderMain();
@@ -1628,28 +1635,46 @@
         function showAddSupplierForm() {
             const name = prompt('サプライヤー名:');
             if (!name) return;
-            const count = parseInt(prompt('デポジット回数:', '2'));
-            if (!count || count < 1) return;
             
-            const rates = [];
-            let total = 0;
+            const paymentPatterns = [];
+            let addMore = true;
             
-            for (let i = 0; i < count; i++) {
-                const rate = parseFloat(prompt(`第${i + 1}回目のデポジット割合 (%):\n残り: ${100 - total}%`, ''));
-                if (rate === null || rate === '' || isNaN(rate)) {
-                    alert('入力がキャンセルされました');
+            while (addMore) {
+                const patternName = prompt(`支払いパターン名 (例: 標準, 100%前払い):`, paymentPatterns.length === 0 ? '標準' : '');
+                if (!patternName) break;
+                
+                const count = parseInt(prompt(`「${patternName}」のデポジット回数:`, '2'));
+                if (!count || count < 1) break;
+                
+                const rates = [];
+                let total = 0;
+                
+                for (let i = 0; i < count; i++) {
+                    const rate = parseFloat(prompt(`第${i + 1}回目のデポジット割合 (%):\n残り: ${100 - total}%`, count === 1 ? '100' : ''));
+                    if (rate === null || rate === '' || isNaN(rate)) {
+                        alert('入力がキャンセルされました');
+                        return;
+                    }
+                    rates.push(rate);
+                    total += rate;
+                }
+                
+                if (Math.abs(total - 100) > 0.01) {
+                    alert(`エラー: 合計が${total}%です。100%になるように入力してください。`);
                     return;
                 }
-                rates.push(rate);
-                total += rate;
+                
+                paymentPatterns.push({ name: patternName, rates });
+                
+                addMore = confirm('別の支払いパターンを追加しますか？');
             }
             
-            if (Math.abs(total - 100) > 0.01) {
-                alert(`エラー: 合計が${total}%です。100%になるように入力してください。`);
+            if (paymentPatterns.length === 0) {
+                alert('少なくとも1つの支払いパターンが必要です');
                 return;
             }
             
-            addSupplier(name, count, rates);
+            addSupplier(name, paymentPatterns);
             renderMain();
         }
 
@@ -1688,9 +1713,15 @@
                                 </div>
                                 <div style="flex:1;min-width:150px;">
                                     <label style="display:block;font-size:12px;color:#666;margin-bottom:4px;">サプライヤー</label>
-                                    <select id="modalSupplierId" onchange="filterProductBySupplier()" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:14px;">
+                                    <select id="modalSupplierId" onchange="onSupplierChange()" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:14px;">
                                         <option value="">-- 選択 --</option>
                                         ${suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div style="flex:1;min-width:120px;">
+                                    <label style="display:block;font-size:12px;color:#666;margin-bottom:4px;">支払条件</label>
+                                    <select id="modalPaymentPattern" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:14px;">
+                                        <option value="0">-- サプライヤー選択後 --</option>
                                     </select>
                                 </div>
                                 <div style="flex:1;min-width:100px;">
@@ -1941,6 +1972,28 @@
         }
         
         // サプライヤー変更時
+        // サプライヤー選択時に支払いパターンを更新
+        function onSupplierChange() {
+            const supplierId = document.getElementById('modalSupplierId').value;
+            const patternSelect = document.getElementById('modalPaymentPattern');
+            
+            if (!supplierId) {
+                patternSelect.innerHTML = '<option value="0">-- サプライヤー選択後 --</option>';
+            } else {
+                const supplier = suppliers.find(s => s.id === parseInt(supplierId));
+                if (supplier && supplier.paymentPatterns) {
+                    patternSelect.innerHTML = supplier.paymentPatterns.map((p, idx) => 
+                        `<option value="${idx}">${p.name} (${p.rates.join('→')}%)</option>`
+                    ).join('');
+                } else {
+                    patternSelect.innerHTML = '<option value="0">標準</option>';
+                }
+            }
+            
+            // 製品リストもフィルタ
+            filterProductBySupplier();
+        }
+        
         function filterProductBySupplier() {
             filterProductList();
         }
@@ -1972,6 +2025,7 @@
             const projectNumber = document.getElementById('modalProjectNumber').value.trim();
             const supplierId = document.getElementById('modalSupplierId').value;
             const workingDays = parseInt(document.getElementById('modalWorkingDays').value) || 30;
+            const patternIndex = parseInt(document.getElementById('modalPaymentPattern').value) || 0;
             
             if (!projectNumber) {
                 alert('案件番号を入力してください');
@@ -2002,7 +2056,8 @@
                     item.totalAmount, 
                     item.quantity, 
                     workingDays, 
-                    item.category
+                    item.category,
+                    patternIndex
                 );
             }
             
