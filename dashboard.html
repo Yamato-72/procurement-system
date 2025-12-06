@@ -14,204 +14,235 @@
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600&display=swap');
         :root { --text: #37352f; --text-sub: rgba(55,53,47,0.65); --bg: #fff; --bg-hover: rgba(55,53,47,0.04); --bg-card: #f7f6f3; --border: rgba(55,53,47,0.09); --accent: #2383e2; --green: #0f7b6c; --red: #eb5757; --yellow: #dfab01; }
         .dark { --text: rgba(255,255,255,0.9); --text-sub: rgba(255,255,255,0.5); --bg: #191919; --bg-hover: rgba(255,255,255,0.03); --bg-card: #252525; --border: rgba(255,255,255,0.08); }
-        * { font-family: 'Noto Sans JP', -apple-system, sans-serif; }
+        * { font-family: 'Noto Sans JP', -apple-system, sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
         body { background: var(--bg); color: var(--text); }
         .t-sub { color: var(--text-sub); }
         .bg-card { background: var(--bg-card); }
         .border-def { border-color: var(--border); }
-        .hover-bg { transition: background 80ms; border-radius: 4px; }
+        .hover-bg { transition: background 80ms; border-radius: 3px; }
         .hover-bg:hover { background: var(--bg-hover); }
-        .btn { padding: 6px 12px; border-radius: 4px; font-size: 14px; transition: opacity 80ms; }
+        .btn { padding: 4px 10px; border-radius: 3px; font-size: 12px; transition: opacity 80ms; cursor: pointer; border: none; }
         .btn:hover { opacity: 0.85; }
         .btn-primary { background: var(--accent); color: #fff; }
-        .btn-success { background: var(--green); color: #fff; }
-        .mode-btn { padding: 4px 10px; font-size: 13px; border-radius: 4px; color: var(--text-sub); transition: all 80ms; }
+        .mode-btn { padding: 3px 8px; font-size: 11px; border-radius: 3px; color: var(--text-sub); transition: all 80ms; cursor: pointer; border: none; background: transparent; }
         .mode-btn:hover { background: var(--bg-hover); }
         .mode-btn.active { background: rgba(35,131,226,0.1); color: var(--accent); }
-        input, textarea, select { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 8px 10px; font-size: 14px; }
-        input:focus, textarea:focus { outline: none; border-color: var(--accent); }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        input { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 3px; padding: 6px 8px; font-size: 12px; }
+        input:focus { outline: none; border-color: var(--accent); }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        
+        /* フル画面グリッド */
+        .dashboard { display: grid; height: 100vh; grid-template-rows: auto 1fr; gap: 0; }
+        .main-grid { display: grid; grid-template-columns: 1fr 1fr 280px; grid-template-rows: auto 1fr 1fr; gap: 1px; background: var(--border); padding: 1px; overflow: hidden; }
+        .main-grid > * { background: var(--bg); padding: 12px; overflow: hidden; }
+        
+        /* テーブル */
+        .mini-table { font-size: 11px; width: 100%; }
+        .mini-table th { text-align: left; font-weight: 500; padding: 4px 6px; border-bottom: 1px solid var(--border); }
+        .mini-table td { padding: 4px 6px; border-bottom: 1px solid var(--border); }
+        .mini-table tr:hover { background: var(--bg-hover); }
+        
+        /* KPIカード */
+        .kpi { text-align: center; padding: 8px !important; }
+        .kpi-value { font-size: 20px; font-weight: 600; }
+        .kpi-label { font-size: 10px; color: var(--text-sub); }
+        .kpi-sub { font-size: 10px; margin-top: 2px; }
+        
+        /* モバイル対応 */
+        @media (max-width: 1024px) {
+            .dashboard { height: auto; }
+            .main-grid { grid-template-columns: 1fr; grid-template-rows: auto; }
+            .main-grid > * { min-height: 200px; }
+        }
     </style>
 </head>
-<body class="min-h-screen">
-    <div id="app" class="max-w-4xl mx-auto px-4 sm:px-6 py-4">
-        
+<body>
+    <div class="dashboard">
         <!-- ヘッダー -->
-        <header class="flex items-center justify-between py-2 mb-6">
+        <header class="flex items-center justify-between px-4 py-2 border-b border-def">
             <div class="flex items-center gap-2">
-                <i data-lucide="compass" class="w-6 h-6 stroke-[1.5]"></i>
-                <span class="font-semibold text-lg">YS調達ナビ</span>
+                <i data-lucide="compass" class="w-5 h-5"></i>
+                <span class="font-semibold">YS調達ナビ</span>
                 <span class="t-sub text-xs" id="lastUpdate"></span>
             </div>
-            <div class="flex items-center gap-1 text-sm">
-                <a href="index.html" class="hover-bg px-2 py-1.5 t-sub flex items-center gap-1"><i data-lucide="clipboard-list" class="w-4 h-4"></i><span class="hidden sm:inline">調達</span></a>
-                <a href="inventory.html" class="hover-bg px-2 py-1.5 t-sub flex items-center gap-1"><i data-lucide="package" class="w-4 h-4"></i><span class="hidden sm:inline">在庫</span></a>
-                <button onclick="loadData()" class="hover-bg p-2 t-sub"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
-                <button onclick="toggleDarkMode()" class="hover-bg p-2 t-sub"><i data-lucide="moon" class="w-4 h-4"></i></button>
+            <div class="flex items-center gap-1 text-xs">
+                <a href="index.html" class="hover-bg px-2 py-1 t-sub">調達</a>
+                <a href="inventory.html" class="hover-bg px-2 py-1 t-sub">在庫</a>
+                <button onclick="loadData()" class="hover-bg p-1.5 t-sub"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+                <button onclick="toggleDarkMode()" class="hover-bg p-1.5 t-sub"><i data-lucide="moon" class="w-4 h-4"></i></button>
             </div>
         </header>
 
-        <!-- ログイン前 -->
-        <div id="loginSection" class="py-20 text-center">
-            <i data-lucide="compass" class="w-16 h-16 mx-auto mb-4 stroke-[1]"></i>
-            <h2 class="text-lg font-semibold mb-1">YS調達ナビ</h2>
-            <p class="t-sub text-sm mb-6">Googleアカウントでログイン</p>
-            <button onclick="handleAuth()" class="btn btn-primary">Googleでログイン</button>
+        <!-- ログイン -->
+        <div id="loginSection" class="flex items-center justify-center">
+            <div class="text-center">
+                <i data-lucide="compass" class="w-12 h-12 mx-auto mb-3 stroke-1"></i>
+                <p class="text-sm mb-4">Googleアカウントでログイン</p>
+                <button onclick="handleAuth()" class="btn btn-primary px-4 py-2">ログイン</button>
+            </div>
         </div>
 
-        <!-- メイン -->
-        <div id="mainContent" class="hidden space-y-8">
+        <!-- メイングリッド -->
+        <div id="mainContent" class="main-grid hidden">
             
-            <!-- サマリー -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <a href="inventory.html?status=在庫中" class="hover-bg p-3 cursor-pointer">
-                    <div class="flex items-center gap-2 mb-2"><i data-lucide="package" class="w-4 h-4 t-sub"></i><span class="text-xs t-sub">在庫中</span></div>
-                    <p class="text-2xl font-semibold" id="statInStock">-</p>
-                    <p class="text-xs t-sub mt-1" id="statInStockDetail">-</p>
-                </a>
-                <a href="inventory.html?status=入庫待ち" class="hover-bg p-3 cursor-pointer">
-                    <div class="flex items-center gap-2 mb-2"><i data-lucide="truck" class="w-4 h-4 t-sub"></i><span class="text-xs t-sub">入庫待ち</span></div>
-                    <p class="text-2xl font-semibold" id="statWaiting">-</p>
-                    <p class="text-xs mt-1" style="color:var(--red)" id="statWaitingDetail">-</p>
-                </a>
-                <a href="index.html" class="hover-bg p-3 cursor-pointer">
-                    <div class="flex items-center gap-2 mb-2"><i data-lucide="wallet" class="w-4 h-4 t-sub"></i><span class="text-xs t-sub">未払い</span></div>
-                    <p class="text-2xl font-semibold" id="statUnpaid">-</p>
-                    <p class="text-xs t-sub mt-1" id="statUnpaidDetail">-</p>
-                </a>
-                <div class="p-3">
-                    <div class="flex items-center gap-2 mb-2"><i data-lucide="credit-card" class="w-4 h-4 t-sub"></i><span class="text-xs t-sub">今月支払い</span></div>
-                    <p class="text-2xl font-semibold" id="statThisMonth">-</p>
-                    <p class="text-xs t-sub mt-1" id="statThisMonthDetail">-</p>
+            <!-- Row 1: KPIバー -->
+            <div class="col-span-3 flex gap-1 p-2 overflow-x-auto" style="grid-column: 1 / -1;">
+                <div class="kpi flex-1 min-w-0">
+                    <div class="kpi-label">在庫中</div>
+                    <div class="kpi-value" id="kpiInStock">-</div>
+                    <div class="kpi-sub t-sub" id="kpiInStockSub">-</div>
+                </div>
+                <div class="kpi flex-1 min-w-0">
+                    <div class="kpi-label">入庫待ち</div>
+                    <div class="kpi-value" id="kpiWaiting">-</div>
+                    <div class="kpi-sub" style="color:var(--yellow)" id="kpiWaitingSub">-</div>
+                </div>
+                <div class="kpi flex-1 min-w-0">
+                    <div class="kpi-label">未払い</div>
+                    <div class="kpi-value" id="kpiUnpaid">-</div>
+                    <div class="kpi-sub t-sub" id="kpiUnpaidSub">-</div>
+                </div>
+                <div class="kpi flex-1 min-w-0">
+                    <div class="kpi-label">今月支払</div>
+                    <div class="kpi-value" id="kpiThisMonth">-</div>
+                    <div class="kpi-sub" id="kpiThisMonthSub">-</div>
+                </div>
+                <div class="kpi flex-1 min-w-0">
+                    <div class="kpi-label">平均滞留</div>
+                    <div class="kpi-value" id="kpiAvgStay">-</div>
+                    <div class="kpi-sub" id="kpiAvgStaySub">-</div>
+                </div>
+                <div class="kpi flex-1 min-w-0">
+                    <div class="kpi-label">回転率</div>
+                    <div class="kpi-value" id="kpiTurnover">-</div>
+                    <div class="kpi-sub t-sub">回/月</div>
+                </div>
+                <div class="kpi flex-1 min-w-0">
+                    <div class="kpi-label">遅延</div>
+                    <div class="kpi-value" id="kpiOverdue">-</div>
+                    <div class="kpi-sub" style="color:var(--red)" id="kpiOverdueSub">-</div>
+                </div>
+                <div class="kpi flex-1 min-w-0 bg-card rounded" style="padding:6px !important">
+                    <div class="kpi-label">ヘルス</div>
+                    <div id="healthMini" class="text-xs mt-1"></div>
                 </div>
             </div>
 
-            <!-- AI分析 -->
-            <section>
-                <div class="flex items-center gap-2 mb-3">
-                    <i data-lucide="sparkles" class="w-5 h-5"></i>
-                    <h2 class="font-semibold">AI分析</h2>
-                </div>
-                <div class="flex flex-wrap gap-1 mb-3">
-                    <button class="mode-btn active" data-mode="quick" onclick="setAnalysisMode('quick')"><i data-lucide="zap" class="w-3 h-3 inline mr-1"></i>クイック</button>
-                    <button class="mode-btn" data-mode="detail" onclick="setAnalysisMode('detail')"><i data-lucide="bar-chart-2" class="w-3 h-3 inline mr-1"></i>詳細</button>
-                    <button class="mode-btn" data-mode="cost" onclick="setAnalysisMode('cost')"><i data-lucide="coins" class="w-3 h-3 inline mr-1"></i>コスト</button>
-                    <button class="mode-btn" data-mode="supplier" onclick="setAnalysisMode('supplier')"><i data-lucide="factory" class="w-3 h-3 inline mr-1"></i>サプライヤー</button>
-                    <button class="mode-btn" data-mode="forecast" onclick="setAnalysisMode('forecast')"><i data-lucide="trending-up" class="w-3 h-3 inline mr-1"></i>予測</button>
-                </div>
-                <div id="analysisResult" class="bg-card p-4 rounded-lg mb-3 min-h-[80px] text-sm">
-                    <p class="t-sub">モードを選んで「分析開始」をクリック</p>
-                </div>
-                <div class="flex gap-2 mb-6">
-                    <button onclick="runAnalysis()" class="btn btn-primary flex items-center gap-1"><i data-lucide="play" class="w-4 h-4"></i>分析開始</button>
-                    <button onclick="saveToKnowledge()" id="saveKnowledgeBtn" class="btn btn-success flex items-center gap-1 hidden"><i data-lucide="bookmark" class="w-4 h-4"></i>保存</button>
-                </div>
-                
-                <!-- チャット -->
-                <div class="border-t border-def pt-4">
-                    <p class="text-xs t-sub mb-3 flex items-center gap-1"><i data-lucide="message-circle" class="w-3 h-3"></i>AIに質問</p>
-                    <div id="chatHistory" class="space-y-2 mb-3 max-h-[200px] overflow-y-auto"></div>
-                    <div class="flex gap-2">
-                        <input type="text" id="chatInput" placeholder="例: 来月の支払いは？" class="flex-1" onkeypress="if(event.key==='Enter')sendChat()">
-                        <button onclick="sendChat()" class="btn" style="background:var(--text);color:var(--bg)">送信</button>
+            <!-- Row 2 Col 1: AI分析 -->
+            <div class="flex flex-col">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-1">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i>
+                        <span class="font-medium text-sm">AI分析</span>
+                    </div>
+                    <div class="flex gap-1">
+                        <button class="mode-btn active" data-mode="quick" onclick="setMode('quick')">クイック</button>
+                        <button class="mode-btn" data-mode="detail" onclick="setMode('detail')">詳細</button>
+                        <button class="mode-btn" data-mode="cost" onclick="setMode('cost')">コスト</button>
+                        <button class="mode-btn" data-mode="supplier" onclick="setMode('supplier')">サプライヤー</button>
                     </div>
                 </div>
-            </section>
-
-            <!-- ナレッジ -->
-            <section>
-                <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="book-open" class="w-5 h-5"></i>
-                        <h2 class="font-semibold">ナレッジ</h2>
-                        <span id="knowledgeCount" class="text-xs t-sub">0件</span>
-                    </div>
-                    <button onclick="showKnowledgeModal()" class="text-sm hover-bg px-2 py-1" style="color:var(--accent)">すべて見る</button>
+                <div id="analysisResult" class="flex-1 bg-card rounded p-2 text-xs overflow-auto mb-2">
+                    <p class="t-sub">「分析」をクリック</p>
                 </div>
-                <div id="knowledgePreview" class="space-y-1">
-                    <p class="text-sm t-sub">ナレッジはまだありません</p>
+                <div class="flex gap-1">
+                    <input type="text" id="chatInput" placeholder="質問..." class="flex-1 text-xs" onkeypress="if(event.key==='Enter')sendChat()">
+                    <button onclick="runAnalysis()" class="btn btn-primary">分析</button>
+                    <button onclick="sendChat()" class="btn" style="background:var(--text);color:var(--bg)">送信</button>
                 </div>
-            </section>
-
-            <!-- タイムライン & ヘルス -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <section class="lg:col-span-2">
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex items-center gap-2"><i data-lucide="calendar" class="w-5 h-5"></i><h2 class="font-semibold">今週のスケジュール</h2></div>
-                        <span class="text-xs t-sub" id="timelineWeek">-</span>
-                    </div>
-                    <div id="timeline" class="space-y-2"><p class="text-sm t-sub">読み込み中...</p></div>
-                </section>
-                <section>
-                    <div class="flex items-center gap-2 mb-3"><i data-lucide="activity" class="w-5 h-5"></i><h2 class="font-semibold">ヘルスチェック</h2></div>
-                    <div id="healthCheck" class="space-y-2"><p class="text-sm t-sub">読み込み中...</p></div>
-                </section>
             </div>
 
-            <!-- クイックアクション -->
-            <section>
-                <div class="flex items-center gap-2 mb-3"><i data-lucide="zap" class="w-5 h-5"></i><h2 class="font-semibold">クイックアクション</h2></div>
-                <div id="quickActions" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2"><p class="text-sm t-sub">読み込み中...</p></div>
-            </section>
-
-            <!-- グラフ -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div><p class="text-sm font-medium mb-3">月別入出庫</p><div class="h-44"><canvas id="flowChart"></canvas></div></div>
-                <div><p class="text-sm font-medium mb-3">月別支払い</p><div class="h-44"><canvas id="paymentChart"></canvas></div></div>
+            <!-- Row 2 Col 2: グラフ2つ -->
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <p class="text-xs font-medium mb-1">サプライヤー別</p>
+                    <div class="h-28"><canvas id="supplierChart"></canvas></div>
+                </div>
+                <div>
+                    <p class="text-xs font-medium mb-1">カテゴリ別在庫</p>
+                    <div class="h-28"><canvas id="categoryChart"></canvas></div>
+                </div>
             </div>
+
+            <!-- Row 2 Col 3: スケジュール -->
+            <div class="flex flex-col">
+                <div class="flex items-center gap-1 mb-2">
+                    <i data-lucide="calendar" class="w-4 h-4"></i>
+                    <span class="font-medium text-sm">今週</span>
+                    <span class="t-sub text-xs" id="weekRange"></span>
+                </div>
+                <div id="timeline" class="flex-1 overflow-auto text-xs space-y-1"></div>
+            </div>
+
+            <!-- Row 3 Col 1: 未払い一覧 -->
+            <div class="flex flex-col">
+                <div class="flex items-center gap-1 mb-2">
+                    <i data-lucide="wallet" class="w-4 h-4"></i>
+                    <span class="font-medium text-sm">未払い一覧</span>
+                </div>
+                <div class="flex-1 overflow-auto">
+                    <table class="mini-table">
+                        <thead><tr><th>案件</th><th>金額</th><th>経過</th><th></th></tr></thead>
+                        <tbody id="unpaidTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Row 3 Col 2: グラフ2つ -->
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <p class="text-xs font-medium mb-1">支払い予定（4週）</p>
+                    <div class="h-28"><canvas id="forecastChart"></canvas></div>
+                </div>
+                <div>
+                    <p class="text-xs font-medium mb-1">入出庫推移</p>
+                    <div class="h-28"><canvas id="flowChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Row 3 Col 3: 滞留 & アクション -->
+            <div class="flex flex-col gap-2">
+                <div class="flex-1">
+                    <div class="flex items-center gap-1 mb-1">
+                        <i data-lucide="clock" class="w-3 h-3"></i>
+                        <span class="font-medium text-xs">長期滞留</span>
+                    </div>
+                    <div id="staleList" class="text-xs space-y-1 overflow-auto" style="max-height:80px"></div>
+                </div>
+                <div class="flex-1">
+                    <div class="flex items-center gap-1 mb-1">
+                        <i data-lucide="zap" class="w-3 h-3"></i>
+                        <span class="font-medium text-xs">クイックアクション</span>
+                    </div>
+                    <div id="quickActions" class="text-xs space-y-1 overflow-auto" style="max-height:80px"></div>
+                </div>
+            </div>
+
         </div>
     </div>
 
-    <!-- ナレッジモーダル -->
+    <!-- ナレッジは別モーダルで -->
+    <div id="knowledgeBtn" class="fixed bottom-4 right-4 hidden">
+        <button onclick="showKnowledgeModal()" class="flex items-center gap-1 px-3 py-2 bg-card rounded-lg shadow-lg text-sm hover:opacity-80">
+            <i data-lucide="book-open" class="w-4 h-4"></i>
+            <span>ナレッジ</span>
+            <span id="knowledgeCount" class="text-xs t-sub">0</span>
+        </button>
+    </div>
+
     <div id="knowledgeModal" class="fixed inset-0 bg-black/40 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-card rounded-lg max-w-xl w-full max-h-[80vh] overflow-hidden flex flex-col" style="background:var(--bg)">
-            <div class="p-4 flex justify-between items-center border-b border-def">
-                <h3 class="font-semibold flex items-center gap-2"><i data-lucide="book-open" class="w-4 h-4"></i>ナレッジベース</h3>
+        <div class="rounded-lg max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col" style="background:var(--bg)">
+            <div class="p-3 flex justify-between items-center border-b border-def">
+                <span class="font-medium text-sm">📚 ナレッジ</span>
                 <button onclick="closeKnowledgeModal()" class="hover-bg p-1"><i data-lucide="x" class="w-4 h-4"></i></button>
             </div>
-            <div class="p-3 border-b border-def flex gap-1 flex-wrap">
-                <button class="knowledge-filter mode-btn active" data-filter="all">すべて</button>
-                <button class="knowledge-filter mode-btn" data-filter="important"><i data-lucide="pin" class="w-3 h-3 inline mr-1"></i>重要</button>
-                <button class="knowledge-filter mode-btn" data-filter="supplier"><i data-lucide="factory" class="w-3 h-3 inline mr-1"></i>サプライヤー</button>
-                <button class="knowledge-filter mode-btn" data-filter="cost"><i data-lucide="coins" class="w-3 h-3 inline mr-1"></i>コスト</button>
-                <button class="knowledge-filter mode-btn" data-filter="pattern"><i data-lucide="bar-chart-2" class="w-3 h-3 inline mr-1"></i>パターン</button>
-            </div>
-            <div id="knowledgeList" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
-            <div class="p-4 border-t border-def">
-                <button onclick="showAddKnowledgeForm()" class="w-full text-sm hover-bg py-2 flex items-center justify-center gap-1" style="color:var(--accent)"><i data-lucide="plus" class="w-4 h-4"></i>ナレッジを追加</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ナレッジ追加モーダル -->
-    <div id="addKnowledgeModal" class="fixed inset-0 bg-black/40 z-50 hidden flex items-center justify-center p-4">
-        <div class="rounded-lg max-w-md w-full p-6" style="background:var(--bg)">
-            <h3 class="font-semibold mb-4 flex items-center gap-2"><i data-lucide="file-plus" class="w-4 h-4"></i>ナレッジを追加</h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs t-sub mb-1">カテゴリ</label>
-                    <select id="newKnowledgeCategory" class="w-full">
-                        <option value="important">重要な気づき</option>
-                        <option value="supplier">サプライヤー</option>
-                        <option value="cost">コスト</option>
-                        <option value="pattern">パターン</option>
-                        <option value="seasonal">季節性</option>
-                        <option value="note">メモ</option>
-                    </select>
+            <div id="knowledgeList" class="flex-1 overflow-auto p-3 space-y-2 text-sm"></div>
+            <div class="p-3 border-t border-def">
+                <div class="flex gap-2">
+                    <input type="text" id="newKnowledge" placeholder="新しいナレッジを追加..." class="flex-1 text-sm">
+                    <button onclick="addKnowledge()" class="btn btn-primary">追加</button>
                 </div>
-                <div>
-                    <label class="block text-xs t-sub mb-1">内容</label>
-                    <textarea id="newKnowledgeContent" rows="3" class="w-full resize-none" placeholder="例: OKViewは年末に納期遅れ傾向"></textarea>
-                </div>
-                <div>
-                    <label class="block text-xs t-sub mb-1">タグ（任意）</label>
-                    <input type="text" id="newKnowledgeTags" class="w-full" placeholder="例: OKView, LED">
-                </div>
-            </div>
-            <div class="flex gap-2 mt-6">
-                <button onclick="closeAddKnowledgeModal()" class="flex-1 btn hover-bg">キャンセル</button>
-                <button onclick="addKnowledge()" class="flex-1 btn btn-primary">保存</button>
             </div>
         </div>
     </div>
@@ -220,12 +251,11 @@
         const CLIENT_ID = '47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
         const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';
         let accessToken = null, inventory = [], archivedInventory = [], projects = [], suppliers = [], knowledge = [];
-        let charts = {}, currentAnalysisMode = 'quick', lastAnalysisResult = null, chatHistory = [];
+        let charts = {}, currentMode = 'quick', lastResult = null;
         const icons = { important: 'pin', supplier: 'factory', cost: 'coins', pattern: 'bar-chart-2', seasonal: 'calendar-days', note: 'file-text' };
 
         function init() {
-            initDarkMode();
-            lucide.createIcons();
+            initDarkMode(); lucide.createIcons();
             gapi.load('client', async () => {
                 await gapi.client.init({ discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'] });
                 const t = sessionStorage.getItem('googleAccessToken');
@@ -240,7 +270,12 @@
             }).requestAccessToken();
         }
 
-        function showMain() { document.getElementById('loginSection').classList.add('hidden'); document.getElementById('mainContent').classList.remove('hidden'); lucide.createIcons(); }
+        function showMain() {
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('mainContent').classList.remove('hidden');
+            document.getElementById('knowledgeBtn').classList.remove('hidden');
+            lucide.createIcons();
+        }
 
         async function loadData() {
             if (!accessToken) return;
@@ -250,233 +285,402 @@
                     gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: '案件!A2:N' }),
                     gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: '在庫!A2:Q' })
                 ]);
-                suppliers = (supRes.result.values || []).map(r => ({ id: parseInt(r[0] || 0), name: r[1] || '', paymentPatterns: JSON.parse(r[2] || '[]') }));
-                projects = (prjRes.result.values || []).map(r => ({ id: r[0], projectPrefix: r[1] || 'AD', projectNumber: parseInt(r[2]) || 0, supplierId: parseInt(r[3] || 0), productName: r[4] || '', totalAmount: parseFloat(r[5] || 0), depositSchedule: JSON.parse(r[6] || '[]'), serial: r[7] || '', quantity: parseInt(r[8] || 1), workingDays: parseInt(r[9] || 30), pickupDate: r[10] || '', registeredDate: r[11] || '', expenses: JSON.parse(r[12] || '[]'), receivedComplete: r[13] === 'true' }));
-                inventory = (invRes.result.values || []).map(r => ({ id: r[0] || '', serial: r[1] || '', category: r[2] || '', productName: r[3] || '', orderPrefix: r[4] || '', orderNumber: r[5] || '', orderDate: r[6] || '', receiveDate: r[7] || '', status: r[8] || '', shipDate: r[9] || '', shipPrefix: r[10] || '', shipNumber: r[11] || '', costJPY: r[12] || '', note: r[13] || '', shelfNo: r[14] || '', location: r[15] || '', supplierId: r[16] || '' }));
-                try { const a = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: '在庫アーカイブ!A2:Q' }); archivedInventory = (a.result.values || []).map(r => ({ receiveDate: r[7] || '', shipDate: r[9] || '' })); } catch { archivedInventory = []; }
+                suppliers = (supRes.result.values || []).map(r => ({ id: parseInt(r[0] || 0), name: r[1] || '' }));
+                projects = (prjRes.result.values || []).map(r => ({ id: r[0], projectPrefix: r[1] || 'AD', projectNumber: parseInt(r[2]) || 0, supplierId: parseInt(r[3] || 0), productName: r[4] || '', totalAmount: parseFloat(r[5] || 0), depositSchedule: JSON.parse(r[6] || '[]'), pickupDate: r[10] || '', registeredDate: r[11] || '', receivedComplete: r[13] === 'true' }));
+                inventory = (invRes.result.values || []).map(r => ({ serial: r[1] || '', category: r[2] || '', productName: r[3] || '', receiveDate: r[7] || '', status: r[8] || '', shipDate: r[9] || '', costJPY: r[12] || '', shelfNo: r[14] || '', supplierId: r[16] || '' }));
+                try { const a = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: '在庫アーカイブ!A2:Q' }); archivedInventory = (a.result.values || []).map(r => ({ receiveDate: r[7] || '', shipDate: r[9] || '', category: r[2] || '' })); } catch { archivedInventory = []; }
                 await loadKnowledge();
-                updateSummary(); updateTimeline(); updateHealthCheck(); updateQuickActions(); updateCharts(); updateKnowledgePreview();
+                updateAll();
                 document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-                lucide.createIcons();
             } catch (e) { console.error(e); }
         }
 
         async function loadKnowledge() {
             try {
                 const r = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'ナレッジ!A2:F' });
-                knowledge = (r.result.values || []).map((v, i) => ({ id: i + 2, date: v[0] || '', category: v[1] || 'note', content: v[2] || '', importance: v[3] || '中', tags: v[4] || '', source: v[5] || 'manual' }));
-            } catch { await createKnowledgeSheet(); knowledge = []; }
+                knowledge = (r.result.values || []).map((v, i) => ({ id: i + 2, date: v[0] || '', category: v[1] || 'note', content: v[2] || '' }));
+            } catch { knowledge = []; }
+            document.getElementById('knowledgeCount').textContent = knowledge.length;
         }
 
-        async function createKnowledgeSheet() {
-            try {
-                await gapi.client.sheets.spreadsheets.batchUpdate({ spreadsheetId: SPREADSHEET_ID, resource: { requests: [{ addSheet: { properties: { title: 'ナレッジ' } } }] } });
-                await gapi.client.sheets.spreadsheets.values.update({ spreadsheetId: SPREADSHEET_ID, range: 'ナレッジ!A1:F1', valueInputOption: 'RAW', resource: { values: [['日付', 'カテゴリ', '内容', '重要度', 'タグ', 'ソース']] } });
-            } catch (e) { console.error(e); }
-        }
-
-        async function saveKnowledgeItem(cat, content, imp = '中', tags = '', src = 'ai') {
-            try {
-                await gapi.client.sheets.spreadsheets.values.append({ spreadsheetId: SPREADSHEET_ID, range: 'ナレッジ!A:F', valueInputOption: 'RAW', resource: { values: [[new Date().toISOString().split('T')[0], cat, content, imp, tags, src]] } });
-                await loadKnowledge(); updateKnowledgePreview(); return true;
-            } catch { return false; }
-        }
-
-        function updateKnowledgePreview() {
-            const c = document.getElementById('knowledgePreview');
-            document.getElementById('knowledgeCount').textContent = knowledge.length + '件';
-            if (!knowledge.length) { c.innerHTML = '<p class="text-sm t-sub">ナレッジはまだありません</p>'; return; }
-            c.innerHTML = [...knowledge].reverse().slice(0, 4).map(k => `
-                <div class="hover-bg p-2 flex items-start gap-2 text-sm">
-                    <i data-lucide="${icons[k.category] || 'file-text'}" class="w-4 h-4 t-sub flex-shrink-0 mt-0.5"></i>
-                    <div class="min-w-0"><p class="truncate">${k.content}</p><p class="text-xs t-sub">${k.date}</p></div>
-                </div>
-            `).join('');
+        function updateAll() {
+            updateKPIs();
+            updateTimeline();
+            updateUnpaidTable();
+            updateStaleList();
+            updateQuickActions();
+            updateCharts();
             lucide.createIcons();
         }
 
-        function setAnalysisMode(m) {
-            currentAnalysisMode = m;
-            document.querySelectorAll('.mode-btn[data-mode]').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
-        }
+        function updateKPIs() {
+            const today = new Date();
+            const inStock = inventory.filter(i => i.status === '在庫中');
+            const waiting = inventory.filter(i => i.status === '入庫待ち');
+            const inStockValue = inStock.reduce((s, i) => s + (parseInt(i.costJPY) || 0), 0);
 
-        async function runAnalysis() {
-            const el = document.getElementById('analysisResult'), btn = document.getElementById('saveKnowledgeBtn');
-            el.innerHTML = '<p class="t-sub flex items-center gap-2"><i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>分析中...</p>';
-            lucide.createIcons(); btn.classList.add('hidden');
-            const d = prepareAnalysisData(), p = buildPrompt(currentAnalysisMode, d);
-            try {
-                const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1500, messages: [{ role: 'user', content: p }] }) });
-                const j = await r.json();
-                lastAnalysisResult = j.content?.[0]?.text || '';
-                el.innerHTML = formatResult(lastAnalysisResult);
-                btn.classList.remove('hidden');
-            } catch { el.innerHTML = '<p style="color:var(--red)">エラーが発生しました</p>' + localAnalysis(d); lastAnalysisResult = null; }
-            lucide.createIcons();
-        }
-
-        function prepareAnalysisData() {
-            const today = new Date(), inStock = inventory.filter(i => i.status === '在庫中');
-            const supplierStats = {}; projects.forEach(p => { const n = suppliers.find(s => s.id === p.supplierId)?.name || '不明'; if (!supplierStats[n]) supplierStats[n] = { count: 0, total: 0, unpaid: 0 }; supplierStats[n].count++; supplierStats[n].total += p.totalAmount; (p.depositSchedule || []).forEach(d => { if (!d.paid) supplierStats[n].unpaid += d.amountUSD || 0; }); });
-            const catStats = {}; inStock.forEach(i => { catStats[i.category] = (catStats[i.category] || 0) + 1; });
-            const mp = {}; for (let i = 5; i >= 0; i--) { const d = new Date(today.getFullYear(), today.getMonth() - i, 1); mp[d.toISOString().slice(0, 7)] = 0; }
-            projects.forEach(p => { (p.depositSchedule || []).forEach(d => { if (d.paid && d.paidDate && mp[d.paidDate.slice(0, 7)] !== undefined) mp[d.paidDate.slice(0, 7)] += d.amountJPY || 0; }); });
-            let ut = 0, uc = 0, od = 0;
-            projects.forEach(p => { (p.depositSchedule || []).forEach((d, i) => { if (!d.paid) { ut += d.amountJPY || (d.amountUSD * 150) || 0; uc++; if (i === 0 && p.registeredDate) { const days = Math.floor((today - new Date(p.registeredDate)) / 86400000); if (days > od) od = days; } } }); });
-            const stay = inStock.filter(i => i.receiveDate).map(i => Math.floor((today - new Date(i.receiveDate)) / 86400000));
-            const avg = stay.length ? Math.round(stay.reduce((a, b) => a + b, 0) / stay.length) : 0;
-            const nm = new Date(today.getFullYear(), today.getMonth() + 1, 1), nme = new Date(today.getFullYear(), today.getMonth() + 2, 0);
-            let nmp = 0; projects.forEach(p => { (p.depositSchedule || []).forEach((d, i) => { if (d.paid) return; let due; if (i === 0 && p.registeredDate) { due = new Date(p.registeredDate); due.setDate(due.getDate() + 14); } else if (p.pickupDate) due = new Date(p.pickupDate); if (due && due >= nm && due <= nme) nmp += d.amountJPY || (d.amountUSD * 150) || 0; }); });
-            return { inStockCount: inStock.length, inStockValue: inStock.reduce((s, i) => s + (parseInt(i.costJPY) || 0), 0), waitingCount: inventory.filter(i => i.status === '入庫待ち').length, unpaidTotal: ut, unpaidCount: uc, oldestUnpaidDays: od, supplierStats, categoryStats: catStats, monthlyPayments: mp, avgStayDays: avg, noShelfCount: inStock.filter(i => !i.shelfNo).length, staleCount: stay.filter(d => d >= 60).length, nextMonthPayment: nmp, knowledgeItems: knowledge.slice(-10).map(k => `[${k.category}] ${k.content}`).join('\n') };
-        }
-
-        function buildPrompt(m, d) {
-            const base = `調達・在庫データ:\n- 在庫: ${d.inStockCount}件 (¥${d.inStockValue.toLocaleString()})\n- 入庫待ち: ${d.waitingCount}件\n- 未払い: ${d.unpaidCount}件 (¥${Math.round(d.unpaidTotal/10000)}万)\n- 最長未払い: ${d.oldestUnpaidDays}日\n- 平均滞留: ${d.avgStayDays}日\n- 棚番未設定: ${d.noShelfCount}件\n- 長期滞留: ${d.staleCount}件\n- 来月予測: ¥${Math.round(d.nextMonthPayment/10000)}万\n\nサプライヤー: ${JSON.stringify(d.supplierStats)}\nカテゴリ: ${JSON.stringify(d.categoryStats)}\n月別: ${JSON.stringify(d.monthlyPayments)}\n\nナレッジ:\n${d.knowledgeItems || 'なし'}`;
-            const prompts = { quick: '今すぐ対応すべき事項を3〜5個、優先度順に。形式: ● 重要度(高/中/低) タイトル: アクション', detail: '詳細分析:\n1. 現状サマリー\n2. リスク・課題\n3. 改善提案\n4. トレンド', cost: 'コスト分析:\n1. キャッシュフロー\n2. 支払いトレンド\n3. 遅延リスク\n4. 来月予測', supplier: 'サプライヤー分析:\n1. 依存度\n2. 取引状況\n3. リスク\n4. 戦略提案', forecast: '1〜2ヶ月予測:\n1. 支払い予測\n2. 入庫予測\n3. 注意イベント\n4. 推奨アクション' };
-            return base + '\n\n' + prompts[m] + '\n\n※日本語で簡潔に、数値を含めて。';
-        }
-
-        function formatResult(t) {
-            if (!t) return '<p class="t-sub">結果なし</p>';
-            return '<div class="space-y-2">' + t.split('\n').filter(l => l.trim()).map(l => {
-                if (l.match(/^[●○◎]/)) return `<div class="p-2 bg-card rounded">${l}</div>`;
-                if (l.match(/^\d+\./)) return `<div class="ml-2">${l}</div>`;
-                return `<p class="t-sub">${l}</p>`;
-            }).join('') + '</div>';
-        }
-
-        function localAnalysis(d) {
-            const items = [];
-            if (d.oldestUnpaidDays > 30) items.push(`<div class="p-2 bg-card rounded">● 高 支払い${d.oldestUnpaidDays}日超過</div>`);
-            if (d.noShelfCount > 0) items.push(`<div class="p-2 bg-card rounded">● 中 棚番未設定${d.noShelfCount}件</div>`);
-            if (d.staleCount > 0) items.push(`<div class="p-2 bg-card rounded">● 中 長期滞留${d.staleCount}件</div>`);
-            return '<div class="space-y-2 mt-2">' + (items.length ? items.join('') : '<p class="t-sub">問題なし</p>') + '</div>';
-        }
-
-        async function saveToKnowledge() {
-            if (!lastAnalysisResult) return;
-            const s = lastAnalysisResult.slice(0, 200) + (lastAnalysisResult.length > 200 ? '...' : '');
-            const m = { quick: 'important', detail: 'pattern', cost: 'cost', supplier: 'supplier', forecast: 'pattern' };
-            if (await saveKnowledgeItem(m[currentAnalysisMode] || 'note', `[${currentAnalysisMode}] ` + s, '中', '', 'ai')) { alert('保存しました'); document.getElementById('saveKnowledgeBtn').classList.add('hidden'); }
-        }
-
-        async function sendChat() {
-            const inp = document.getElementById('chatInput'), msg = inp.value.trim();
-            if (!msg) return;
-            inp.value = ''; chatHistory.push({ role: 'user', content: msg }); updateChatUI();
-            const d = prepareAnalysisData(), ctx = `調達・在庫アシスタントとして回答。データ: ${JSON.stringify(d)}\n\n質問: ${msg}\n\n簡潔に。`;
-            try {
-                const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 800, messages: [{ role: 'user', content: ctx }] }) });
-                const j = await r.json();
-                chatHistory.push({ role: 'assistant', content: j.content?.[0]?.text || '回答を生成できませんでした' });
-            } catch { chatHistory.push({ role: 'assistant', content: 'エラーが発生しました' }); }
-            updateChatUI();
-        }
-
-        function updateChatUI() {
-            const c = document.getElementById('chatHistory');
-            c.innerHTML = chatHistory.slice(-10).map(m => `<div class="flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}"><div class="max-w-[85%] px-3 py-2 rounded-lg text-sm ${m.role === 'user' ? 'bg-card' : 'border border-def'}">${m.content}</div></div>`).join('');
-            c.scrollTop = c.scrollHeight;
-        }
-
-        function showKnowledgeModal() { document.getElementById('knowledgeModal').classList.remove('hidden'); renderKnowledgeList('all'); lucide.createIcons(); }
-        function closeKnowledgeModal() { document.getElementById('knowledgeModal').classList.add('hidden'); }
-        function renderKnowledgeList(f) {
-            const c = document.getElementById('knowledgeList');
-            let list = f === 'all' ? knowledge : knowledge.filter(k => k.category === f);
-            if (!list.length) { c.innerHTML = '<p class="text-center t-sub py-8">該当なし</p>'; return; }
-            c.innerHTML = [...list].reverse().map(k => `<div class="hover-bg p-3 flex items-start gap-2"><i data-lucide="${icons[k.category] || 'file-text'}" class="w-4 h-4 t-sub flex-shrink-0 mt-0.5"></i><div><p class="text-sm">${k.content}</p><p class="text-xs t-sub mt-1">${k.date}${k.tags ? ' · ' + k.tags : ''}</p></div></div>`).join('');
-            document.querySelectorAll('.knowledge-filter').forEach(b => b.classList.toggle('active', b.dataset.filter === f));
-            lucide.createIcons();
-        }
-        document.addEventListener('click', e => { if (e.target.classList.contains('knowledge-filter')) renderKnowledgeList(e.target.dataset.filter); });
-        function showAddKnowledgeForm() { document.getElementById('addKnowledgeModal').classList.remove('hidden'); lucide.createIcons(); }
-        function closeAddKnowledgeModal() { document.getElementById('addKnowledgeModal').classList.add('hidden'); }
-        async function addKnowledge() {
-            const cat = document.getElementById('newKnowledgeCategory').value, content = document.getElementById('newKnowledgeContent').value.trim(), tags = document.getElementById('newKnowledgeTags').value.trim();
-            if (!content) { alert('内容を入力してください'); return; }
-            if (await saveKnowledgeItem(cat, content, '中', tags, 'manual')) { closeAddKnowledgeModal(); renderKnowledgeList('all'); document.getElementById('newKnowledgeContent').value = ''; document.getElementById('newKnowledgeTags').value = ''; }
-        }
-
-        function updateSummary() {
-            const today = new Date(), inStock = inventory.filter(i => i.status === '在庫中'), waiting = inventory.filter(i => i.status === '入庫待ち');
-            const val = inStock.reduce((s, i) => s + (parseInt(i.costJPY) || 0), 0);
+            // 入庫待ち（今週到着）
             const we = new Date(today); we.setDate(we.getDate() + 7);
-            const arr = projects.filter(p => p.pickupDate && !p.receivedComplete && new Date(p.pickupDate) >= today && new Date(p.pickupDate) <= we);
-            let ut = 0, uc = 0, urg = 0;
-            projects.forEach(p => { (p.depositSchedule || []).forEach((d, i) => { if (!d.paid) { ut += d.amountJPY || (d.amountUSD * 150) || 0; uc++; if (i === 0 && p.registeredDate && Math.floor((today - new Date(p.registeredDate)) / 86400000) > 30) urg++; } }); });
-            const tm = today.toISOString().slice(0, 7); let tmt = 0, tmc = 0;
-            projects.forEach(p => { (p.depositSchedule || []).forEach(d => { if (d.paid && d.paidDate?.startsWith(tm)) { tmt += d.amountJPY || 0; tmc++; } }); });
-            document.getElementById('statInStock').textContent = inStock.length + '件';
-            document.getElementById('statInStockDetail').textContent = `¥${val.toLocaleString()}`;
-            document.getElementById('statWaiting').textContent = waiting.length + '件';
-            document.getElementById('statWaitingDetail').textContent = arr.length ? `今週 ${arr.length}件` : '';
-            document.getElementById('statUnpaid').textContent = `¥${Math.round(ut / 10000)}万`;
-            document.getElementById('statUnpaidDetail').textContent = urg ? `${urg}件が30日超` : `${uc}件`;
-            document.getElementById('statThisMonth').textContent = `¥${Math.round(tmt / 10000)}万`;
-            document.getElementById('statThisMonthDetail').textContent = `${tmc}件`;
+            const arrivingThisWeek = projects.filter(p => p.pickupDate && !p.receivedComplete && new Date(p.pickupDate) >= today && new Date(p.pickupDate) <= we).length;
+
+            // 未払い
+            let unpaidTotal = 0, unpaidCount = 0, overdueCount = 0;
+            projects.forEach(p => {
+                (p.depositSchedule || []).forEach((d, i) => {
+                    if (!d.paid) {
+                        unpaidTotal += d.amountJPY || (d.amountUSD * 150) || 0;
+                        unpaidCount++;
+                        if (i === 0 && p.registeredDate && Math.floor((today - new Date(p.registeredDate)) / 86400000) > 30) overdueCount++;
+                    }
+                });
+            });
+
+            // 今月支払い
+            const tm = today.toISOString().slice(0, 7);
+            const lm = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().slice(0, 7);
+            let thisMonthTotal = 0, lastMonthTotal = 0;
+            projects.forEach(p => {
+                (p.depositSchedule || []).forEach(d => {
+                    if (d.paid && d.paidDate) {
+                        if (d.paidDate.startsWith(tm)) thisMonthTotal += d.amountJPY || 0;
+                        if (d.paidDate.startsWith(lm)) lastMonthTotal += d.amountJPY || 0;
+                    }
+                });
+            });
+            const momChange = lastMonthTotal > 0 ? Math.round((thisMonthTotal - lastMonthTotal) / lastMonthTotal * 100) : 0;
+
+            // 平均滞留日数
+            const stayDays = inStock.filter(i => i.receiveDate).map(i => Math.floor((today - new Date(i.receiveDate)) / 86400000));
+            const avgStay = stayDays.length ? Math.round(stayDays.reduce((a, b) => a + b, 0) / stayDays.length) : 0;
+            
+            // 先月の平均と比較
+            const lastMonthInStock = [...inventory, ...archivedInventory].filter(i => {
+                if (!i.receiveDate) return false;
+                const rd = new Date(i.receiveDate);
+                return rd.getMonth() === today.getMonth() - 1;
+            });
+            const lastMonthStay = lastMonthInStock.length > 0 ? 30 : avgStay; // 仮
+            const stayChange = avgStay - lastMonthStay;
+
+            // 回転率（月間出庫数 / 平均在庫）
+            const thisMonthShipped = [...inventory, ...archivedInventory].filter(i => i.shipDate && i.shipDate.startsWith(tm)).length;
+            const avgInventory = inStock.length || 1;
+            const turnover = (thisMonthShipped / avgInventory).toFixed(1);
+
+            // ヘルス
+            const noShelf = inStock.filter(i => !i.shelfNo).length;
+            const stale60 = stayDays.filter(d => d >= 60).length;
+            let healthHtml = '';
+            if (overdueCount > 0) healthHtml += `<div style="color:var(--red)">⚠ 支払遅延${overdueCount}</div>`;
+            if (noShelf > 0) healthHtml += `<div style="color:var(--yellow)">△ 棚番${noShelf}</div>`;
+            if (stale60 > 0) healthHtml += `<div style="color:var(--yellow)">△ 滞留${stale60}</div>`;
+            if (!healthHtml) healthHtml = '<div style="color:var(--green)">✓ OK</div>';
+
+            // DOM更新
+            document.getElementById('kpiInStock').textContent = inStock.length + '件';
+            document.getElementById('kpiInStockSub').textContent = '¥' + (inStockValue / 10000).toFixed(0) + '万';
+            document.getElementById('kpiWaiting').textContent = waiting.length + '件';
+            document.getElementById('kpiWaitingSub').textContent = arrivingThisWeek > 0 ? `今週${arrivingThisWeek}件` : '-';
+            document.getElementById('kpiUnpaid').textContent = '¥' + Math.round(unpaidTotal / 10000) + '万';
+            document.getElementById('kpiUnpaidSub').textContent = unpaidCount + '件';
+            document.getElementById('kpiThisMonth').textContent = '¥' + Math.round(thisMonthTotal / 10000) + '万';
+            document.getElementById('kpiThisMonthSub').innerHTML = `<span style="color:${momChange >= 0 ? 'var(--red)' : 'var(--green)'}">${momChange >= 0 ? '+' : ''}${momChange}%</span>`;
+            document.getElementById('kpiAvgStay').textContent = avgStay + '日';
+            document.getElementById('kpiAvgStaySub').innerHTML = `<span style="color:${stayChange >= 0 ? 'var(--red)' : 'var(--green)'}">${stayChange >= 0 ? '+' : ''}${stayChange}日</span>`;
+            document.getElementById('kpiTurnover').textContent = turnover;
+            document.getElementById('kpiOverdue').textContent = overdueCount + '件';
+            document.getElementById('kpiOverdueSub').textContent = overdueCount > 0 ? '要対応' : '-';
+            document.getElementById('healthMini').innerHTML = healthHtml;
         }
 
         function updateTimeline() {
-            const today = new Date(); today.setHours(0, 0, 0, 0); const we = new Date(today); we.setDate(we.getDate() + 7);
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const we = new Date(today); we.setDate(we.getDate() + 7);
             const wed = new Date(today); wed.setDate(wed.getDate() + 6);
-            document.getElementById('timelineWeek').textContent = `${today.getMonth() + 1}/${today.getDate()} - ${wed.getMonth() + 1}/${wed.getDate()}`;
+            document.getElementById('weekRange').textContent = `${today.getMonth() + 1}/${today.getDate()}-${wed.getMonth() + 1}/${wed.getDate()}`;
+
             const events = [];
             projects.forEach(p => {
-                if (p.pickupDate && !p.receivedComplete) { const d = new Date(p.pickupDate); if (d >= today && d <= we) events.push({ date: d, icon: 'truck', title: `${p.projectPrefix}-${String(p.projectNumber).padStart(4, '0')}`, detail: p.productName, link: `index.html?project=${p.projectPrefix}-${String(p.projectNumber).padStart(4, '0')}` }); }
-                if (p.registeredDate) { (p.depositSchedule || []).forEach((dep, i) => { if (dep.paid) return; let due; if (i === 0) { due = new Date(p.registeredDate); due.setDate(due.getDate() + 7); } else if (p.pickupDate) { due = new Date(p.pickupDate); due.setDate(due.getDate() - 7); } if (due && due >= today && due <= we) events.push({ date: due, icon: 'wallet', title: `${p.projectPrefix}-${String(p.projectNumber).padStart(4, '0')}`, detail: `${dep.percentage}%`, link: `index.html?project=${p.projectPrefix}-${String(p.projectNumber).padStart(4, '0')}` }); }); }
+                const pn = `${p.projectPrefix}-${String(p.projectNumber).padStart(4, '0')}`;
+                if (p.pickupDate && !p.receivedComplete) {
+                    const d = new Date(p.pickupDate);
+                    if (d >= today && d <= we) events.push({ date: d, icon: 'truck', title: pn, sub: p.productName.slice(0, 10) });
+                }
+                if (p.registeredDate) {
+                    (p.depositSchedule || []).forEach((dep, i) => {
+                        if (dep.paid) return;
+                        let due;
+                        if (i === 0) { due = new Date(p.registeredDate); due.setDate(due.getDate() + 7); }
+                        else if (p.pickupDate) { due = new Date(p.pickupDate); due.setDate(due.getDate() - 7); }
+                        if (due && due >= today && due <= we) events.push({ date: due, icon: 'wallet', title: pn, sub: `${dep.percentage}%` });
+                    });
+                }
             });
             events.sort((a, b) => a.date - b.date);
+
             const c = document.getElementById('timeline');
-            if (!events.length) { c.innerHTML = '<p class="text-sm t-sub py-4 text-center">今週の予定はありません</p>'; return; }
-            const grouped = {}; events.forEach(e => { const k = e.date.toISOString().split('T')[0]; (grouped[k] = grouped[k] || []).push(e); });
-            let html = '';
-            Object.entries(grouped).forEach(([ds, de]) => {
-                const d = new Date(ds), isToday = d.toDateString() === today.toDateString(), dn = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
-                html += `<div class="flex gap-3"><div class="w-16 flex-shrink-0 text-right"><span class="text-xs ${isToday ? 'font-semibold' : 't-sub'}">${d.getMonth() + 1}/${d.getDate()}</span><span class="text-xs t-sub ml-1">${dn}</span></div><div class="flex-1 space-y-1">`;
-                de.forEach(e => { html += `<a href="${e.link}" class="hover-bg p-2 flex items-center gap-2 text-sm"><i data-lucide="${e.icon}" class="w-4 h-4 t-sub"></i><span class="font-medium">${e.title}</span><span class="t-sub truncate">${e.detail}</span></a>`; });
-                html += '</div></div>';
-            });
-            c.innerHTML = html;
+            if (!events.length) { c.innerHTML = '<p class="t-sub">予定なし</p>'; return; }
+            
+            const dn = ['日', '月', '火', '水', '木', '金', '土'];
+            c.innerHTML = events.slice(0, 8).map(e => {
+                const isToday = e.date.toDateString() === today.toDateString();
+                return `<div class="flex items-center gap-2 hover-bg p-1 ${isToday ? 'font-medium' : ''}">
+                    <span class="w-10 t-sub">${e.date.getMonth() + 1}/${e.date.getDate()}${dn[e.date.getDay()]}</span>
+                    <i data-lucide="${e.icon}" class="w-3 h-3 t-sub"></i>
+                    <span>${e.title}</span>
+                    <span class="t-sub truncate">${e.sub}</span>
+                </div>`;
+            }).join('');
             lucide.createIcons();
         }
 
-        function updateHealthCheck() {
-            const today = new Date(), checks = [];
-            const ns = inventory.filter(i => i.status === '在庫中' && !i.shelfNo).length;
-            if (ns) checks.push({ icon: 'map-pin', text: `棚番未設定 ${ns}件`, color: 'var(--yellow)' });
-            const st = inventory.filter(i => i.status === '在庫中' && i.receiveDate && Math.floor((today - new Date(i.receiveDate)) / 86400000) >= 60).length;
-            if (st) checks.push({ icon: 'clock', text: `長期滞留 ${st}件`, color: 'var(--yellow)' });
-            let od = 0; projects.forEach(p => { if (p.registeredDate && (p.depositSchedule || [])[0] && !(p.depositSchedule || [])[0].paid && Math.floor((today - new Date(p.registeredDate)) / 86400000) > 30) od++; });
-            if (od) checks.push({ icon: 'alert-triangle', text: `支払い遅延 ${od}件`, color: 'var(--red)' });
-            if (!checks.length) checks.push({ icon: 'check-circle', text: '問題なし', color: 'var(--green)' });
-            document.getElementById('healthCheck').innerHTML = checks.map(c => `<div class="flex items-center gap-2 p-2 text-sm"><i data-lucide="${c.icon}" class="w-4 h-4" style="color:${c.color}"></i><span>${c.text}</span></div>`).join('');
-            lucide.createIcons();
+        function updateUnpaidTable() {
+            const today = new Date();
+            const unpaid = [];
+            projects.forEach(p => {
+                const pn = `${p.projectPrefix}-${String(p.projectNumber).padStart(4, '0')}`;
+                (p.depositSchedule || []).forEach((d, i) => {
+                    if (!d.paid) {
+                        const days = p.registeredDate ? Math.floor((today - new Date(p.registeredDate)) / 86400000) : 0;
+                        unpaid.push({ pn, amount: d.amountUSD || 0, amountJPY: d.amountJPY || 0, days, overdue: i === 0 && days > 30 });
+                    }
+                });
+            });
+            unpaid.sort((a, b) => b.days - a.days);
+
+            const tbody = document.getElementById('unpaidTable');
+            tbody.innerHTML = unpaid.slice(0, 6).map(u => `
+                <tr>
+                    <td>${u.pn}</td>
+                    <td>$${u.amount.toLocaleString()}</td>
+                    <td>${u.days}日</td>
+                    <td>${u.overdue ? '<span style="color:var(--red)">⚠</span>' : '✓'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function updateStaleList() {
+            const today = new Date();
+            const stale = inventory.filter(i => i.status === '在庫中' && i.receiveDate)
+                .map(i => ({ serial: i.serial, days: Math.floor((today - new Date(i.receiveDate)) / 86400000), cat: i.category }))
+                .filter(i => i.days >= 45)
+                .sort((a, b) => b.days - a.days);
+
+            const c = document.getElementById('staleList');
+            if (!stale.length) { c.innerHTML = '<p class="t-sub">なし</p>'; return; }
+            c.innerHTML = stale.slice(0, 5).map(s => `
+                <div class="flex items-center gap-2 hover-bg p-1">
+                    <span class="font-medium">${s.serial}</span>
+                    <span class="t-sub">${s.days}日</span>
+                    <span class="t-sub truncate">${s.cat}</span>
+                </div>
+            `).join('');
         }
 
         function updateQuickActions() {
             const actions = [];
-            inventory.filter(i => i.status === '入庫待ち').slice(0, 3).forEach(i => { actions.push({ icon: 'package', title: i.serial, detail: i.productName.slice(0, 15), link: `inventory.html?search=${i.serial}` }); });
-            const up = []; projects.forEach(p => { const u = (p.depositSchedule || []).find(d => !d.paid); if (u && p.registeredDate) up.push({ p, u, d: new Date(p.registeredDate) }); });
-            up.sort((a, b) => a.d - b.d).slice(0, 3).forEach(({ p, u }) => { const pn = `${p.projectPrefix}-${String(p.projectNumber).padStart(4, '0')}`; actions.push({ icon: 'credit-card', title: pn, detail: `${u.percentage}%`, link: `index.html?project=${pn}` }); });
+            inventory.filter(i => i.status === '入庫待ち').slice(0, 3).forEach(i => {
+                actions.push({ icon: 'package', title: i.serial, sub: '入庫', link: `inventory.html?search=${i.serial}` });
+            });
+            const today = new Date();
+            const unpaidProjects = [];
+            projects.forEach(p => {
+                const u = (p.depositSchedule || []).find(d => !d.paid);
+                if (u && p.registeredDate) unpaidProjects.push({ p, u, d: new Date(p.registeredDate) });
+            });
+            unpaidProjects.sort((a, b) => a.d - b.d).slice(0, 3).forEach(({ p, u }) => {
+                const pn = `${p.projectPrefix}-${String(p.projectNumber).padStart(4, '0')}`;
+                actions.push({ icon: 'credit-card', title: pn, sub: `${u.percentage}%`, link: `index.html?project=${pn}` });
+            });
+
             const c = document.getElementById('quickActions');
-            if (!actions.length) { c.innerHTML = '<p class="text-sm t-sub">アクションなし</p>'; return; }
-            c.innerHTML = actions.slice(0, 6).map(a => `<a href="${a.link}" class="hover-bg p-3 flex items-center gap-3"><i data-lucide="${a.icon}" class="w-5 h-5 t-sub"></i><div class="min-w-0"><p class="font-medium text-sm truncate">${a.title}</p><p class="text-xs t-sub truncate">${a.detail}</p></div></a>`).join('');
+            if (!actions.length) { c.innerHTML = '<p class="t-sub">なし</p>'; return; }
+            c.innerHTML = actions.slice(0, 5).map(a => `
+                <a href="${a.link}" class="flex items-center gap-2 hover-bg p-1">
+                    <i data-lucide="${a.icon}" class="w-3 h-3 t-sub"></i>
+                    <span class="font-medium">${a.title}</span>
+                    <span class="t-sub">${a.sub}</span>
+                </a>
+            `).join('');
             lucide.createIcons();
         }
 
         function updateCharts() {
-            const now = new Date(), all = [...inventory, ...archivedInventory], months = [];
-            for (let i = 5; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); months.push({ key: d.toISOString().slice(0, 7), label: `${d.getMonth() + 1}月`, receive: 0, ship: 0, payment: 0 }); }
-            all.forEach(item => { if (item.receiveDate) { const m = months.find(m => m.key === item.receiveDate.slice(0, 7)); if (m) m.receive++; } if (item.shipDate) { const m = months.find(m => m.key === item.shipDate.slice(0, 7)); if (m) m.ship++; } });
-            projects.forEach(p => { (p.depositSchedule || []).forEach(d => { if (d.paid && d.paidDate) { const m = months.find(m => m.key === d.paidDate.slice(0, 7)); if (m) m.payment += d.amountJPY || 0; } }); });
-            const opts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { font: { size: 11 } } }, y: { grid: { color: 'rgba(0,0,0,0.05)' }, beginAtZero: true, ticks: { font: { size: 11 } } } } };
+            const today = new Date();
+            const inStock = inventory.filter(i => i.status === '在庫中');
+            const chartColors = ['#37352f', '#787774', '#9b9a97', '#bfbfbd', '#d3d3d1'];
+            const defaultOpts = {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            };
+
+            // サプライヤー別
+            const supplierData = {};
+            projects.forEach(p => {
+                const name = suppliers.find(s => s.id === p.supplierId)?.name || '他';
+                supplierData[name] = (supplierData[name] || 0) + p.totalAmount;
+            });
+            const supLabels = Object.keys(supplierData).slice(0, 5);
+            const supValues = supLabels.map(l => supplierData[l]);
+            if (charts.supplier) charts.supplier.destroy();
+            charts.supplier = new Chart(document.getElementById('supplierChart'), {
+                type: 'doughnut',
+                data: { labels: supLabels, datasets: [{ data: supValues, backgroundColor: chartColors }] },
+                options: { ...defaultOpts, cutout: '60%' }
+            });
+
+            // カテゴリ別
+            const catData = {};
+            inStock.forEach(i => { catData[i.category] = (catData[i.category] || 0) + 1; });
+            const catLabels = Object.keys(catData).slice(0, 5);
+            const catValues = catLabels.map(l => catData[l]);
+            if (charts.category) charts.category.destroy();
+            charts.category = new Chart(document.getElementById('categoryChart'), {
+                type: 'doughnut',
+                data: { labels: catLabels, datasets: [{ data: catValues, backgroundColor: chartColors }] },
+                options: { ...defaultOpts, cutout: '60%' }
+            });
+
+            // 支払い予定（4週）
+            const weeks = [];
+            for (let i = 0; i < 4; i++) {
+                const ws = new Date(today); ws.setDate(ws.getDate() + i * 7);
+                const we = new Date(ws); we.setDate(we.getDate() + 6);
+                weeks.push({ label: `${ws.getMonth() + 1}/${ws.getDate()}〜`, start: ws, end: we, total: 0 });
+            }
+            projects.forEach(p => {
+                (p.depositSchedule || []).forEach((d, i) => {
+                    if (d.paid) return;
+                    let due;
+                    if (i === 0 && p.registeredDate) { due = new Date(p.registeredDate); due.setDate(due.getDate() + 14); }
+                    else if (p.pickupDate) { due = new Date(p.pickupDate); }
+                    if (due) {
+                        const w = weeks.find(w => due >= w.start && due <= w.end);
+                        if (w) w.total += d.amountJPY || (d.amountUSD * 150) || 0;
+                    }
+                });
+            });
+            if (charts.forecast) charts.forecast.destroy();
+            charts.forecast = new Chart(document.getElementById('forecastChart'), {
+                type: 'bar',
+                data: { labels: weeks.map(w => w.label), datasets: [{ data: weeks.map(w => w.total), backgroundColor: '#37352f', borderRadius: 2 }] },
+                options: { ...defaultOpts, scales: { x: { grid: { display: false }, ticks: { font: { size: 9 } } }, y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 9 }, callback: v => '¥' + (v / 10000).toFixed(0) + '万' } } } }
+            });
+
+            // 入出庫推移
+            const months = [];
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                months.push({ key: d.toISOString().slice(0, 7), label: `${d.getMonth() + 1}月`, receive: 0, ship: 0 });
+            }
+            [...inventory, ...archivedInventory].forEach(item => {
+                if (item.receiveDate) { const m = months.find(m => m.key === item.receiveDate.slice(0, 7)); if (m) m.receive++; }
+                if (item.shipDate) { const m = months.find(m => m.key === item.shipDate.slice(0, 7)); if (m) m.ship++; }
+            });
             if (charts.flow) charts.flow.destroy();
-            charts.flow = new Chart(document.getElementById('flowChart'), { type: 'line', data: { labels: months.map(m => m.label), datasets: [{ label: '入庫', data: months.map(m => m.receive), borderColor: '#37352f', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3, borderWidth: 2 }, { label: '出庫', data: months.map(m => m.ship), borderColor: '#37352f', borderDash: [4, 4], backgroundColor: 'transparent', tension: 0.3, pointRadius: 3, borderWidth: 2 }] }, options: { ...opts, plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 12, padding: 15, font: { size: 11 } } } } } });
-            if (charts.payment) charts.payment.destroy();
-            charts.payment = new Chart(document.getElementById('paymentChart'), { type: 'bar', data: { labels: months.map(m => m.label), datasets: [{ data: months.map(m => m.payment), backgroundColor: '#37352f', borderRadius: 2 }] }, options: { ...opts, scales: { ...opts.scales, y: { ...opts.scales.y, ticks: { ...opts.scales.y.ticks, callback: v => '¥' + (v / 10000).toFixed(0) + '万' } } } } });
+            charts.flow = new Chart(document.getElementById('flowChart'), {
+                type: 'line',
+                data: {
+                    labels: months.map(m => m.label),
+                    datasets: [
+                        { label: '入庫', data: months.map(m => m.receive), borderColor: '#37352f', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 1.5 },
+                        { label: '出庫', data: months.map(m => m.ship), borderColor: '#37352f', borderDash: [3, 3], backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 1.5 }
+                    ]
+                },
+                options: { ...defaultOpts, scales: { x: { grid: { display: false }, ticks: { font: { size: 9 } } }, y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 9 } } } } }
+            });
         }
 
+        // AI分析
+        function setMode(m) {
+            currentMode = m;
+            document.querySelectorAll('.mode-btn[data-mode]').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
+        }
+
+        async function runAnalysis() {
+            const el = document.getElementById('analysisResult');
+            el.innerHTML = '<p class="t-sub">分析中...</p>';
+            const d = prepareData();
+            const prompts = {
+                quick: '今すぐ対応すべき3〜5項目を優先度順に。形式: ● 高/中/低 タイトル: 内容',
+                detail: '1. 現状 2. リスク 3. 改善案 を簡潔に',
+                cost: '1. キャッシュフロー 2. 来月予測 3. コスト削減案',
+                supplier: '1. 依存度リスク 2. 各サプライヤー評価 3. 戦略提案'
+            };
+            const prompt = `調達在庫データ: ${JSON.stringify(d)}\n\nナレッジ: ${knowledge.map(k => k.content).join('; ')}\n\n${prompts[currentMode]}\n\n日本語で簡潔に、箇条書きで。`;
+            try {
+                const r = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 800, messages: [{ role: 'user', content: prompt }] })
+                });
+                const j = await r.json();
+                lastResult = j.content?.[0]?.text || '';
+                el.innerHTML = lastResult.split('\n').filter(l => l.trim()).map(l => `<div class="mb-1">${l}</div>`).join('');
+            } catch { el.innerHTML = '<p style="color:var(--red)">エラー</p>'; }
+        }
+
+        async function sendChat() {
+            const inp = document.getElementById('chatInput');
+            const msg = inp.value.trim();
+            if (!msg) return;
+            inp.value = '';
+            const el = document.getElementById('analysisResult');
+            el.innerHTML = '<p class="t-sub">回答中...</p>';
+            const d = prepareData();
+            try {
+                const r = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 500, messages: [{ role: 'user', content: `データ: ${JSON.stringify(d)}\n\n質問: ${msg}\n\n簡潔に回答。` }] })
+                });
+                const j = await r.json();
+                el.innerHTML = (j.content?.[0]?.text || 'エラー').split('\n').map(l => `<div class="mb-1">${l}</div>`).join('');
+            } catch { el.innerHTML = '<p style="color:var(--red)">エラー</p>'; }
+        }
+
+        function prepareData() {
+            const today = new Date();
+            const inStock = inventory.filter(i => i.status === '在庫中');
+            let ut = 0, uc = 0;
+            projects.forEach(p => { (p.depositSchedule || []).forEach(d => { if (!d.paid) { ut += d.amountJPY || (d.amountUSD * 150) || 0; uc++; } }); });
+            const supplierStats = {};
+            projects.forEach(p => { const n = suppliers.find(s => s.id === p.supplierId)?.name || '他'; supplierStats[n] = (supplierStats[n] || 0) + p.totalAmount; });
+            return { inStock: inStock.length, waiting: inventory.filter(i => i.status === '入庫待ち').length, unpaid: uc, unpaidTotal: ut, supplierStats };
+        }
+
+        // ナレッジ
+        function showKnowledgeModal() {
+            document.getElementById('knowledgeModal').classList.remove('hidden');
+            renderKnowledgeList();
+            lucide.createIcons();
+        }
+        function closeKnowledgeModal() { document.getElementById('knowledgeModal').classList.add('hidden'); }
+        function renderKnowledgeList() {
+            const c = document.getElementById('knowledgeList');
+            if (!knowledge.length) { c.innerHTML = '<p class="t-sub">ナレッジなし</p>'; return; }
+            c.innerHTML = [...knowledge].reverse().map(k => `
+                <div class="hover-bg p-2 flex items-start gap-2">
+                    <i data-lucide="${icons[k.category] || 'file-text'}" class="w-4 h-4 t-sub flex-shrink-0 mt-0.5"></i>
+                    <div><p>${k.content}</p><p class="text-xs t-sub">${k.date}</p></div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+        async function addKnowledge() {
+            const inp = document.getElementById('newKnowledge');
+            const content = inp.value.trim();
+            if (!content) return;
+            try {
+                await gapi.client.sheets.spreadsheets.values.append({
+                    spreadsheetId: SPREADSHEET_ID, range: 'ナレッジ!A:F', valueInputOption: 'RAW',
+                    resource: { values: [[new Date().toISOString().split('T')[0], 'note', content, '中', '', 'manual']] }
+                });
+                inp.value = '';
+                await loadKnowledge();
+                renderKnowledgeList();
+            } catch (e) { console.error(e); }
+        }
+
+        // ユーティリティ
         function toggleDarkMode() { document.documentElement.classList.toggle('dark'); localStorage.setItem('darkMode', document.documentElement.classList.contains('dark')); }
         function initDarkMode() { if (localStorage.getItem('darkMode') === 'true' || (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark'); }
         window.onload = () => { const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.onload = init; document.head.appendChild(s); };
