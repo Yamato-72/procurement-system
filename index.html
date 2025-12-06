@@ -583,7 +583,7 @@
         }
 
         // 在庫シートに追加する関数
-        async function addToInventory(serial, category, productName, projectNumber, orderDate, quantity) {
+        async function addToInventory(serial, category, productName, projectNumber, orderDate, quantity, supplierId = '') {
             try {
                 // 案件番号を分解
                 const parsed = parseProjectNumberString(projectNumber);
@@ -593,11 +593,11 @@
                 try {
                     const response = await gapi.client.sheets.spreadsheets.values.get({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫!A2:P',
+                        range: '在庫!A2:Q',
                     });
                     existingInventory = response.result.values || [];
                 } catch (e) {
-                    // シートがない場合は新規作成（新形式16列）
+                    // シートがない場合は新規作成（新形式17列）
                     await gapi.client.sheets.spreadsheets.batchUpdate({
                         spreadsheetId: SPREADSHEET_ID,
                         resource: {
@@ -610,15 +610,15 @@
                     });
                     await gapi.client.sheets.spreadsheets.values.update({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫!A1:P1',
+                        range: '在庫!A1:Q1',
                         valueInputOption: 'RAW',
                         resource: {
-                            values: [['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所']]
+                            values: [['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所', 'サプライヤーID']]
                         }
                     });
                 }
 
-                // 追加するデータを作成（新形式16列）
+                // 追加するデータを作成（新形式17列）
                 const baseSerial = serial.replace(/\(.*\)/, ''); // YS0554(1-4) → YS0554
                 const newRows = [];
                 
@@ -641,14 +641,15 @@
                         '',                                // 取得金
                         '',                                // 備考
                         '',                                // 棚番
-                        ''                                 // 保管場所
+                        '',                                // 保管場所
+                        supplierId                         // サプライヤーID
                     ]);
                 }
 
                 // 在庫シートに追加
                 await gapi.client.sheets.spreadsheets.values.append({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫!A:P',
+                    range: '在庫!A:Q',
                     valueInputOption: 'RAW',
                     insertDataOption: 'INSERT_ROWS',
                     resource: {
@@ -696,7 +697,7 @@
                 // 在庫シートから該当アイテムを取得
                 const response = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫!A2:P',
+                    range: '在庫!A2:Q',
                 });
                 const rows = response.result.values || [];
                 
@@ -1535,11 +1536,11 @@
                 try {
                     const response = await gapi.client.sheets.spreadsheets.values.get({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫!A2:P',
+                        range: '在庫!A2:Q',
                     });
                     existingInventory = response.result.values || [];
                 } catch (e) {
-                    // シートがない場合は新規作成（新形式16列）
+                    // シートがない場合は新規作成（新形式17列）
                     await gapi.client.sheets.spreadsheets.batchUpdate({
                         spreadsheetId: SPREADSHEET_ID,
                         resource: {
@@ -1552,10 +1553,10 @@
                     });
                     await gapi.client.sheets.spreadsheets.values.update({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫!A1:P1',
+                        range: '在庫!A1:Q1',
                         valueInputOption: 'RAW',
                         resource: {
-                            values: [['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所']]
+                            values: [['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所', 'サプライヤーID']]
                         }
                     });
                 }
@@ -1564,7 +1565,7 @@
                 const existingSerials = existingInventory.map(row => row[1]);
                 const baseSerial = serial ? serial.replace(/\(.*\)/, '') : ''; // YS0554(1-4) → YS0554
                 
-                // 追加するデータを作成（新形式16列）
+                // 追加するデータを作成（新形式17列）
                 const newRows = [];
                 const today = new Date().toISOString().split('T')[0];
                 
@@ -1592,7 +1593,8 @@
                         '',                                // 取得金
                         '',                                // 備考
                         '',                                // 棚番
-                        ''                                 // 保管場所
+                        '',                                // 保管場所
+                        project.supplierId || ''           // サプライヤーID
                     ]);
                 }
 
@@ -1605,7 +1607,7 @@
                 // 在庫シートに追加
                 await gapi.client.sheets.spreadsheets.values.append({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫!A:P',
+                    range: '在庫!A:Q',
                     valueInputOption: 'RAW',
                     insertDataOption: 'INSERT_ROWS',
                     resource: {
@@ -2180,7 +2182,7 @@
                 // 在庫データを取得（新形式16列）
                 const response = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫!A2:P',
+                    range: '在庫!A2:Q',
                 });
                 const rows = response.result.values || [];
                 
@@ -2216,7 +2218,7 @@
                 if (updateCount > 0) {
                     await gapi.client.sheets.spreadsheets.values.update({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫!A2:P',
+                        range: '在庫!A2:Q',
                         valueInputOption: 'RAW',
                         resource: { values: rows }
                     });
@@ -2571,7 +2573,7 @@
                 // 在庫データを取得
                 const response = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫!A2:P',
+                    range: '在庫!A2:Q',
                 });
                 const rows = response.result.values || [];
                 

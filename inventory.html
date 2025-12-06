@@ -293,7 +293,7 @@
                 try {
                     const inventoryResponse = await gapi.client.sheets.spreadsheets.values.get({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫!A2:P',
+                        range: '在庫!A2:Q',
                     });
                     const inventoryRows = inventoryResponse.result.values || [];
                     inventory = inventoryRows.map(row => {
@@ -346,7 +346,8 @@
                             costJPY: row[12] || '',
                             note: row[13] || '',
                             shelfNo: row[14] || '',
-                            location: row[15] || ''
+                            location: row[15] || '',
+                            supplierId: row[16] || ''
                         };
                     });
                 } catch (e) {
@@ -394,7 +395,7 @@
                 try {
                     const archiveResponse = await gapi.client.sheets.spreadsheets.values.get({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫アーカイブ!A2:P',
+                        range: '在庫アーカイブ!A2:Q',
                     });
                     const archiveRows = archiveResponse.result.values || [];
                     archivedInventory = archiveRows.map(row => {
@@ -438,11 +439,9 @@
                             costJPY: row[12] || '',
                             note: row[13] || '',
                             shelfNo: row[14] || '',
-                            location: row[15] || ''
+                            location: row[15] || '',
+                            supplierId: row[16] || ''
                         };
-                    });
-                } catch (e) {
-                    console.log('アーカイブシートがないため新規作成します');
                     archivedInventory = [];
                     await createArchiveSheet();
                 }
@@ -551,7 +550,8 @@
                             costJPY: row[12] || '',
                             note: row[13] || '',
                             shelfNo: row[14] || '',
-                            location: row[15] || ''
+                            location: row[15] || '',
+                            supplierId: row[16] || ''
                         };
                     });
                     lastUpdated = new Date();
@@ -738,10 +738,10 @@
                 });
                 await gapi.client.sheets.spreadsheets.values.update({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫!A1:P1',
+                    range: '在庫!A1:Q1',
                     valueInputOption: 'RAW',
                     resource: {
-                        values: [['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所']]
+                        values: [['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所', 'サプライヤーID']]
                     }
                 });
             } catch (e) {
@@ -763,10 +763,10 @@
                 });
                 await gapi.client.sheets.spreadsheets.values.update({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫アーカイブ!A1:P1',
+                    range: '在庫アーカイブ!A1:Q1',
                     valueInputOption: 'RAW',
                     resource: {
-                        values: [['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所']]
+                        values: [['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所', 'サプライヤーID']]
                     }
                 });
             } catch (e) {
@@ -782,7 +782,7 @@
                 try {
                     const checkResponse = await gapi.client.sheets.spreadsheets.values.get({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫!A2:P',
+                        range: '在庫!A2:Q',
                     });
                     const currentRows = checkResponse.result.values || [];
                     const currentHash = JSON.stringify(currentRows);
@@ -799,7 +799,7 @@
                 }
                 
                 const inventoryData = [
-                    ['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所'],
+                    ['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所', 'サプライヤーID'],
                     ...inventory.map(item => [
                         item.id,
                         item.serial,
@@ -816,7 +816,8 @@
                         item.costJPY,
                         item.note,
                         item.shelfNo,
-                        item.location
+                        item.location,
+                        item.supplierId || ''
                     ])
                 ];
                 
@@ -833,7 +834,7 @@
                 });
 
                 const archiveData = [
-                    ['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所'],
+                    ['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税込)', '備考', '棚番', '保管場所', 'サプライヤーID'],
                     ...archivedInventory.map(item => [
                         item.id,
                         item.serial,
@@ -850,7 +851,8 @@
                         item.costJPY,
                         item.note,
                         item.shelfNo,
-                        item.location
+                        item.location,
+                        item.supplierId || ''
                     ])
                 ];
                 
@@ -1034,6 +1036,13 @@
                 case '不具合': return 'bg-red-100 text-red-700';
                 default: return 'bg-slate-100 text-slate-700';
             }
+        }
+        
+        // サプライヤーID→サプライヤー名変換
+        function getSupplierName(supplierId) {
+            if (!supplierId) return '-';
+            const supplier = suppliers.find(s => s.id === parseInt(supplierId));
+            return supplier ? supplier.name : '-';
         }
 
         // 追跡リンク生成
@@ -1306,6 +1315,7 @@
                                                 <tr>
                                                     ${bulkSelectMode ? '<th class="px-2 py-2 text-center w-8"><input type="checkbox" onclick="toggleSelectAllFlat()" class="w-4 h-4 rounded"></th>' : ''}
                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">Serial</th>
+                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">サプライヤー</th>
                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">案件</th>
                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">種別</th>
                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">製品名</th>
@@ -1323,6 +1333,7 @@
                                                     <tr onclick="showDetailModal('${item.id}')" class="hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer ${selectedItems.has(item.id) ? 'bg-amber-50 dark:bg-amber-900/30' : ''}">
                                                         ${bulkSelectMode ? `<td class="px-2 py-2 text-center" onclick="event.stopPropagation()"><input type="checkbox" ${selectedItems.has(item.id) ? 'checked' : ''} onclick="toggleSelectItem('${item.id}')" class="w-4 h-4 rounded"></td>` : ''}
                                                         <td class="px-3 py-2 font-mono font-semibold text-sm text-slate-900 dark:text-white">${item.serial || "-"}</td>
+                                                        <td class="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">${getSupplierName(item.supplierId)}</td>
                                                         <td class="px-3 py-2 text-xs text-blue-600 dark:text-blue-400 font-semibold">${formatProjectNumber(item.orderPrefix, item.orderNumber) || '-'}</td>
                                                         <td class="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">${item.category}</td>
                                                         <td class="px-3 py-2 text-xs dark:text-slate-300">${item.productName}</td>
@@ -1395,6 +1406,7 @@
                                                                 <tr>
                                                                     ${bulkSelectMode ? `<th class="px-2 py-2 text-center w-8"><input type="checkbox" onclick="toggleSelectAll('${project}')" class="w-4 h-4 rounded"></th>` : ''}
                                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">Serial</th>
+                                                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">サプライヤー</th>
                                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">種別</th>
                                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">製品名</th>
                                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">備考</th>
@@ -1411,6 +1423,7 @@
                                                                     <tr onclick="showDetailModal('${item.id}')" class="hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer ${selectedItems.has(item.id) ? 'bg-amber-50 dark:bg-amber-900/30' : ''}">
                                                                         ${bulkSelectMode ? `<td class="px-2 py-2 text-center" onclick="event.stopPropagation()"><input type="checkbox" ${selectedItems.has(item.id) ? 'checked' : ''} onclick="toggleSelectItem('${item.id}')" class="w-4 h-4 rounded"></td>` : ''}
                                                                         <td class="px-3 py-2 font-mono font-semibold text-sm text-slate-900 dark:text-white">${item.serial || "-"}</td>
+                                                                        <td class="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">${getSupplierName(item.supplierId)}</td>
                                                                         <td class="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">${item.category}</td>
                                                                         <td class="px-3 py-2 text-xs dark:text-slate-300">${item.productName}</td>
                                                                         <td class="px-3 py-2 text-xs text-slate-500 dark:text-slate-400 max-w-32 truncate" title="${item.note || ''}">${item.note || '-'}</td>
@@ -2303,7 +2316,8 @@
                     costJPY: '',
                     note,
                     shelfNo: '',
-                    location: ''
+                    location: '',
+                    supplierId: supplierId || ''
                 });
             }
 
