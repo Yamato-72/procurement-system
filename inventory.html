@@ -22,9 +22,9 @@
 </head>
 <body>
     <div id="app">
-        <div class="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-100 flex items-center justify-center">
+        <div class="min-h-screen bg-slate-100 flex items-center justify-center">
             <div class="text-center">
-                <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-emerald-600 mx-auto mb-4"></div>
+                <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
                 <p class="text-slate-600 text-lg">初期化中...</p>
             </div>
         </div>
@@ -267,11 +267,11 @@
 
         function renderSignIn() {
             document.getElementById('app').innerHTML = `
-                <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+                <div class="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900">
                     <div class="bg-white dark:bg-slate-800 p-10 rounded-2xl shadow-xl max-w-md w-full mx-4">
                         <div class="text-center">
-                            <div class="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                                <svg class="w-10 h-10 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="w-20 h-20 bg-blue-100 dark:bg-blue-900/50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                                <svg class="w-10 h-10 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                                 </svg>
                             </div>
@@ -1207,7 +1207,7 @@
             const lastUpdatedText = lastUpdated ? lastUpdated.toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'}) : '-';
             
             document.getElementById('app').innerHTML = `
-                <div class="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+                <div class="min-h-screen bg-slate-100 dark:bg-slate-900">
                     <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm sticky top-0 z-40">
                         <div class="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4">
                             <div class="flex items-center justify-between">
@@ -1216,7 +1216,7 @@
                                     <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">入出庫・棚卸し管理</p>
                                 </div>
                                 <div class="flex items-center gap-1 sm:gap-3">
-                                    <span id="status" class="text-xs sm:text-sm text-emerald-600 dark:text-emerald-400 hidden sm:inline"></span>
+                                    <span id="status" class="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hidden sm:inline"></span>
                                     <button onclick="toggleDarkMode()" class="p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" title="ダークモード切替">
                                         ${isDarkMode ? '☀️' : '🌙'}
                                     </button>
@@ -1235,12 +1235,12 @@
                                             <button onclick="repairDuplicateIds()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 text-red-600 dark:text-red-400 rounded-b-lg">🔧 ID重複を修復</button>
                                         </div>
                                     </div>
-                                    <a href="index.html" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-blue-600 text-white text-xs sm:text-sm rounded-lg hover:bg-blue-700">調達</a>
+                                    <a href="index.html" class="px-2 sm:px-3 py-1.5 sm:py-2 border border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 text-xs sm:text-sm rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30">調達</a>
                                     <button onclick="toggleBulkSelectMode()" class="px-2 sm:px-3 py-1.5 sm:py-2 ${bulkSelectMode ? 'bg-amber-500' : 'bg-slate-500'} text-white text-xs sm:text-sm rounded-lg hover:opacity-90">
                                         <span class="hidden sm:inline">${bulkSelectMode ? '選択中' : '一括'}</span>
                                         <span class="sm:hidden">☑</span>
                                     </button>
-                                    <button onclick="showAddInventoryModal()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-emerald-600 text-white text-xs sm:text-sm rounded-lg hover:bg-emerald-700">+ 追加</button>
+                                    <button onclick="showAddInventoryModal()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-blue-600 text-white text-xs sm:text-sm rounded-lg hover:bg-blue-700">+ 追加</button>
                                     <button onclick="handleSignoutClick()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-600 text-white text-xs sm:text-sm rounded-lg hover:bg-slate-700">
                                         <span class="hidden sm:inline">サインアウト</span>
                                         <span class="sm:hidden">↪</span>
@@ -1250,12 +1250,12 @@
                             <div class="flex items-center justify-between mt-2 text-xs text-slate-500 dark:text-slate-400">
                                 <div class="flex items-center gap-3">
                                     <span>最終更新: ${lastUpdatedText}</span>
-                                    <button onclick="toggleAutoReload()" class="flex items-center gap-1 px-2 py-0.5 rounded ${autoReloadEnabled ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}" title="${autoReloadEnabled ? '自動同期ON (60秒)' : '自動同期OFF'}">
+                                    <button onclick="toggleAutoReload()" class="flex items-center gap-1 px-2 py-0.5 rounded ${autoReloadEnabled ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}" title="${autoReloadEnabled ? '自動同期ON (60秒)' : '自動同期OFF'}">
                                         <span class="${autoReloadEnabled ? 'animate-pulse' : ''}">🔄</span>
                                         <span class="hidden sm:inline">${autoReloadEnabled ? '自動同期ON' : '自動同期OFF'}</span>
                                     </button>
                                 </div>
-                                <button onclick="loadData()" class="flex items-center gap-1 px-2 py-1 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded hover:bg-emerald-200 dark:hover:bg-emerald-900/70">
+                                <button onclick="loadData()" class="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-900/70">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                                     今すぐ更新
                                 </button>
@@ -1287,24 +1287,24 @@
                         
                         <!-- サマリー -->
                         <div class="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-6">
-                            <div class="bg-emerald-50 dark:bg-emerald-900/30 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border border-emerald-200 dark:border-emerald-700">
-                                <p class="text-emerald-700 dark:text-emerald-400 text-xs sm:text-sm">在庫中</p>
-                                <p class="text-lg sm:text-2xl font-bold text-emerald-600 dark:text-emerald-400">${summary.inStock}</p>
+                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border-l-4 border-emerald-500">
+                                <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">在庫中</p>
+                                <p class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">${summary.inStock}</p>
                             </div>
-                            <div class="bg-amber-50 dark:bg-amber-900/30 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border border-amber-200 dark:border-amber-700">
-                                <p class="text-amber-700 dark:text-amber-400 text-xs sm:text-sm">入庫待</p>
-                                <p class="text-lg sm:text-2xl font-bold text-amber-600 dark:text-amber-400">${summary.waiting}</p>
+                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border-l-4 border-amber-500">
+                                <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">入庫待</p>
+                                <p class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">${summary.waiting}</p>
                             </div>
-                            <div class="bg-blue-50 dark:bg-blue-900/30 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border border-blue-200 dark:border-blue-700">
-                                <p class="text-blue-700 dark:text-blue-400 text-xs sm:text-sm">出庫済</p>
-                                <p class="text-lg sm:text-2xl font-bold text-blue-600 dark:text-blue-400">${summary.shipped}</p>
+                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border-l-4 border-blue-500">
+                                <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">出庫済</p>
+                                <p class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">${summary.shipped}</p>
                             </div>
-                            <div class="bg-red-50 dark:bg-red-900/30 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border border-red-200 dark:border-red-700 hidden sm:block">
-                                <p class="text-red-700 dark:text-red-400 text-xs sm:text-sm">不具合</p>
-                                <p class="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-400">${summary.issue}</p>
+                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border-l-4 border-red-500 hidden sm:block">
+                                <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">不具合</p>
+                                <p class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">${summary.issue}</p>
                             </div>
-                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border dark:border-slate-700 hidden sm:block">
-                                <p class="text-slate-600 dark:text-slate-400 text-xs sm:text-sm">総在庫</p>
+                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border-l-4 border-slate-400 hidden sm:block">
+                                <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">総在庫</p>
                                 <p class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">${summary.total}</p>
                             </div>
                         </div>
@@ -1402,12 +1402,12 @@
                                         </button>
                                     </div>
                                     <!-- 在庫総額（棚卸し用） -->
-                                    <div class="mt-3 bg-emerald-50 rounded-lg p-3 border border-emerald-200 flex justify-between items-center">
+                                    <div class="mt-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg p-3 border border-blue-200 dark:border-blue-700 flex justify-between items-center">
                                         <div>
-                                            <p class="text-emerald-700 text-xs sm:text-sm">在庫総額（棚卸し用）</p>
-                                            <p class="text-lg sm:text-xl font-bold text-emerald-700">¥${summary.inStockValue.toLocaleString()}</p>
+                                            <p class="text-blue-700 dark:text-blue-300 text-xs sm:text-sm">在庫総額（棚卸し用）</p>
+                                            <p class="text-lg sm:text-xl font-bold text-blue-700 dark:text-blue-300">¥${summary.inStockValue.toLocaleString()}</p>
                                         </div>
-                                        <p class="text-xs sm:text-sm text-emerald-600">${summary.inStock}件</p>
+                                        <p class="text-xs sm:text-sm text-blue-600 dark:text-blue-400">${summary.inStock}件</p>
                                     </div>
                                 ` : ''}
                             </div>
@@ -1489,7 +1489,7 @@
                                                         </td>
                                                         <td class="px-3 py-2 text-center" onclick="event.stopPropagation()">
                                                             <div class="flex gap-1 justify-center">
-                                                                ${item.status === '入庫待ち' ? `<button onclick="showReceiveModal('${item.id}')" class="px-2 py-1 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700">入庫</button>` : ''}
+                                                                ${item.status === '入庫待ち' ? `<button onclick="showReceiveModal('${item.id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">入庫</button>` : ''}
                                                                 ${item.status === '在庫中' ? `<button onclick="showShipModal('${item.id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button>` : ''}
                                                                 <button onclick="editItem('${item.id}')" class="px-2 py-1 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-white text-xs rounded hover:bg-slate-300 dark:hover:bg-slate-500">編集</button>
                                                             </div>
@@ -1577,7 +1577,7 @@
                                                                         <td class="px-3 py-2 text-center" onclick="event.stopPropagation()">
                                                                             <div class="flex gap-1 justify-center">
                                                                                 ${item.status === '入庫待ち' ? `
-                                                                                    <button onclick="showReceiveModal('${item.id}')" class="px-2 py-1 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700">入庫</button>
+                                                                                    <button onclick="showReceiveModal('${item.id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">入庫</button>
                                                                                 ` : ''}
                                                                                 ${item.status === '在庫中' ? `
                                                                                     <button onclick="showShipModal('${item.id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button>
@@ -1619,7 +1619,7 @@
                                                                 </div>
                                                                 <div class="flex gap-2" onclick="event.stopPropagation()">
                                                                     ${item.status === '入庫待ち' ? `
-                                                                        <button onclick="showReceiveModal('${item.id}')" class="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700">入庫</button>
+                                                                        <button onclick="showReceiveModal('${item.id}')" class="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">入庫</button>
                                                                     ` : ''}
                                                                     ${item.status === '在庫中' ? `
                                                                         <button onclick="showShipModal('${item.id}')" class="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button>
@@ -1650,7 +1650,7 @@
                                 <button onclick="showBulkSupplierModal()" class="px-3 py-1.5 bg-orange-600 text-white text-xs sm:text-sm rounded hover:bg-orange-700">サプライヤー</button>
                                 <button onclick="showBulkShelfModal()" class="px-3 py-1.5 bg-purple-600 text-white text-xs sm:text-sm rounded hover:bg-purple-700">棚番変更</button>
                                 <button onclick="showBulkLocationModal()" class="px-3 py-1.5 bg-teal-600 text-white text-xs sm:text-sm rounded hover:bg-teal-700">場所変更</button>
-                                <button onclick="bulkReceive()" class="px-3 py-1.5 bg-emerald-600 text-white text-xs sm:text-sm rounded hover:bg-emerald-700">一括入庫</button>
+                                <button onclick="bulkReceive()" class="px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700">一括入庫</button>
                                 <button onclick="showBulkShipModal()" class="px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700">一括出庫</button>
                                 <button onclick="cancelBulkSelect()" class="px-3 py-1.5 bg-slate-600 text-white text-xs sm:text-sm rounded hover:bg-slate-700">キャンセル</button>
                             </div>
@@ -1890,7 +1890,7 @@
                             <input type="date" id="bulkReceiveDate" value="${today}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                         </div>
                         <div class="flex gap-2">
-                            <button onclick="submitBulkReceive()" class="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">入庫</button>
+                            <button onclick="submitBulkReceive()" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">入庫</button>
                             <button onclick="closeModal('bulkReceiveModal')" class="flex-1 px-4 py-2 bg-slate-300 dark:bg-slate-600 text-slate-700 dark:text-white rounded-lg hover:bg-slate-400">キャンセル</button>
                         </div>
                     </div>
@@ -2300,7 +2300,7 @@
                         </div>
                         <div class="flex gap-3 mt-6">
                             <button onclick="closeModal('addModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
-                            <button onclick="submitAddInventory()" class="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">追加</button>
+                            <button onclick="submitAddInventory()" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">追加</button>
                         </div>
                     </div>
                 </div>
@@ -2370,7 +2370,7 @@
                 if (existing) {
                     // 既存案件 → サプライヤー選択不要
                     supplierRow.classList.add('hidden');
-                    projectStatusMsg.innerHTML = '<span class="text-emerald-600 dark:text-emerald-400">✓ 既存案件に追加します</span>';
+                    projectStatusMsg.innerHTML = '<span class="text-blue-600 dark:text-blue-400">✓ 既存案件に追加します</span>';
                     projectStatusMsg.classList.remove('hidden');
                 } else {
                     // 新規案件 → サプライヤー選択必須
@@ -2890,7 +2890,7 @@
                         </div>
                         <div class="flex gap-3 mt-6">
                             <button onclick="closeModal('receiveModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50">キャンセル</button>
-                            <button onclick="submitReceive('${id}')" class="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">入庫</button>
+                            <button onclick="submitReceive('${id}')" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">入庫</button>
                         </div>
                     </div>
                 </div>
@@ -3113,7 +3113,7 @@
                         
                         <!-- タブ切替 -->
                         <div class="flex border-b dark:border-slate-600 mb-4">
-                            <button onclick="switchDetailTab('detail')" id="detailTabDetail" class="px-4 py-2 text-sm font-semibold border-b-2 border-emerald-600 text-emerald-600">詳細</button>
+                            <button onclick="switchDetailTab('detail')" id="detailTabDetail" class="px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600">詳細</button>
                             <button onclick="switchDetailTab('spec')" id="detailTabSpec" class="px-4 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400">スペック</button>
                             <button onclick="switchDetailTab('edit')" id="detailTabEdit" class="px-4 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400">編集</button>
                         </div>
@@ -3287,7 +3287,7 @@
                             </div>
                             <div class="flex gap-3 pt-2">
                                 <button onclick="deleteItem('${id}');closeModal('detailModal')" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">削除</button>
-                                <button onclick="submitDetailEdit('${id}')" class="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">保存</button>
+                                <button onclick="submitDetailEdit('${id}')" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">保存</button>
                             </div>
                         </div>
                         
@@ -3307,7 +3307,7 @@
                 const tabBtn = document.getElementById(`detailTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
                 const content = document.getElementById(`detailContent${t.charAt(0).toUpperCase() + t.slice(1)}`);
                 if (t === tab) {
-                    tabBtn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-emerald-600 text-emerald-600';
+                    tabBtn.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600';
                     content.classList.remove('hidden');
                 } else {
                     tabBtn.className = 'px-4 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400';
@@ -3372,7 +3372,7 @@
                         
                         <!-- タブ切替 -->
                         <div class="flex border-b mb-4">
-                            <button onclick="switchEditTab('info')" id="tabInfo" class="px-4 py-2 text-sm font-semibold border-b-2 border-emerald-600 text-emerald-600">基本情報</button>
+                            <button onclick="switchEditTab('info')" id="tabInfo" class="px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600">基本情報</button>
                             <button onclick="switchEditTab('spec')" id="tabSpec" class="px-4 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400">スペック</button>
                         </div>
                         
@@ -3466,7 +3466,7 @@
                         <div class="flex gap-3 mt-6">
                             <button onclick="closeModal('editModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
                             <button onclick="deleteItem('${id}')" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">削除</button>
-                            <button onclick="submitEdit('${id}')" class="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">保存</button>
+                            <button onclick="submitEdit('${id}')" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">保存</button>
                         </div>
                     </div>
                 </div>
@@ -3482,13 +3482,13 @@
             const contentSpec = document.getElementById('editTabSpec');
             
             if (tab === 'info') {
-                tabInfo.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-emerald-600 text-emerald-600';
+                tabInfo.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600';
                 tabSpec.className = 'px-4 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400';
                 contentInfo.classList.remove('hidden');
                 contentSpec.classList.add('hidden');
             } else {
                 tabInfo.className = 'px-4 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400';
-                tabSpec.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-emerald-600 text-emerald-600';
+                tabSpec.className = 'px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600';
                 contentInfo.classList.add('hidden');
                 contentSpec.classList.remove('hidden');
             }
@@ -3595,7 +3595,7 @@
                         <a href="${datasheetUrl}" target="_blank" class="flex-1 px-3 py-2 bg-blue-600 text-white text-sm text-center rounded-lg hover:bg-blue-700">
                             📄 カタログ
                         </a>
-                        <a href="${drawingUrl}" target="_blank" class="flex-1 px-3 py-2 bg-emerald-600 text-white text-sm text-center rounded-lg hover:bg-emerald-700">
+                        <a href="${drawingUrl}" target="_blank" class="flex-1 px-3 py-2 bg-blue-600 text-white text-sm text-center rounded-lg hover:bg-blue-700">
                             📐 図面
                         </a>
                     </div>
