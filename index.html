@@ -711,13 +711,7 @@
                 const quantity = project.quantity || 1;
                 const costPerUnit = Math.round(depositTotal / quantity);
                 
-                console.log('=== updateInventoryCost ===');
-                console.log('depositTotal:', depositTotal, 'quantity:', quantity, 'costPerUnit:', costPerUnit);
-                
-                if (costPerUnit <= 0) {
-                    console.log('costPerUnit <= 0 のためスキップ');
-                    return;
-                }
+                if (costPerUnit <= 0) return;
                 
                 // 在庫シートから該当アイテムを取得
                 const response = await gapi.client.sheets.spreadsheets.values.get({
@@ -732,9 +726,6 @@
                 const productName = project.productName || '';
                 const updates = [];
                 
-                console.log('検索条件:', { projectPrefix, projectNumber, productName });
-                console.log('在庫行数:', rows.length);
-                
                 rows.forEach((row, idx) => {
                     const rowPrefix = row[4] || '';
                     const rowNumber = String(row[5] || '').padStart(4, '0');
@@ -743,11 +734,6 @@
                     const prefixMatch = rowPrefix.toUpperCase() === projectPrefix.toUpperCase();
                     const numberMatch = rowNumber === projectNumber;
                     const productMatch = rowProductName === productName;
-                    
-                    // 案件番号が一致する行はログ出力
-                    if (prefixMatch && numberMatch) {
-                        console.log(`行${idx+2}: 製品名比較 "${rowProductName}" vs "${productName}" => ${productMatch ? '✓一致' : '✗不一致'}`);
-                    }
                     
                     // 案件番号 + 製品名 で一致判定
                     if (prefixMatch && numberMatch && productMatch) {
@@ -759,8 +745,6 @@
                     }
                 });
                 
-                console.log('更新対象:', updates.length, '件');
-                
                 if (updates.length > 0) {
                     await gapi.client.sheets.spreadsheets.values.batchUpdate({
                         spreadsheetId: SPREADSHEET_ID,
@@ -769,11 +753,9 @@
                             data: updates
                         }
                     });
-                    console.log(`在庫取得金を更新しました: ${projectPrefix}-${projectNumber} (${productName}) → ¥${costPerUnit.toLocaleString()} × ${updates.length}台`);
                     showStatus(`✅ 在庫の取得金を更新: ¥${costPerUnit.toLocaleString()}/台 × ${updates.length}台`);
                     setTimeout(() => showStatus(''), 3000);
                 } else {
-                    console.log(`該当する在庫が見つかりません: ${projectPrefix}-${projectNumber} (${productName})`);
                     showStatus(`⚠️ 該当する在庫が見つかりません`, 'warning');
                     setTimeout(() => showStatus(''), 3000);
                 }
@@ -2248,7 +2230,7 @@
                             </div>
                         </div>
                         
-                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-4">※ 案件番号やSerial変更時は在庫シートも自動更新されます</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-4">※ 案件番号、Serial、製品名の変更時は在庫シートも自動更新されます</p>
                         
                         <div class="flex gap-3 mt-6">
                             <button onclick="closeEditProjectModal()" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
@@ -2274,6 +2256,7 @@
             
             const oldSerial = project.serial;
             const oldProjectNumberFull = formatProjectNumber(project);
+            const oldProductName = project.productName;
             
             // 全フィールド更新
             const newProjectPrefix = document.getElementById('editProjectPrefix').value;
@@ -2281,10 +2264,11 @@
             const newSerial = document.getElementById('editSerial').value.trim();
             const newQuantity = parseInt(document.getElementById('editQuantity').value) || 1;
             const newTotalAmount = parseFloat(document.getElementById('editTotalAmount').value) || 0;
+            const newProductName = document.getElementById('editProductName').value.trim();
             
             project.projectPrefix = newProjectPrefix;
             project.projectNumber = newProjectNumber;
-            project.productName = document.getElementById('editProductName').value.trim();
+            project.productName = newProductName;
             project.supplierId = parseInt(document.getElementById('editSupplierId').value) || null;
             project.totalAmount = newTotalAmount;
             project.quantity = newQuantity;
@@ -2308,9 +2292,9 @@
             closeEditProjectModal();
             renderMain();
             
-            // Serialまたは案件番号が変更された場合、在庫シートも更新
-            if (oldSerial !== newSerial || oldProjectNumberFull !== newProjectNumberFull) {
-                updateInventoryFromProject(oldProjectNumberFull, oldSerial, newProjectNumberFull, newSerial, newQuantity);
+            // Serial、案件番号、または製品名が変更された場合、在庫シートも更新
+            if (oldSerial !== newSerial || oldProjectNumberFull !== newProjectNumberFull || oldProductName !== newProductName) {
+                updateInventoryFromProject(oldProjectNumberFull, oldSerial, newProjectNumberFull, newSerial, newQuantity, oldProductName, newProductName);
             }
             
             // 支払い情報があれば在庫の取得金を更新
@@ -2422,7 +2406,7 @@
         }
 
         // 在庫シートの案件情報更新（Serial、案件番号）
-        async function updateInventoryFromProject(oldProjectNumber, oldSerial, newProjectNumber, newSerial, quantity) {
+        async function updateInventoryFromProject(oldProjectNumber, oldSerial, newProjectNumber, newSerial, quantity, oldProductName, newProductName) {
             try {
                 showStatus('在庫シートを更新中...');
                 
@@ -2445,12 +2429,21 @@
                         projectNumber: row[5] || ''
                     });
                     const itemSerial = row[1] || ''; // Serial（B列）
+                    const itemProductName = row[3] || ''; // 製品名（D列）
                     
-                    // 旧案件番号に一致する場合
-                    if (itemProjectNumber === oldProjectNumber) {
+                    // 旧案件番号に一致し、かつ旧製品名にも一致する場合（製品名がある場合のみ）
+                    const projectMatch = itemProjectNumber === oldProjectNumber;
+                    const productMatch = !oldProductName || itemProductName === oldProductName;
+                    
+                    if (projectMatch && productMatch) {
                         // 案件番号を更新（新形式：接頭辞・番号を別々に）
                         row[4] = newParsed.prefix;
                         row[5] = padProjectNumber(newParsed.number);
+                        
+                        // 製品名が変更されていれば更新
+                        if (oldProductName && newProductName && oldProductName !== newProductName) {
+                            row[3] = newProductName;
+                        }
                         
                         // Serialも変更されていれば更新
                         if (oldSerial !== newSerial && itemSerial.startsWith(oldSerial.split('(')[0])) {
@@ -2473,7 +2466,7 @@
                         resource: { values: rows }
                     });
                     
-                    showStatus(`在庫シート ${updateCount}件を更新しました`);
+                    showStatus(`✅ 在庫シート ${updateCount}件を更新しました`);
                     setTimeout(() => showStatus(''), 3000);
                 } else {
                     showStatus('');
