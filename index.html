@@ -2107,7 +2107,10 @@
 
         // 案件編集（Serial、数量、WorkingDays、集荷予定日）
         function editProjectDetails(projectId) {
+            console.log('editProjectDetails called with:', projectId, typeof projectId);
+            console.log('All project IDs:', projects.map(p => ({ id: p.id, type: typeof p.id, prefix: p.projectPrefix, num: p.projectNumber })));
             const project = projects.find(p => String(p.id) === String(projectId));
+            console.log('Found project:', project ? `${project.projectPrefix}-${project.projectNumber}` : 'NOT FOUND');
             if (!project) return;
             const supplier = suppliers.find(s => s.id === project.supplierId);
             
