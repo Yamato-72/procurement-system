@@ -713,13 +713,18 @@
                 // 案件番号が一致する行を探す
                 const projectPrefix = project.projectPrefix || 'AD';
                 const projectNumber = String(project.projectNumber).padStart(4, '0');
+                const productName = project.productName || '';
                 const updates = [];
                 
                 rows.forEach((row, idx) => {
                     const rowPrefix = row[4] || '';
                     const rowNumber = String(row[5] || '').padStart(4, '0');
+                    const rowProductName = row[3] || '';
                     
-                    if (rowPrefix.toUpperCase() === projectPrefix.toUpperCase() && rowNumber === projectNumber) {
+                    // 案件番号 + 製品名 で一致判定
+                    if (rowPrefix.toUpperCase() === projectPrefix.toUpperCase() && 
+                        rowNumber === projectNumber &&
+                        rowProductName === productName) {
                         // 行番号（1始まり、ヘッダー分+1）
                         const rowNum = idx + 2;
                         updates.push({
@@ -737,9 +742,11 @@
                             data: updates
                         }
                     });
-                    console.log(`在庫取得金を更新しました: ${projectPrefix}-${projectNumber} → ¥${costPerUnit.toLocaleString()} × ${updates.length}台`);
-                    showStatus(`在庫の取得金を更新しました: ¥${costPerUnit.toLocaleString()}/台`);
+                    console.log(`在庫取得金を更新しました: ${projectPrefix}-${projectNumber} (${productName}) → ¥${costPerUnit.toLocaleString()} × ${updates.length}台`);
+                    showStatus(`✅ 在庫の取得金を更新: ¥${costPerUnit.toLocaleString()}/台 × ${updates.length}台`);
                     setTimeout(() => showStatus(''), 3000);
+                } else {
+                    console.log(`該当する在庫が見つかりません: ${projectPrefix}-${projectNumber} (${productName})`);
                 }
             } catch (e) {
                 console.error('在庫取得金の更新に失敗しました:', e);
@@ -2272,14 +2279,14 @@
                 updateInventoryFromProject(oldProjectNumberFull, oldSerial, newProjectNumberFull, newSerial, newQuantity);
             }
             
-            // 支払い情報があれば在庫の取得金を更新（全額支払済みでなくてもOK）
+            // 支払い情報があれば在庫の取得金を更新
             const totalJPY = (project.depositSchedule || []).reduce((sum, d) => sum + (d.amountJPY || 0), 0);
             if (totalJPY > 0) {
                 updateInventoryCostFromProject(project);
             }
         }
         
-        // 支払い完了時に在庫の取得金を更新
+        // 支払い完了時に在庫の取得金を更新（編集画面からの保存時）
         async function updateInventoryCostFromProject(project) {
             try {
                 const totalJPY = (project.depositSchedule || []).reduce((sum, d) => sum + (d.amountJPY || 0), 0);
@@ -2288,20 +2295,11 @@
                 const quantity = project.quantity || 1;
                 const costPerItem = Math.round(grandTotal / quantity);
                 
-                console.log('=== 在庫更新処理 ===');
-                console.log('totalJPY:', totalJPY, 'expenseTotal:', expenseTotal, 'grandTotal:', grandTotal);
-                console.log('quantity:', quantity, 'costPerItem:', costPerItem);
-                console.log('productName:', project.productName);
-                
-                if (costPerItem <= 0) {
-                    console.log('単価が0以下のためスキップ');
-                    return;
-                }
+                if (costPerItem <= 0) return;
                 
                 const projectNumber = formatProjectNumber(project);
                 const parsed = parseProjectNumberString(projectNumber);
-                
-                console.log('検索条件 - prefix:', parsed.prefix, 'number:', parsed.number);
+                const productName = project.productName || '';
                 
                 // 在庫シートを読み込み
                 const response = await gapi.client.sheets.spreadsheets.values.get({
@@ -2310,28 +2308,18 @@
                 });
                 const rows = response.result.values || [];
                 
-                console.log('在庫行数:', rows.length);
-                
                 // 該当案件のアイテムを検索して更新（案件番号 + 製品名で一致）
                 const updates = [];
                 rows.forEach((row, idx) => {
-                    const prefixMatch = row[4] === parsed.prefix;
-                    const numberMatch = row[5] === String(parsed.number);
-                    const productMatch = row[3] === project.productName;
-                    
-                    if (prefixMatch && numberMatch) {
-                        console.log(`行${idx+2}: prefix=${row[4]}, number=${row[5]}, product="${row[3]}" vs "${project.productName}" => ${productMatch ? '✓' : '✗'}`);
-                    }
-                    
-                    if (prefixMatch && numberMatch && productMatch) {
+                    if (row[4] === parsed.prefix && 
+                        row[5] === String(parsed.number) &&
+                        row[3] === productName) {
                         updates.push({
                             range: `在庫!M${idx + 2}`,
                             values: [[costPerItem]]
                         });
                     }
                 });
-                
-                console.log('更新対象:', updates.length, '件');
                 
                 if (updates.length > 0) {
                     await gapi.client.sheets.spreadsheets.values.batchUpdate({
