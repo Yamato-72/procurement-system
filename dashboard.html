@@ -90,8 +90,9 @@
             <div class="flex items-center gap-1 text-xs">
                 <a href="index.html" class="hover-bg px-2 py-1.5 t-sub flex items-center gap-1"><i data-lucide="clipboard-list" class="w-3.5 h-3.5"></i>調達</a>
                 <a href="inventory.html" class="hover-bg px-2 py-1.5 t-sub flex items-center gap-1"><i data-lucide="package" class="w-3.5 h-3.5"></i>在庫</a>
-                <button onclick="loadData()" class="hover-bg p-1.5 t-sub"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
-                <button onclick="toggleDarkMode()" class="hover-bg p-1.5 t-sub"><i data-lucide="moon" class="w-4 h-4"></i></button>
+                <button onclick="loadData()" class="hover-bg p-1.5 t-sub" title="更新"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+                <button onclick="toggleDarkMode()" class="hover-bg p-1.5 t-sub" title="ダークモード"><i data-lucide="moon" class="w-4 h-4"></i></button>
+                <button onclick="signOut()" class="hover-bg p-1.5 t-sub" title="サインアウト"><i data-lucide="log-out" class="w-4 h-4"></i></button>
             </div>
         </header>
 
@@ -811,6 +812,17 @@
 
         function toggleDarkMode() { document.documentElement.classList.toggle('dark'); localStorage.setItem('darkMode', document.documentElement.classList.contains('dark')); }
         function initDarkMode() { if (localStorage.getItem('darkMode') === 'true' || (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark'); }
+        function signOut() {
+            if (confirm('サインアウトしますか？')) {
+                sessionStorage.removeItem('googleAccessToken');
+                accessToken = null;
+                google.accounts.oauth2.revoke(sessionStorage.getItem('googleAccessToken'), () => {});
+                document.getElementById('mainContent').classList.add('hidden');
+                document.getElementById('knowledgeBtn').classList.add('hidden');
+                document.getElementById('settingsBtn').classList.add('hidden');
+                document.getElementById('loginSection').classList.remove('hidden');
+            }
+        }
         window.onload = () => { const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.onload = init; document.head.appendChild(s); };
     </script>
 </body>
