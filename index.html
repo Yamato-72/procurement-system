@@ -691,6 +691,16 @@
             }
         }
         
+        // 在庫へ反映ボタンから呼び出す
+        async function syncToInventory(projectId) {
+            const project = projects.find(p => String(p.id) === String(projectId));
+            if (!project) {
+                alert('案件が見つかりません');
+                return;
+            }
+            await updateInventoryCost(project);
+        }
+        
         // 在庫の取得金を更新
         async function updateInventoryCost(project) {
             try {
@@ -1274,6 +1284,11 @@
                                                     <div class="bg-white dark:bg-slate-700 border-2 border-green-400 dark:border-green-500 rounded-lg p-3 sm:p-4 mb-3">
                                                         <p class="text-green-700 dark:text-green-300 text-xs sm:text-sm font-semibold text-center">✓ すべての支払いが完了</p>
                                                         ${unitPrice ? `<p class="text-green-600 dark:text-green-400 text-xs sm:text-sm text-center mt-1">単価: ${formatJPY(unitPrice)}</p>` : ''}
+                                                        <div class="text-center mt-2">
+                                                            <button onclick="event.stopPropagation();syncToInventory('${p.id}')" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-lg">
+                                                                📦 在庫へ反映
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 `}
                                                 
