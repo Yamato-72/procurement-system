@@ -936,6 +936,69 @@
             );
             const prevTotalJPY = prevFiscalPayments.reduce((sum, p) => sum + (p.amountJPY || 0), 0);
 
+            // 今月・前月・前年同月の計算
+            const now = new Date();
+            const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+            const lastYearSameMonthStart = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+            const lastYearSameMonthEnd = new Date(now.getFullYear() - 1, now.getMonth() + 1, 0);
+            
+            // 今月の支払額
+            const thisMonthPayments = projects.flatMap(p => 
+                (p.depositSchedule || []).filter(dep => {
+                    if (!dep.paid || !dep.paidDate) return false;
+                    const d = new Date(dep.paidDate);
+                    return d >= thisMonthStart && d <= thisMonthEnd;
+                })
+            );
+            const thisMonthJPY = thisMonthPayments.reduce((sum, d) => sum + (d.amountJPY || 0), 0);
+            
+            // 前月の支払額
+            const lastMonthPayments = projects.flatMap(p => 
+                (p.depositSchedule || []).filter(dep => {
+                    if (!dep.paid || !dep.paidDate) return false;
+                    const d = new Date(dep.paidDate);
+                    return d >= lastMonthStart && d <= lastMonthEnd;
+                })
+            );
+            const lastMonthJPY = lastMonthPayments.reduce((sum, d) => sum + (d.amountJPY || 0), 0);
+            
+            // 前年同月の支払額
+            const lastYearSameMonthPayments = projects.flatMap(p => 
+                (p.depositSchedule || []).filter(dep => {
+                    if (!dep.paid || !dep.paidDate) return false;
+                    const d = new Date(dep.paidDate);
+                    return d >= lastYearSameMonthStart && d <= lastYearSameMonthEnd;
+                })
+            );
+            const lastYearSameMonthJPY = lastYearSameMonthPayments.reduce((sum, d) => sum + (d.amountJPY || 0), 0);
+            
+            // 前月比・前年同月比
+            const momChange = lastMonthJPY > 0 ? ((thisMonthJPY - lastMonthJPY) / lastMonthJPY * 100).toFixed(0) : null;
+            const yoyChange = lastYearSameMonthJPY > 0 ? ((thisMonthJPY - lastYearSameMonthJPY) / lastYearSameMonthJPY * 100).toFixed(0) : null;
+            
+            // 今月の発注件数
+            const thisMonthOrders = projects.filter(p => {
+                if (!p.registeredDate) return false;
+                const d = new Date(p.registeredDate);
+                return d >= thisMonthStart && d <= thisMonthEnd;
+            }).length;
+            
+            // 未払い総額（USD / JPY）
+            let unpaidTotalUSD = 0;
+            let unpaidTotalJPY = 0;
+            projects.forEach(p => {
+                (p.depositSchedule || []).forEach(dep => {
+                    if (!dep.paid) {
+                        unpaidTotalUSD += dep.amountUSD || 0;
+                        // JPYは推定（レートがあれば使う、なければ150で計算）
+                        unpaidTotalJPY += dep.amountJPY || (dep.amountUSD || 0) * 150;
+                    }
+                });
+            });
+
             const lastUpdatedText = lastUpdated ? lastUpdated.toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'}) : '-';
             
             // アラート計算
@@ -1087,24 +1150,58 @@
                             </div>
                         ` : ''}
                         
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-6 mb-4 sm:mb-8">
-                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm border dark:border-slate-700">
-                                <p class="text-slate-600 dark:text-slate-400 text-xs sm:text-sm mb-1 sm:mb-2">今期支払</p>
-                                <p class="text-base sm:text-2xl font-bold text-slate-900 dark:text-white">${formatJPY(totalJPY)}</p>
-                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 hidden sm:block">2025/07 - 2026/06</p>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-2 sm:mb-4">
+                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border dark:border-slate-700">
+                                <p class="text-slate-600 dark:text-slate-400 text-xs mb-1">今期支払</p>
+                                <p class="text-sm sm:text-xl font-bold text-slate-900 dark:text-white">${formatJPY(totalJPY)}</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">2025/07 - 2026/06</p>
                             </div>
-                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm border dark:border-slate-700">
-                                <p class="text-slate-600 dark:text-slate-400 text-xs sm:text-sm mb-1 sm:mb-2">前期支払</p>
-                                <p class="text-base sm:text-2xl font-bold text-slate-500 dark:text-slate-300">${formatJPY(prevTotalJPY)}</p>
-                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 hidden sm:block">2024/07 - 2025/06</p>
+                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border dark:border-slate-700">
+                                <p class="text-slate-600 dark:text-slate-400 text-xs mb-1">前期支払</p>
+                                <p class="text-sm sm:text-xl font-bold text-slate-500 dark:text-slate-300">${formatJPY(prevTotalJPY)}</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">2024/07 - 2025/06</p>
                             </div>
-                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm border dark:border-slate-700">
-                                <p class="text-slate-600 dark:text-slate-400 text-xs sm:text-sm mb-1 sm:mb-2">案件数</p>
-                                <p class="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white">${projects.length}</p>
+                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border dark:border-slate-700">
+                                <p class="text-slate-600 dark:text-slate-400 text-xs mb-1">案件数</p>
+                                <p class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">${projects.length}</p>
                             </div>
-                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-sm border dark:border-slate-700">
-                                <p class="text-slate-600 dark:text-slate-400 text-xs sm:text-sm mb-1 sm:mb-2">サプライヤー</p>
-                                <p class="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white">${suppliers.length}</p>
+                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border dark:border-slate-700">
+                                <p class="text-slate-600 dark:text-slate-400 text-xs mb-1">サプライヤー</p>
+                                <p class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">${suppliers.length}</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 2段目：今月の詳細 -->
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-8">
+                            <div class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border border-blue-200 dark:border-blue-700">
+                                <p class="text-blue-700 dark:text-blue-300 text-xs mb-1">📅 今月支払</p>
+                                <p class="text-sm sm:text-xl font-bold text-blue-900 dark:text-blue-100">${formatJPY(thisMonthJPY)}</p>
+                                <p class="text-xs text-blue-600 dark:text-blue-400">${now.getMonth() + 1}月実績</p>
+                            </div>
+                            <div class="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/30 dark:to-amber-800/30 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border border-amber-200 dark:border-amber-700">
+                                <p class="text-amber-700 dark:text-amber-300 text-xs mb-1">💰 未払い総額</p>
+                                <p class="text-sm sm:text-lg font-bold text-amber-900 dark:text-amber-100">$${unpaidTotalUSD.toLocaleString()}</p>
+                                <p class="text-xs text-amber-600 dark:text-amber-400">≈ ${formatJPY(unpaidTotalJPY)}</p>
+                            </div>
+                            <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/30 dark:to-emerald-800/30 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border border-emerald-200 dark:border-emerald-700">
+                                <p class="text-emerald-700 dark:text-emerald-300 text-xs mb-1">📦 今月発注</p>
+                                <p class="text-xl sm:text-2xl font-bold text-emerald-900 dark:text-emerald-100">${thisMonthOrders}</p>
+                                <p class="text-xs text-emerald-600 dark:text-emerald-400">件</p>
+                            </div>
+                            <div class="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border border-purple-200 dark:border-purple-700">
+                                <p class="text-purple-700 dark:text-purple-300 text-xs mb-1">📊 前月/前年比</p>
+                                <div class="flex gap-2 items-baseline">
+                                    <span class="text-sm sm:text-lg font-bold ${momChange !== null ? (momChange >= 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400') : 'text-slate-400'}">
+                                        ${momChange !== null ? (momChange >= 0 ? '+' : '') + momChange + '%' : '-'}
+                                    </span>
+                                    <span class="text-xs text-slate-500 dark:text-slate-400">前月</span>
+                                </div>
+                                <div class="flex gap-2 items-baseline">
+                                    <span class="text-sm sm:text-lg font-bold ${yoyChange !== null ? (yoyChange >= 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400') : 'text-slate-400'}">
+                                        ${yoyChange !== null ? (yoyChange >= 0 ? '+' : '') + yoyChange + '%' : '-'}
+                                    </span>
+                                    <span class="text-xs text-slate-500 dark:text-slate-400">前年</span>
+                                </div>
                             </div>
                         </div>
                         <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border dark:border-slate-700 mb-4 sm:mb-8">
