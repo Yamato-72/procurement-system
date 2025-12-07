@@ -10,7 +10,7 @@
     <script src="https://apis.google.com/js/api.js" async defer></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class'
@@ -4350,29 +4350,32 @@
             const previewItems = items.slice(0, 3);
             preview.innerHTML = previewItems.map(item => {
                 const pn = formatProjectNumber(item.orderPrefix, item.orderNumber) || '---';
+                const qrContent = item.serial || pn || String(item.id);
+                const qrDataUrl = generateQRDataURL(qrContent);
                 return `
                     <div class="bg-white border rounded p-2 text-center" style="min-width: 100px;">
-                        <img id="qr-preview-${item.id}" class="mx-auto mb-1" style="width:60px;height:60px;" src="data:image/gif;base64,R0lGODlhAQABAIAAAMLCwgAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==" alt="QR">
+                        <img class="mx-auto mb-1" style="width:60px;height:60px;" src="${qrDataUrl}" alt="QR">
                         <p class="text-xs font-bold text-blue-600">${pn}</p>
                         <p class="text-xs font-mono truncate" style="max-width:90px;">${item.serial || '---'}</p>
                     </div>
                 `;
             }).join('');
             
-            // QRコードを生成（toDataURL使用）
-            previewItems.forEach(item => {
-                const qrContent = item.serial || formatProjectNumber(item.orderPrefix, item.orderNumber) || String(item.id);
-                if (typeof QRCode !== 'undefined' && QRCode.toDataURL) {
-                    QRCode.toDataURL(qrContent, { width: 120, margin: 1 }, (err, url) => {
-                        if (!err) {
-                            const img = document.getElementById(`qr-preview-${item.id}`);
-                            if (img) img.src = url;
-                        }
-                    });
-                }
-            });
-            
             countEl.textContent = `${items.length}件のラベルを印刷します` + (items.length > 3 ? '（プレビューは3件まで）' : '');
+        }
+        
+        // QRコード生成（DataURL）
+        function generateQRDataURL(content) {
+            try {
+                const qr = qrcode(0, 'M');
+                qr.addData(content);
+                qr.make();
+                return qr.createDataURL(4, 0);
+            } catch (e) {
+                console.error('QR生成エラー:', e);
+                return 'data:image/gif;base64,R0lGODlhAQABAIAAAMLCwgAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==';
+            }
+        }
         }
         
         function getLabelTargetItems(target) {
@@ -4415,13 +4418,18 @@
             };
             const labelSize = sizes[size];
             
-            // 印刷データを準備（案件番号を事前計算）
-            const printData = items.map(item => ({
-                id: item.id,
-                serial: item.serial || '---',
-                pn: formatProjectNumber(item.orderPrefix, item.orderNumber) || '---',
-                qrContent: item.serial || formatProjectNumber(item.orderPrefix, item.orderNumber) || String(item.id)
-            }));
+            // 印刷データを準備（QRコードを事前生成）
+            const printData = items.map(item => {
+                const pn = formatProjectNumber(item.orderPrefix, item.orderNumber) || '---';
+                const serial = item.serial || '---';
+                const qrContent = item.serial || pn || String(item.id);
+                return {
+                    id: item.id,
+                    serial: serial,
+                    pn: pn,
+                    qrDataUrl: generateQRDataURL(qrContent)
+                };
+            });
             
             // 印刷用HTMLを生成
             const printWindow = window.open('', '_blank');
@@ -4430,7 +4438,6 @@
                 <html>
                 <head>
                     <title>QRラベル印刷</title>
-                    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"><\/script>
                     <style>
                         @page { margin: 0; size: ${labelSize.w}mm ${labelSize.h}mm; }
                         body { margin: 0; padding: 0; }
@@ -4472,9 +4479,11 @@
                     </style>
                 </head>
                 <body>
-                    ${printData.map((item, idx) => `
+                    ${printData.map(item => `
                         <div class="label">
-                            <div class="qr-container" id="qr-${idx}"></div>
+                            <div class="qr-container">
+                                <img src="${item.qrDataUrl}" alt="QR">
+                            </div>
                             <div class="text-container">
                                 <p class="project-number">${item.pn}</p>
                                 <p class="serial">${item.serial}</p>
@@ -4482,21 +4491,9 @@
                         </div>
                     `).join('')}
                     <script>
-                        const printData = ${JSON.stringify(printData)};
-                        let loaded = 0;
-                        printData.forEach((item, idx) => {
-                            QRCode.toDataURL(item.qrContent, { width: 200, margin: 1 }, (err, url) => {
-                                if (!err) {
-                                    const img = document.createElement('img');
-                                    img.src = url;
-                                    document.getElementById('qr-' + idx).appendChild(img);
-                                }
-                                loaded++;
-                                if (loaded === printData.length) {
-                                    setTimeout(() => window.print(), 300);
-                                }
-                            });
-                        });
+                        window.onload = function() {
+                            setTimeout(() => window.print(), 200);
+                        };
                     <\/script>
                 </body>
                 </html>
