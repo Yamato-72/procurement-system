@@ -1651,6 +1651,16 @@
                         </div>
                     </main>
                 </div>
+                
+                <!-- フローティングスキャンボタン（スマホ用） -->
+                ${!bulkSelectMode ? `
+                    <div class="fixed bottom-6 right-6 z-40 sm:hidden">
+                        <button onclick="openQRScanner()" class="w-16 h-16 bg-emerald-600 text-white rounded-full shadow-lg hover:bg-emerald-700 active:scale-95 transition-transform flex items-center justify-center text-3xl">
+                            📷
+                        </button>
+                    </div>
+                ` : ''}
+                
                 ${bulkSelectMode && selectedItems.size > 0 ? `
                     <div class="fixed bottom-0 left-0 right-0 bg-amber-500 text-white p-3 shadow-lg z-50">
                         <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
@@ -4346,25 +4356,24 @@
                 const pn = formatProjectNumber(item.orderPrefix, item.orderNumber) || '---';
                 return `
                     <div class="bg-white border rounded p-2 text-center" style="min-width: 100px;">
-                        <div id="qr-preview-${item.id}" class="mx-auto mb-1" style="width:60px;height:60px;background:#eee;"></div>
+                        <img id="qr-preview-${item.id}" class="mx-auto mb-1" style="width:60px;height:60px;" src="data:image/gif;base64,R0lGODlhAQABAIAAAMLCwgAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==" alt="QR">
                         <p class="text-xs font-bold text-blue-600">${pn}</p>
                         <p class="text-xs font-mono truncate" style="max-width:90px;">${item.serial || '---'}</p>
                     </div>
                 `;
             }).join('');
             
-            // QRコードを生成
+            // QRコードを生成（toDataURL使用）
             previewItems.forEach(item => {
-                const qrContent = item.serial || formatProjectNumber(item.orderPrefix, item.orderNumber) || item.id;
-                QRCode.toCanvas(document.createElement('canvas'), qrContent, { width: 60, margin: 1 }, (err, canvas) => {
-                    if (!err) {
-                        const container = document.getElementById(`qr-preview-${item.id}`);
-                        if (container) {
-                            container.innerHTML = '';
-                            container.appendChild(canvas);
+                const qrContent = item.serial || formatProjectNumber(item.orderPrefix, item.orderNumber) || String(item.id);
+                if (typeof QRCode !== 'undefined' && QRCode.toDataURL) {
+                    QRCode.toDataURL(qrContent, { width: 120, margin: 1 }, (err, url) => {
+                        if (!err) {
+                            const img = document.getElementById(`qr-preview-${item.id}`);
+                            if (img) img.src = url;
                         }
-                    }
-                });
+                    });
+                }
             });
             
             countEl.textContent = `${items.length}件のラベルを印刷します` + (items.length > 3 ? '（プレビューは3件まで）' : '');
@@ -4410,6 +4419,14 @@
             };
             const labelSize = sizes[size];
             
+            // 印刷データを準備（案件番号を事前計算）
+            const printData = items.map(item => ({
+                id: item.id,
+                serial: item.serial || '---',
+                pn: formatProjectNumber(item.orderPrefix, item.orderNumber) || '---',
+                qrContent: item.serial || formatProjectNumber(item.orderPrefix, item.orderNumber) || String(item.id)
+            }));
+            
             // 印刷用HTMLを生成
             const printWindow = window.open('', '_blank');
             printWindow.document.write(`
@@ -4433,10 +4450,12 @@
                         }
                         .qr-container {
                             flex-shrink: 0;
+                            width: ${Math.min(labelSize.h - 4, 25)}mm;
+                            height: ${Math.min(labelSize.h - 4, 25)}mm;
                         }
-                        .qr-container canvas {
-                            width: ${Math.min(labelSize.h - 4, 25)}mm !important;
-                            height: ${Math.min(labelSize.h - 4, 25)}mm !important;
+                        .qr-container img {
+                            width: 100%;
+                            height: 100%;
                         }
                         .text-container {
                             margin-left: 2mm;
@@ -4457,29 +4476,31 @@
                     </style>
                 </head>
                 <body>
-                    ${items.map((item, idx) => {
-                        const pn = formatProjectNumber(item.orderPrefix, item.orderNumber) || '---';
-                        return `
-                            <div class="label">
-                                <div class="qr-container" id="qr-${idx}"></div>
-                                <div class="text-container">
-                                    <p class="project-number">${pn}</p>
-                                    <p class="serial">${item.serial || '---'}</p>
-                                </div>
+                    ${printData.map((item, idx) => `
+                        <div class="label">
+                            <div class="qr-container" id="qr-${idx}"></div>
+                            <div class="text-container">
+                                <p class="project-number">${item.pn}</p>
+                                <p class="serial">${item.serial}</p>
                             </div>
-                        `;
-                    }).join('')}
+                        </div>
+                    `).join('')}
                     <script>
-                        const items = ${JSON.stringify(items.map(i => ({ id: i.id, serial: i.serial, pn: formatProjectNumber(i.orderPrefix, i.orderNumber) })))};
-                        items.forEach((item, idx) => {
-                            const content = item.serial || item.pn || String(item.id);
-                            QRCode.toCanvas(document.createElement('canvas'), content, { width: 100, margin: 1 }, (err, canvas) => {
+                        const printData = ${JSON.stringify(printData)};
+                        let loaded = 0;
+                        printData.forEach((item, idx) => {
+                            QRCode.toDataURL(item.qrContent, { width: 200, margin: 1 }, (err, url) => {
                                 if (!err) {
-                                    document.getElementById('qr-' + idx).appendChild(canvas);
+                                    const img = document.createElement('img');
+                                    img.src = url;
+                                    document.getElementById('qr-' + idx).appendChild(img);
+                                }
+                                loaded++;
+                                if (loaded === printData.length) {
+                                    setTimeout(() => window.print(), 300);
                                 }
                             });
                         });
-                        setTimeout(() => window.print(), 500);
                     <\/script>
                 </body>
                 </html>
