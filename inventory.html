@@ -1234,7 +1234,10 @@
                                             <button onclick="repairDuplicateIds()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 text-red-600 dark:text-red-400 rounded-b-lg">🔧 ID重複を修復</button>
                                         </div>
                                     </div>
-                                    <a href="index.html" class="px-2 sm:px-3 py-1.5 sm:py-2 border border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 text-xs sm:text-sm rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30">調達</a>
+                                    <a href="index.html" class="p-1.5 sm:px-3 sm:py-2 border border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 text-xs sm:text-sm rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30" title="支払ナビ">
+                                        <span class="sm:hidden">💴</span>
+                                        <span class="hidden sm:inline">支払</span>
+                                    </a>
                                     <button onclick="toggleBulkSelectMode()" class="px-2 sm:px-3 py-1.5 sm:py-2 ${bulkSelectMode ? 'bg-amber-500' : 'bg-slate-500'} text-white text-xs sm:text-sm rounded-lg hover:opacity-90">
                                         <span class="hidden sm:inline">${bulkSelectMode ? '選択中' : '一括'}</span>
                                         <span class="sm:hidden">☑</span>
