@@ -9,6 +9,8 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class'
@@ -1219,6 +1221,10 @@
                                     <button onclick="toggleDarkMode()" class="p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" title="ダークモード切替">
                                         ${isDarkMode ? '☀️' : '🌙'}
                                     </button>
+                                    <button onclick="openQRScanner()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-emerald-600 text-white text-xs sm:text-sm rounded-lg hover:bg-emerald-700" title="QRスキャン">
+                                        <span class="hidden sm:inline">📷 スキャン</span>
+                                        <span class="sm:hidden">📷</span>
+                                    </button>
                                     <div class="relative">
                                         <button onclick="toggleReportMenu()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-purple-600 text-white text-xs sm:text-sm rounded-lg hover:bg-purple-700">
                                             <span class="hidden sm:inline">📊 レポート</span>
@@ -1228,6 +1234,8 @@
                                             <button onclick="exportCSV()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white rounded-t-lg">📥 CSV出力</button>
                                             <button onclick="printInventoryList()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">🖨️ 棚卸しリスト印刷</button>
                                             <button onclick="showMonthlyReport()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📈 月次在庫レポート</button>
+                                            <div class="border-t dark:border-slate-600"></div>
+                                            <button onclick="showLabelPrintModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">🏷️ QRラベル印刷</button>
                                             <div class="border-t dark:border-slate-600"></div>
                                             <button onclick="showImportToProcurementModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📤 調達にインポート</button>
                                             <div class="border-t dark:border-slate-600"></div>
@@ -4042,6 +4050,454 @@
                 </div>
             `;
             document.body.appendChild(modal);
+        }
+
+        // ==================== QRスキャン機能 ====================
+        let html5QrCode = null;
+        let scannerModal = null;
+        
+        function openQRScanner() {
+            // スキャナーモーダルを作成
+            scannerModal = document.createElement('div');
+            scannerModal.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4';
+            scannerModal.innerHTML = `
+                <div class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-md shadow-2xl">
+                    <div class="flex justify-between items-center p-4 border-b dark:border-slate-700">
+                        <h3 class="text-lg font-bold dark:text-white">📷 QRスキャン</h3>
+                        <button onclick="closeQRScanner()" class="text-2xl text-slate-400 hover:text-slate-600">&times;</button>
+                    </div>
+                    <div class="p-4">
+                        <div id="qr-reader" class="w-full rounded-lg overflow-hidden"></div>
+                        <p id="scan-status" class="text-center text-sm text-slate-500 dark:text-slate-400 mt-3">カメラを起動中...</p>
+                    </div>
+                    <div class="p-4 border-t dark:border-slate-700">
+                        <p class="text-xs text-slate-500 dark:text-slate-400 text-center">QRコードまたはバーコードをカメラに向けてください</p>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(scannerModal);
+            
+            // スキャナーを初期化
+            setTimeout(() => {
+                html5QrCode = new Html5Qrcode("qr-reader");
+                html5QrCode.start(
+                    { facingMode: "environment" },
+                    {
+                        fps: 10,
+                        qrbox: { width: 250, height: 250 }
+                    },
+                    onScanSuccess,
+                    onScanFailure
+                ).catch(err => {
+                    document.getElementById('scan-status').textContent = 'カメラの起動に失敗: ' + err;
+                });
+            }, 100);
+        }
+        
+        function onScanSuccess(decodedText, decodedResult) {
+            // スキャン成功時の処理
+            console.log('Scanned:', decodedText);
+            
+            // スキャナーを停止
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    // モーダルを閉じる
+                    if (scannerModal) {
+                        scannerModal.remove();
+                        scannerModal = null;
+                    }
+                    
+                    // スキャン結果を処理
+                    processScannedCode(decodedText);
+                });
+            }
+        }
+        
+        function onScanFailure(error) {
+            // スキャン失敗（通常は無視）
+        }
+        
+        function closeQRScanner() {
+            if (html5QrCode) {
+                html5QrCode.stop().catch(err => console.log(err));
+                html5QrCode = null;
+            }
+            if (scannerModal) {
+                scannerModal.remove();
+                scannerModal = null;
+            }
+        }
+        
+        function processScannedCode(code) {
+            // コードからアイテムを検索（Serial or 案件番号）
+            const item = inventory.find(i => 
+                i.serial === code || 
+                i.serial?.includes(code) ||
+                formatProjectNumber(i.orderPrefix, i.orderNumber) === code
+            );
+            
+            if (item) {
+                // アイテムが見つかった場合、アクション選択モーダルを表示
+                showScanActionModal(item);
+            } else {
+                // 見つからない場合
+                alert(`「${code}」に該当するアイテムが見つかりません。\n\n新規登録しますか？`);
+                // TODO: 新規登録フローへ
+            }
+        }
+        
+        function showScanActionModal(item) {
+            const projectNumber = formatProjectNumber(item.orderPrefix, item.orderNumber) || '未設定';
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+            modal.id = 'scanActionModal';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-sm shadow-2xl">
+                    <div class="p-4 border-b dark:border-slate-700 text-center">
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">スキャン結果</p>
+                        <p class="text-lg font-bold text-blue-600 dark:text-blue-400">${projectNumber}</p>
+                        <p class="text-sm font-mono text-slate-700 dark:text-slate-300">${item.serial || 'Serial未設定'}</p>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mt-1">${item.productName}</p>
+                        <span class="inline-block mt-2 px-2 py-1 text-xs rounded-full ${
+                            item.status === '在庫中' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300' :
+                            item.status === '入庫待ち' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300' :
+                            'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                        }">${item.status}</span>
+                    </div>
+                    <div class="p-4 grid grid-cols-2 gap-3">
+                        ${item.status === '入庫待ち' ? `
+                            <button onclick="closeScanActionModal();quickReceive('${item.id}')" class="flex flex-col items-center justify-center p-4 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-900/70">
+                                <span class="text-2xl mb-1">📥</span>
+                                <span class="text-sm font-semibold text-emerald-700 dark:text-emerald-300">入庫</span>
+                            </button>
+                        ` : ''}
+                        ${item.status === '在庫中' ? `
+                            <button onclick="closeScanActionModal();quickShip('${item.id}')" class="flex flex-col items-center justify-center p-4 bg-blue-100 dark:bg-blue-900/50 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/70">
+                                <span class="text-2xl mb-1">📤</span>
+                                <span class="text-sm font-semibold text-blue-700 dark:text-blue-300">出庫</span>
+                            </button>
+                        ` : ''}
+                        <button onclick="closeScanActionModal();editItem('${item.id}')" class="flex flex-col items-center justify-center p-4 bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600">
+                            <span class="text-2xl mb-1">📋</span>
+                            <span class="text-sm font-semibold text-slate-700 dark:text-slate-300">詳細</span>
+                        </button>
+                        <button onclick="closeScanActionModal();markAsChecked('${item.id}')" class="flex flex-col items-center justify-center p-4 bg-purple-100 dark:bg-purple-900/50 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-900/70">
+                            <span class="text-2xl mb-1">✅</span>
+                            <span class="text-sm font-semibold text-purple-700 dark:text-purple-300">棚卸し</span>
+                        </button>
+                        <button onclick="closeScanActionModal();printSingleLabel('${item.id}')" class="flex flex-col items-center justify-center p-4 bg-amber-100 dark:bg-amber-900/50 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/70">
+                            <span class="text-2xl mb-1">🏷️</span>
+                            <span class="text-sm font-semibold text-amber-700 dark:text-amber-300">ラベル</span>
+                        </button>
+                        <button onclick="closeScanActionModal();openQRScanner()" class="flex flex-col items-center justify-center p-4 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600">
+                            <span class="text-2xl mb-1">📷</span>
+                            <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">続けて</span>
+                        </button>
+                    </div>
+                    <div class="p-4 border-t dark:border-slate-700">
+                        <button onclick="closeScanActionModal()" class="w-full py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200">閉じる</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        function closeScanActionModal() {
+            const modal = document.getElementById('scanActionModal');
+            if (modal) modal.remove();
+        }
+        
+        // クイック入庫
+        function quickReceive(itemId) {
+            const item = inventory.find(i => String(i.id) === String(itemId));
+            if (!item) return;
+            
+            const today = new Date().toISOString().split('T')[0];
+            item.status = '在庫中';
+            item.receiveDate = today;
+            
+            saveInventory();
+            renderMain();
+            showStatus(`✅ ${item.serial || item.productName} を入庫しました`, 'success');
+        }
+        
+        // クイック出庫（出庫先入力）
+        function quickShip(itemId) {
+            const item = inventory.find(i => String(i.id) === String(itemId));
+            if (!item) return;
+            
+            const shipTo = prompt('出庫先案件番号を入力（例: SP-0001）:', '');
+            if (shipTo === null) return;
+            
+            const today = new Date().toISOString().split('T')[0];
+            item.status = '出庫済';
+            item.shipDate = today;
+            
+            // 出庫先の解析
+            const match = shipTo.match(/^([A-Z]+)-?(\d+)$/i);
+            if (match) {
+                item.shipPrefix = match[1].toUpperCase();
+                item.shipNumber = parseInt(match[2]);
+            }
+            
+            saveInventory();
+            renderMain();
+            showStatus(`📤 ${item.serial || item.productName} を出庫しました`, 'success');
+        }
+        
+        // 棚卸しチェック
+        function markAsChecked(itemId) {
+            showStatus(`✅ 棚卸しチェック完了`, 'success');
+            // TODO: 棚卸し記録を保存する場合はここに実装
+        }
+        
+        // ==================== QRラベル印刷機能 ====================
+        function showLabelPrintModal() {
+            toggleReportMenu(); // メニューを閉じる
+            
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+            modal.id = 'labelPrintModal';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-auto">
+                    <div class="flex justify-between items-center p-4 border-b dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800">
+                        <h3 class="text-lg font-bold dark:text-white">🏷️ QRラベル印刷</h3>
+                        <button onclick="closeLabelPrintModal()" class="text-2xl text-slate-400 hover:text-slate-600">&times;</button>
+                    </div>
+                    <div class="p-4">
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">印刷対象</label>
+                            <select id="labelPrintTarget" class="w-full p-2 border dark:border-slate-600 rounded-lg dark:bg-slate-700 dark:text-white" onchange="updateLabelPreview()">
+                                <option value="selected">選択中のアイテム (${selectedItems.size}件)</option>
+                                <option value="instock">在庫中すべて</option>
+                                <option value="waiting">入庫待ちすべて</option>
+                                <option value="project">案件単位で選択</option>
+                            </select>
+                        </div>
+                        <div id="projectSelector" class="mb-4 hidden">
+                            <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">案件を選択</label>
+                            <select id="labelProjectSelect" class="w-full p-2 border dark:border-slate-600 rounded-lg dark:bg-slate-700 dark:text-white" onchange="updateLabelPreview()">
+                                ${getProjectOptions()}
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">ラベルサイズ</label>
+                            <select id="labelSize" class="w-full p-2 border dark:border-slate-600 rounded-lg dark:bg-slate-700 dark:text-white">
+                                <option value="29x90">29mm × 90mm（ブラザー標準）</option>
+                                <option value="38x90">38mm × 90mm（大きめ）</option>
+                                <option value="50x30">50mm × 30mm（正方形）</option>
+                                <option value="62x29">62mm × 29mm（幅広）</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <p class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">プレビュー</p>
+                            <div id="labelPreview" class="border dark:border-slate-600 rounded-lg p-4 bg-slate-50 dark:bg-slate-900 flex flex-wrap gap-2 justify-center">
+                                <!-- プレビューがここに表示される -->
+                            </div>
+                            <p id="labelCount" class="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center"></p>
+                        </div>
+                    </div>
+                    <div class="p-4 border-t dark:border-slate-700 flex gap-3">
+                        <button onclick="closeLabelPrintModal()" class="flex-1 py-2 border dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-400">キャンセル</button>
+                        <button onclick="printLabels()" class="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">🖨️ 印刷</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // 初期プレビュー
+            document.getElementById('labelPrintTarget').addEventListener('change', function() {
+                document.getElementById('projectSelector').classList.toggle('hidden', this.value !== 'project');
+            });
+            updateLabelPreview();
+        }
+        
+        function getProjectOptions() {
+            const projects = {};
+            inventory.forEach(item => {
+                const pn = formatProjectNumber(item.orderPrefix, item.orderNumber);
+                if (pn && !projects[pn]) {
+                    projects[pn] = { count: 0 };
+                }
+                if (pn) projects[pn].count++;
+            });
+            
+            return Object.entries(projects)
+                .sort((a, b) => b[0].localeCompare(a[0]))
+                .map(([pn, data]) => `<option value="${pn}">${pn} (${data.count}件)</option>`)
+                .join('');
+        }
+        
+        function updateLabelPreview() {
+            const target = document.getElementById('labelPrintTarget').value;
+            const items = getLabelTargetItems(target);
+            const preview = document.getElementById('labelPreview');
+            const countEl = document.getElementById('labelCount');
+            
+            if (items.length === 0) {
+                preview.innerHTML = '<p class="text-slate-400 text-sm">対象アイテムがありません</p>';
+                countEl.textContent = '';
+                return;
+            }
+            
+            // 最初の3件だけプレビュー
+            const previewItems = items.slice(0, 3);
+            preview.innerHTML = previewItems.map(item => {
+                const pn = formatProjectNumber(item.orderPrefix, item.orderNumber) || '---';
+                return `
+                    <div class="bg-white border rounded p-2 text-center" style="min-width: 100px;">
+                        <div id="qr-preview-${item.id}" class="mx-auto mb-1" style="width:60px;height:60px;background:#eee;"></div>
+                        <p class="text-xs font-bold text-blue-600">${pn}</p>
+                        <p class="text-xs font-mono truncate" style="max-width:90px;">${item.serial || '---'}</p>
+                    </div>
+                `;
+            }).join('');
+            
+            // QRコードを生成
+            previewItems.forEach(item => {
+                const qrContent = item.serial || formatProjectNumber(item.orderPrefix, item.orderNumber) || item.id;
+                QRCode.toCanvas(document.createElement('canvas'), qrContent, { width: 60, margin: 1 }, (err, canvas) => {
+                    if (!err) {
+                        const container = document.getElementById(`qr-preview-${item.id}`);
+                        if (container) {
+                            container.innerHTML = '';
+                            container.appendChild(canvas);
+                        }
+                    }
+                });
+            });
+            
+            countEl.textContent = `${items.length}件のラベルを印刷します` + (items.length > 3 ? '（プレビューは3件まで）' : '');
+        }
+        
+        function getLabelTargetItems(target) {
+            switch (target) {
+                case 'selected':
+                    return inventory.filter(i => selectedItems.has(String(i.id)));
+                case 'instock':
+                    return inventory.filter(i => i.status === '在庫中');
+                case 'waiting':
+                    return inventory.filter(i => i.status === '入庫待ち');
+                case 'project':
+                    const selectedProject = document.getElementById('labelProjectSelect')?.value;
+                    return inventory.filter(i => formatProjectNumber(i.orderPrefix, i.orderNumber) === selectedProject);
+                default:
+                    return [];
+            }
+        }
+        
+        function closeLabelPrintModal() {
+            const modal = document.getElementById('labelPrintModal');
+            if (modal) modal.remove();
+        }
+        
+        function printLabels() {
+            const target = document.getElementById('labelPrintTarget').value;
+            const items = getLabelTargetItems(target);
+            const size = document.getElementById('labelSize').value;
+            
+            if (items.length === 0) {
+                alert('印刷対象がありません');
+                return;
+            }
+            
+            // サイズ設定（mm）
+            const sizes = {
+                '29x90': { w: 90, h: 29 },
+                '38x90': { w: 90, h: 38 },
+                '50x30': { w: 50, h: 30 },
+                '62x29': { w: 62, h: 29 }
+            };
+            const labelSize = sizes[size];
+            
+            // 印刷用HTMLを生成
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>QRラベル印刷</title>
+                    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"><\/script>
+                    <style>
+                        @page { margin: 0; size: ${labelSize.w}mm ${labelSize.h}mm; }
+                        body { margin: 0; padding: 0; }
+                        .label {
+                            width: ${labelSize.w}mm;
+                            height: ${labelSize.h}mm;
+                            page-break-after: always;
+                            display: flex;
+                            align-items: center;
+                            padding: 2mm;
+                            box-sizing: border-box;
+                            font-family: 'Arial', sans-serif;
+                        }
+                        .qr-container {
+                            flex-shrink: 0;
+                        }
+                        .qr-container canvas {
+                            width: ${Math.min(labelSize.h - 4, 25)}mm !important;
+                            height: ${Math.min(labelSize.h - 4, 25)}mm !important;
+                        }
+                        .text-container {
+                            margin-left: 2mm;
+                            overflow: hidden;
+                        }
+                        .project-number {
+                            font-size: ${labelSize.h > 30 ? '12pt' : '10pt'};
+                            font-weight: bold;
+                            color: #1d4ed8;
+                            margin: 0;
+                        }
+                        .serial {
+                            font-size: ${labelSize.h > 30 ? '9pt' : '7pt'};
+                            font-family: monospace;
+                            margin: 1mm 0 0 0;
+                            color: #333;
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${items.map((item, idx) => {
+                        const pn = formatProjectNumber(item.orderPrefix, item.orderNumber) || '---';
+                        return `
+                            <div class="label">
+                                <div class="qr-container" id="qr-${idx}"></div>
+                                <div class="text-container">
+                                    <p class="project-number">${pn}</p>
+                                    <p class="serial">${item.serial || '---'}</p>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                    <script>
+                        const items = ${JSON.stringify(items.map(i => ({ id: i.id, serial: i.serial, pn: formatProjectNumber(i.orderPrefix, i.orderNumber) })))};
+                        items.forEach((item, idx) => {
+                            const content = item.serial || item.pn || String(item.id);
+                            QRCode.toCanvas(document.createElement('canvas'), content, { width: 100, margin: 1 }, (err, canvas) => {
+                                if (!err) {
+                                    document.getElementById('qr-' + idx).appendChild(canvas);
+                                }
+                            });
+                        });
+                        setTimeout(() => window.print(), 500);
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            
+            closeLabelPrintModal();
+        }
+        
+        // 単一アイテムのラベル印刷
+        function printSingleLabel(itemId) {
+            const item = inventory.find(i => String(i.id) === String(itemId));
+            if (!item) return;
+            
+            // 一時的に選択状態にしてラベル印刷モーダルを開く
+            selectedItems.clear();
+            selectedItems.add(String(itemId));
+            showLabelPrintModal();
         }
 
         // API読み込み確認と初期化
