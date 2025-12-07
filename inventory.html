@@ -1221,10 +1221,6 @@
                                     <button onclick="toggleDarkMode()" class="p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" title="ダークモード切替">
                                         ${isDarkMode ? '☀️' : '🌙'}
                                     </button>
-                                    <button onclick="openQRScanner()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-emerald-600 text-white text-xs sm:text-sm rounded-lg hover:bg-emerald-700" title="QRスキャン">
-                                        <span class="hidden sm:inline">📷 スキャン</span>
-                                        <span class="sm:hidden">📷</span>
-                                    </button>
                                     <div class="relative">
                                         <button onclick="toggleReportMenu()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-purple-600 text-white text-xs sm:text-sm rounded-lg hover:bg-purple-700">
                                             <span class="hidden sm:inline">📊 レポート</span>
@@ -1654,11 +1650,11 @@
                 
                 <!-- フローティングスキャンボタン（スマホ用） -->
                 ${!bulkSelectMode ? `
-                    <div class="fixed bottom-6 right-6 z-40 sm:hidden">
-                        <button onclick="openQRScanner()" class="w-16 h-16 bg-emerald-600 text-white rounded-full shadow-lg hover:bg-emerald-700 active:scale-95 transition-transform flex items-center justify-center text-3xl">
-                            📷
-                        </button>
-                    </div>
+                    <button onclick="openQRScanner()" class="fixed bottom-6 right-6 z-40 w-16 h-16 rounded-full shadow-xl active:scale-95 transition-transform flex items-center justify-center" style="background: linear-gradient(135deg, #2383e2 0%, #1a5fb4 100%);">
+                        <svg class="w-8 h-8" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 9V6a3 3 0 013-3h3M3 15v3a3 3 0 003 3h3m6-18h3a3 3 0 013 3v3m0 6v3a3 3 0 01-3 3h-3M9 12h6m-3-3v6"/>
+                        </svg>
+                    </button>
                 ` : ''}
                 
                 ${bulkSelectMode && selectedItems.size > 0 ? `
