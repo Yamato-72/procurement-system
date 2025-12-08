@@ -10,7 +10,7 @@
     <script src="https://apis.google.com/js/api.js" async defer></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <!-- <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script> -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class'
@@ -4289,6 +4289,7 @@
                         <div class="mb-4">
                             <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">ラベルサイズ</label>
                             <select id="labelSize" class="w-full p-2 border dark:border-slate-600 rounded-lg dark:bg-slate-700 dark:text-white">
+                                <option value="84x42" selected>83.8mm × 42.3mm（A4シート12面）</option>
                                 <option value="29x90">29mm × 90mm（ブラザー標準）</option>
                                 <option value="38x90">38mm × 90mm（大きめ）</option>
                                 <option value="50x30">50mm × 30mm（正方形）</option>
@@ -4410,6 +4411,7 @@
             
             // サイズ設定（mm）
             const sizes = {
+                '84x42': { w: 83.8, h: 42.3, sheet: true, cols: 2, rows: 6 },
                 '29x90': { w: 90, h: 29 },
                 '38x90': { w: 90, h: 38 },
                 '50x30': { w: 50, h: 30 },
@@ -4432,71 +4434,180 @@
             
             // 印刷用HTMLを生成
             const printWindow = window.open('', '_blank');
-            printWindow.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>QRラベル印刷</title>
-                    <style>
-                        @page { margin: 0; size: ${labelSize.w}mm ${labelSize.h}mm; }
-                        body { margin: 0; padding: 0; }
-                        .label {
-                            width: ${labelSize.w}mm;
-                            height: ${labelSize.h}mm;
-                            page-break-after: always;
-                            display: flex;
-                            align-items: center;
-                            padding: 2mm;
-                            box-sizing: border-box;
-                            font-family: 'Arial', sans-serif;
-                        }
-                        .qr-container {
-                            flex-shrink: 0;
-                            width: ${Math.min(labelSize.h - 4, 25)}mm;
-                            height: ${Math.min(labelSize.h - 4, 25)}mm;
-                        }
-                        .qr-container img {
-                            width: 100%;
-                            height: 100%;
-                        }
-                        .text-container {
-                            margin-left: 2mm;
-                            overflow: hidden;
-                        }
-                        .project-number {
-                            font-size: ${labelSize.h > 30 ? '12pt' : '10pt'};
-                            font-weight: bold;
-                            color: #1d4ed8;
-                            margin: 0;
-                        }
-                        .serial {
-                            font-size: ${labelSize.h > 30 ? '9pt' : '7pt'};
-                            font-family: monospace;
-                            margin: 1mm 0 0 0;
-                            color: #333;
-                        }
-                    </style>
-                </head>
-                <body>
-                    ${printData.map(item => `
-                        <div class="label">
-                            <div class="qr-container">
-                                <img src="${item.qrDataUrl}" alt="QR">
+            
+            // A4シート印刷（12面）の場合
+            if (labelSize.sheet) {
+                const labelsPerPage = labelSize.cols * labelSize.rows; // 12
+                const pages = [];
+                for (let i = 0; i < printData.length; i += labelsPerPage) {
+                    pages.push(printData.slice(i, i + labelsPerPage));
+                }
+                
+                printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>QRラベル印刷</title>
+                        <style>
+                            @page { margin: 0; size: A4; }
+                            * { box-sizing: border-box; }
+                            body { margin: 0; padding: 0; font-family: 'Arial', sans-serif; }
+                            .page {
+                                width: 210mm;
+                                height: 297mm;
+                                padding: 8.5mm 13.5mm;
+                                page-break-after: always;
+                            }
+                            .page:last-child { page-break-after: auto; }
+                            .grid {
+                                display: grid;
+                                grid-template-columns: repeat(${labelSize.cols}, ${labelSize.w}mm);
+                                grid-template-rows: repeat(${labelSize.rows}, ${labelSize.h}mm);
+                                gap: 0;
+                            }
+                            .label {
+                                width: ${labelSize.w}mm;
+                                height: ${labelSize.h}mm;
+                                display: flex;
+                                align-items: center;
+                                padding: 3mm;
+                                border: 0.5px dashed #ccc;
+                            }
+                            .qr-container {
+                                flex-shrink: 0;
+                                width: 32mm;
+                                height: 32mm;
+                            }
+                            .qr-container img {
+                                width: 100%;
+                                height: 100%;
+                            }
+                            .text-container {
+                                margin-left: 3mm;
+                                overflow: hidden;
+                                flex: 1;
+                            }
+                            .project-number {
+                                font-size: 14pt;
+                                font-weight: bold;
+                                color: #1d4ed8;
+                                margin: 0 0 2mm 0;
+                            }
+                            .serial {
+                                font-size: 9pt;
+                                font-family: monospace;
+                                margin: 0;
+                                color: #333;
+                                word-break: break-all;
+                            }
+                            .empty { border: 0.5px dashed #eee; }
+                            @media print {
+                                .label { border: none; }
+                                .empty { border: none; }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        ${pages.map(pageItems => `
+                            <div class="page">
+                                <div class="grid">
+                                    ${Array.from({length: labelsPerPage}, (_, idx) => {
+                                        const item = pageItems[idx];
+                                        if (item) {
+                                            return `
+                                                <div class="label">
+                                                    <div class="qr-container">
+                                                        <img src="${item.qrDataUrl}" alt="QR">
+                                                    </div>
+                                                    <div class="text-container">
+                                                        <p class="project-number">${item.pn}</p>
+                                                        <p class="serial">${item.serial}</p>
+                                                    </div>
+                                                </div>
+                                            `;
+                                        } else {
+                                            return '<div class="label empty"></div>';
+                                        }
+                                    }).join('')}
+                                </div>
                             </div>
-                            <div class="text-container">
-                                <p class="project-number">${item.pn}</p>
-                                <p class="serial">${item.serial}</p>
+                        `).join('')}
+                        <script>
+                            window.onload = function() {
+                                setTimeout(() => window.print(), 200);
+                            };
+                        <\/script>
+                    </body>
+                    </html>
+                `);
+            } else {
+                // 単票印刷（従来通り）
+                printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>QRラベル印刷</title>
+                        <style>
+                            @page { margin: 0; size: ${labelSize.w}mm ${labelSize.h}mm; }
+                            body { margin: 0; padding: 0; }
+                            .label {
+                                width: ${labelSize.w}mm;
+                                height: ${labelSize.h}mm;
+                                page-break-after: always;
+                                display: flex;
+                                align-items: center;
+                                padding: 2mm;
+                                box-sizing: border-box;
+                                font-family: 'Arial', sans-serif;
+                            }
+                            .qr-container {
+                                flex-shrink: 0;
+                                width: ${Math.min(labelSize.h - 4, 25)}mm;
+                                height: ${Math.min(labelSize.h - 4, 25)}mm;
+                            }
+                            .qr-container img {
+                                width: 100%;
+                                height: 100%;
+                            }
+                            .text-container {
+                                margin-left: 2mm;
+                                overflow: hidden;
+                            }
+                            .project-number {
+                                font-size: ${labelSize.h > 30 ? '12pt' : '10pt'};
+                                font-weight: bold;
+                                color: #1d4ed8;
+                                margin: 0;
+                            }
+                            .serial {
+                                font-size: ${labelSize.h > 30 ? '9pt' : '7pt'};
+                                font-family: monospace;
+                                margin: 1mm 0 0 0;
+                                color: #333;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        ${printData.map(item => `
+                            <div class="label">
+                                <div class="qr-container">
+                                    <img src="${item.qrDataUrl}" alt="QR">
+                                </div>
+                                <div class="text-container">
+                                    <p class="project-number">${item.pn}</p>
+                                    <p class="serial">${item.serial}</p>
+                                </div>
                             </div>
-                        </div>
-                    `).join('')}
-                    <script>
-                        window.onload = function() {
-                            setTimeout(() => window.print(), 200);
-                        };
-                    <\/script>
-                </body>
-                </html>
-            `);
+                        `).join('')}
+                        <script>
+                            window.onload = function() {
+                                setTimeout(() => window.print(), 200);
+                            };
+                        <\/script>
+                    </body>
+                    </html>
+                `);
+            }
             printWindow.document.close();
             
             closeLabelPrintModal();
