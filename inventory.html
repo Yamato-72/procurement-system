@@ -4135,18 +4135,32 @@
         }
         
         function processScannedCode(code) {
+            // コードを正規化（トリム、大文字）
+            const normalizedCode = code.trim().toUpperCase();
+            console.log('検索中:', normalizedCode, '在庫数:', inventory.length);
+            
             // コードからアイテムを検索（Serial or 案件番号）
-            const item = inventory.find(i => 
-                i.serial === code || 
-                i.serial?.includes(code) ||
-                formatProjectNumber(i.orderPrefix, i.orderNumber) === code
-            );
+            const item = inventory.find(i => {
+                const serial = (i.serial || '').trim().toUpperCase();
+                const projectNum = formatProjectNumber(i.orderPrefix, i.orderNumber).toUpperCase();
+                
+                // 完全一致
+                if (serial === normalizedCode) return true;
+                if (projectNum === normalizedCode) return true;
+                
+                // 部分一致（どちらかが含まれる）
+                if (serial && serial.includes(normalizedCode)) return true;
+                if (serial && normalizedCode.includes(serial)) return true;
+                
+                return false;
+            });
             
             if (item) {
                 // アイテムが見つかった場合、アクション選択モーダルを表示
                 showScanActionModal(item);
             } else {
-                // 見つからない場合
+                // 見つからない場合、デバッグ情報を表示
+                console.log('検索失敗。在庫内シリアル一覧:', inventory.map(i => i.serial).filter(s => s).slice(0, 20));
                 alert(`「${code}」に該当するアイテムが見つかりません。\n\n新規登録しますか？`);
                 // TODO: 新規登録フローへ
             }
