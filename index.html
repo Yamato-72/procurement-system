@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YS支払ナビ</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%232383e2'/><stop offset='100%25' stop-color='%231a5fb4'/></linearGradient></defs><circle cx='16' cy='16' r='15' fill='url(%23g)'/><circle cx='16' cy='16' r='9' fill='none' stroke='%23fff' stroke-width='2'/><text x='16' y='20' text-anchor='middle' fill='%23fff' font-size='12' font-weight='bold' font-family='Arial'>¥</text></svg>">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%232383e2'/><circle cx='90' cy='90' r='50' fill='none' stroke='%23fff' stroke-width='8'/><text x='90' y='108' text-anchor='middle' fill='%23fff' font-size='60' font-weight='bold' font-family='Arial'>¥</text></svg>">
+    <title>調達管理システム</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -24,7 +25,7 @@
 </head>
 <body>
     <div id="app">
-        <div class="min-h-screen bg-slate-100 flex items-center justify-center">
+        <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 flex items-center justify-center">
             <div class="text-center">
                 <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
                 <p class="text-slate-600 text-lg">初期化中...</p>
@@ -901,9 +902,9 @@
 
         function renderSignIn() {
             document.getElementById('app').innerHTML = `
-                <div class="min-h-screen bg-slate-100 dark:bg-slate-900 flex items-center justify-center p-6">
+                <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-6">
                     <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
-                        <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-2">YS支払ナビ</h1>
+                        <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-2">調達管理システム</h1>
                         <p class="text-slate-600 dark:text-slate-400 mb-6">デジタルサイネージ プロジェクト管理</p>
                         <p class="text-slate-700 dark:text-slate-300 mb-6">Google Sheetsと連携してデータを保存します。<br>Googleアカウントでサインインしてください。</p>
                         <button onclick="handleAuthClick()" class="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">Googleでサインイン</button>
@@ -1034,12 +1035,12 @@
             const unpaidTotal = unpaidDeposits.reduce((sum, u) => sum + (u.deposit.amountJPY || 0), 0);
             
             document.getElementById('app').innerHTML = `
-                <div class="min-h-screen bg-slate-100 dark:bg-slate-900">
-                    <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm sticky top-0 z-40">
+                <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+                    <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
                         <div class="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4">
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <h1 class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">YS支払ナビ</h1>
+                                    <h1 class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">調達管理システム</h1>
                                     <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">デジタルサイネージ</p>
                                 </div>
                                 <div class="flex items-center gap-1 sm:gap-3">
@@ -1048,7 +1049,7 @@
                                         ${isDarkMode ? '☀️' : '🌙'}
                                     </button>
                                     <div class="relative">
-                                        <button onclick="toggleToolsMenu()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-blue-600 text-white text-xs sm:text-sm rounded-lg hover:bg-blue-700">
+                                        <button onclick="toggleToolsMenu()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-purple-600 text-white text-xs sm:text-sm rounded-lg hover:bg-purple-700">
                                             <span class="hidden sm:inline">🛠️ ツール</span>
                                             <span class="sm:hidden">🛠️</span>
                                         </button>
@@ -1063,10 +1064,7 @@
                                             <button onclick="repairInventorySupplierIds()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 text-red-600 dark:text-red-400 rounded-b-lg">🔧 在庫サプライヤー復旧</button>
                                         </div>
                                     </div>
-                                    <a href="inventory.html" class="p-1.5 sm:px-3 sm:py-2 border border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 text-xs sm:text-sm rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30" title="在庫ナビ">
-                                        <span class="sm:hidden">📦</span>
-                                        <span class="hidden sm:inline">在庫</span>
-                                    </a>
+                                    <a href="inventory.html" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-teal-600 text-white text-xs sm:text-sm rounded-lg hover:bg-teal-700">在庫</a>
                                     <button onclick="handleSignoutClick()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-600 text-white text-xs sm:text-sm rounded-lg hover:bg-slate-700">
                                         <span class="hidden sm:inline">サインアウト</span>
                                         <span class="sm:hidden">↪</span>
@@ -1154,57 +1152,57 @@
                             </div>
                         ` : ''}
                         
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-4">
-                            <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-slate-500">
-                                <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">今期支払</p>
-                                <p class="text-sm sm:text-xl font-bold text-slate-900 dark:text-white truncate">${formatJPY(totalJPY)}</p>
-                                <p class="text-xs text-slate-400 hidden sm:block">FY2025</p>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-2 sm:mb-4">
+                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border dark:border-slate-700">
+                                <p class="text-slate-600 dark:text-slate-400 text-xs mb-1">今期支払</p>
+                                <p class="text-sm sm:text-xl font-bold text-slate-900 dark:text-white">${formatJPY(totalJPY)}</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">2025/07 - 2026/06</p>
                             </div>
-                            <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-slate-400">
-                                <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">前期支払</p>
-                                <p class="text-sm sm:text-xl font-bold text-slate-900 dark:text-white truncate">${formatJPY(prevTotalJPY)}</p>
-                                <p class="text-xs text-slate-400 hidden sm:block">FY2024</p>
+                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border dark:border-slate-700">
+                                <p class="text-slate-600 dark:text-slate-400 text-xs mb-1">前期支払</p>
+                                <p class="text-sm sm:text-xl font-bold text-slate-500 dark:text-slate-300">${formatJPY(prevTotalJPY)}</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">2024/07 - 2025/06</p>
                             </div>
-                            <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-blue-500">
-                                <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">案件数</p>
+                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border dark:border-slate-700">
+                                <p class="text-slate-600 dark:text-slate-400 text-xs mb-1">案件数</p>
                                 <p class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">${projects.length}</p>
                             </div>
-                            <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-blue-400">
-                                <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">サプライヤー</p>
+                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border dark:border-slate-700">
+                                <p class="text-slate-600 dark:text-slate-400 text-xs mb-1">サプライヤー</p>
                                 <p class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">${suppliers.length}</p>
                             </div>
                         </div>
                         
                         <!-- 2段目：今月の詳細 -->
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
-                            <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-blue-500">
-                                <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">📅 今月支払</p>
-                                <p class="text-sm sm:text-xl font-bold text-slate-900 dark:text-white truncate">${formatJPY(thisMonthJPY)}</p>
-                                <p class="text-xs text-slate-400">${now.getMonth() + 1}月実績</p>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-8">
+                            <div class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border border-blue-200 dark:border-blue-700">
+                                <p class="text-blue-700 dark:text-blue-300 text-xs mb-1">📅 今月支払</p>
+                                <p class="text-sm sm:text-xl font-bold text-blue-900 dark:text-blue-100">${formatJPY(thisMonthJPY)}</p>
+                                <p class="text-xs text-blue-600 dark:text-blue-400">${now.getMonth() + 1}月実績</p>
                             </div>
-                            <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-red-500">
-                                <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">💰 未払い</p>
-                                <p class="text-sm sm:text-lg font-bold text-slate-900 dark:text-white truncate">$${unpaidTotalUSD.toLocaleString()}</p>
-                                <p class="text-xs text-slate-400 truncate">≈ ${formatJPY(unpaidTotalJPY)}</p>
+                            <div class="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/30 dark:to-amber-800/30 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border border-amber-200 dark:border-amber-700">
+                                <p class="text-amber-700 dark:text-amber-300 text-xs mb-1">💰 未払い総額</p>
+                                <p class="text-sm sm:text-lg font-bold text-amber-900 dark:text-amber-100">$${unpaidTotalUSD.toLocaleString()}</p>
+                                <p class="text-xs text-amber-600 dark:text-amber-400">≈ ${formatJPY(unpaidTotalJPY)}</p>
                             </div>
-                            <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-emerald-500">
-                                <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">📦 今月発注</p>
-                                <p class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">${thisMonthOrders}</p>
-                                <p class="text-xs text-slate-400">件</p>
+                            <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/30 dark:to-emerald-800/30 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border border-emerald-200 dark:border-emerald-700">
+                                <p class="text-emerald-700 dark:text-emerald-300 text-xs mb-1">📦 今月発注</p>
+                                <p class="text-xl sm:text-2xl font-bold text-emerald-900 dark:text-emerald-100">${thisMonthOrders}</p>
+                                <p class="text-xs text-emerald-600 dark:text-emerald-400">件</p>
                             </div>
-                            <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-slate-400">
-                                <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">📊 前月/前年比</p>
+                            <div class="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border border-purple-200 dark:border-purple-700">
+                                <p class="text-purple-700 dark:text-purple-300 text-xs mb-1">📊 前月/前年比</p>
                                 <div class="flex gap-2 items-baseline">
-                                    <span class="text-sm sm:text-base font-bold ${momChange !== null ? (momChange >= 0 ? 'text-red-500' : 'text-emerald-500') : 'text-slate-400'}">
+                                    <span class="text-sm sm:text-lg font-bold ${momChange !== null ? (momChange >= 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400') : 'text-slate-400'}">
                                         ${momChange !== null ? (momChange >= 0 ? '+' : '') + momChange + '%' : '-'}
                                     </span>
-                                    <span class="text-xs text-slate-400">月</span>
+                                    <span class="text-xs text-slate-500 dark:text-slate-400">前月</span>
                                 </div>
                                 <div class="flex gap-2 items-baseline">
-                                    <span class="text-sm sm:text-base font-bold ${yoyChange !== null ? (yoyChange >= 0 ? 'text-red-500' : 'text-emerald-500') : 'text-slate-400'}">
+                                    <span class="text-sm sm:text-lg font-bold ${yoyChange !== null ? (yoyChange >= 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400') : 'text-slate-400'}">
                                         ${yoyChange !== null ? (yoyChange >= 0 ? '+' : '') + yoyChange + '%' : '-'}
                                     </span>
-                                    <span class="text-xs text-slate-400">年</span>
+                                    <span class="text-xs text-slate-500 dark:text-slate-400">前年</span>
                                 </div>
                             </div>
                         </div>
@@ -1304,14 +1302,11 @@
                                                         <h3 class="font-bold text-base sm:text-xl text-slate-900 dark:text-white">${g.projectNumber}</h3>
                                                         ${isMultiProduct ? `<span class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">${g.items.length}製品</span>` : ''}
                                                         <span class="px-2 py-0.5 text-xs rounded-full ${projectStatus.color}">${projectStatus.icon} ${projectStatus.status}</span>
-                                                        <button onclick="event.stopPropagation();editGroupDetails('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-blue-600" title="グループ編集">
+                                                        <button onclick="event.stopPropagation();editProjectDetails('${g.representativeId}')" class="p-1 text-slate-400 hover:text-blue-600" title="編集">
                                                             <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                                         </button>
                                                         <button onclick="event.stopPropagation();openInventoryForProject('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-emerald-600" title="在庫を見る">
                                                             <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
-                                                        </button>
-                                                        <button onclick="event.stopPropagation();deleteProjectGroup('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-red-600" title="削除">
-                                                            <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                                         </button>
                                                         ${folderCache[g.projectNumber] ? `
                                                             <a href="${folderCache[g.projectNumber]}" target="_blank" onclick="event.stopPropagation()" class="text-blue-600 hover:text-blue-800" title="Driveを開く">
@@ -1394,7 +1389,7 @@
                                                                 <p class="font-bold text-sm sm:text-lg text-slate-900 dark:text-white">第${nextPayment.depositNumber}回: $${(nextPayment.amountUSD || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                                                                 <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400">(${nextPayment.percentage}%)</p>
                                                             </div>
-                                                            <button onclick="event.stopPropagation();markGroupPaymentComplete('${g.projectNumber}', ${nextPayment.depositNumber})" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-blue-700">
+                                                            <button onclick="event.stopPropagation();markGroupPaymentComplete('${g.projectNumber}', ${nextPayment.depositNumber})" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-600 text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-emerald-700">
                                                                 支払完了
                                                             </button>
                                                         </div>
@@ -2327,304 +2322,6 @@
         }
 
         // 案件編集（Serial、数量、WorkingDays、集荷予定日）
-        // グループ編集モーダル
-        function editGroupDetails(projectNumber) {
-            const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
-            if (groupProjects.length === 0) return;
-            
-            // 代表製品（デポジット情報を持つもの、または最初のもの）
-            const representative = groupProjects.find(p => p.depositSchedule && p.depositSchedule.length > 0 && p.depositSchedule.some(d => d.amountUSD > 0)) || groupProjects[0];
-            const supplier = suppliers.find(s => s.id === representative.supplierId);
-            
-            // グループ全体の合計
-            const totalUSD = groupProjects.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
-            const totalQuantity = groupProjects.reduce((sum, p) => sum + (p.quantity || 1), 0);
-            
-            const modal = document.createElement('div');
-            modal.id = 'editGroupModal';
-            modal.innerHTML = `
-                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <h3 class="text-xl font-bold mb-4 dark:text-white">✏️ グループ編集 - ${projectNumber}</h3>
-                        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">${groupProjects.length}製品 / ${totalQuantity}台</p>
-                        
-                        <!-- 共通設定 -->
-                        <div class="grid grid-cols-2 gap-4 mb-6">
-                            <div>
-                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">サプライヤー</label>
-                                <select id="editGroupSupplierId" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" onchange="updateGroupDepositPattern()">
-                                    <option value="">-- 選択 --</option>
-                                    ${suppliers.map(s => `<option value="${s.id}" ${s.id === representative.supplierId ? 'selected' : ''}>${s.name}</option>`).join('')}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">発注日</label>
-                                <input type="date" id="editGroupOrderDate" value="${representative.registeredDate || ''}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">集荷予定日</label>
-                                <input type="date" id="editGroupPickupDate" value="${representative.pickupDate || ''}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">Working Days</label>
-                                <input type="number" id="editGroupWorkingDays" value="${representative.workingDays || 30}" min="1" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                            </div>
-                        </div>
-                        
-                        <!-- 総額設定 -->
-                        <div class="border-t dark:border-slate-700 pt-4 mb-4">
-                            <h4 class="text-sm font-bold mb-3 dark:text-white">💰 総額設定</h4>
-                            <div class="flex gap-4 items-end">
-                                <div class="flex-1">
-                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">グループ総額 (USD)</label>
-                                    <input type="number" id="editGroupTotalUSD" value="${totalUSD}" step="0.01" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white text-lg font-bold">
-                                </div>
-                                <button onclick="distributeByQuantity()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
-                                    📊 数量比で按分
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <!-- 製品明細 -->
-                        <div class="border-t dark:border-slate-700 pt-4 mb-4">
-                            <h4 class="text-sm font-bold mb-3 dark:text-white">📦 製品明細</h4>
-                            <div class="space-y-2" id="groupProductList">
-                                ${groupProjects.map((p, idx) => `
-                                    <div class="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
-                                        <div class="flex-1">
-                                            <p class="font-semibold text-sm dark:text-white">${p.productName}</p>
-                                            <p class="text-xs text-slate-500 dark:text-slate-400">${p.quantity || 1}台 / Serial: ${p.serial || '未設定'}</p>
-                                        </div>
-                                        <div class="w-32">
-                                            <input type="number" id="editProductUSD_${idx}" value="${p.totalAmount || 0}" step="0.01" 
-                                                   data-project-id="${p.id}"
-                                                   oninput="updateGroupTotal()"
-                                                   class="w-full px-2 py-1 border rounded dark:bg-slate-600 dark:border-slate-500 dark:text-white text-right">
-                                        </div>
-                                        <span class="text-xs text-slate-500 dark:text-slate-400">USD</span>
-                                    </div>
-                                `).join('')}
-                            </div>
-                            <div class="mt-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded flex justify-between">
-                                <span class="text-sm text-slate-600 dark:text-slate-300">製品小計:</span>
-                                <span id="groupProductSubtotal" class="font-bold text-blue-600 dark:text-blue-400">$${totalUSD.toLocaleString()}</span>
-                            </div>
-                        </div>
-                        
-                        <!-- デポジット設定 -->
-                        <div class="border-t dark:border-slate-700 pt-4 mb-4">
-                            <h4 class="text-sm font-bold mb-3 dark:text-white">💳 デポジット設定</h4>
-                            <div class="mb-3">
-                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">支払いパターン</label>
-                                <select id="editGroupDepositPattern" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" onchange="applyGroupDepositPattern()">
-                                    <option value="">-- 選択 --</option>
-                                    ${supplier ? supplier.paymentPatterns.map((pat, idx) => `
-                                        <option value="${idx}">${pat.name}: ${pat.rates.join('→')}%</option>
-                                    `).join('') : ''}
-                                </select>
-                            </div>
-                            <div id="groupDepositPreview" class="space-y-2">
-                                ${(representative.depositSchedule || []).map((d, idx) => `
-                                    <div class="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-700 rounded">
-                                        <span class="text-sm dark:text-white">第${d.depositNumber}回 (${d.percentage}%)</span>
-                                        <span class="font-semibold text-sm dark:text-white">$${(d.amountUSD || 0).toLocaleString()}</span>
-                                    </div>
-                                `).join('') || '<p class="text-xs text-slate-500 dark:text-slate-400">パターンを選択してください</p>'}
-                            </div>
-                        </div>
-                        
-                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">※ 保存すると全製品に共通設定が適用されます</p>
-                        
-                        <div class="flex gap-3">
-                            <button onclick="closeGroupEditModal()" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
-                            <button onclick="submitGroupEdit('${projectNumber}')" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">保存</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-        
-        function closeGroupEditModal() {
-            const modal = document.getElementById('editGroupModal');
-            if (modal) modal.remove();
-        }
-        
-        // 数量比で按分
-        function distributeByQuantity() {
-            const totalUSD = parseFloat(document.getElementById('editGroupTotalUSD').value) || 0;
-            
-            // 各製品の数量を取得
-            const productInputs = document.querySelectorAll('[id^="editProductUSD_"]');
-            let totalQuantity = 0;
-            const quantities = [];
-            
-            productInputs.forEach((input, idx) => {
-                const projectId = input.dataset.projectId;
-                const project = projects.find(p => String(p.id) === String(projectId));
-                const qty = project ? (project.quantity || 1) : 1;
-                quantities.push(qty);
-                totalQuantity += qty;
-            });
-            
-            // 按分して設定
-            let remaining = totalUSD;
-            productInputs.forEach((input, idx) => {
-                if (idx === productInputs.length - 1) {
-                    // 最後は端数調整
-                    input.value = remaining.toFixed(2);
-                } else {
-                    const amount = Math.round(totalUSD * quantities[idx] / totalQuantity * 100) / 100;
-                    input.value = amount.toFixed(2);
-                    remaining -= amount;
-                }
-            });
-            
-            updateGroupTotal();
-        }
-        
-        // 製品小計を更新
-        function updateGroupTotal() {
-            const productInputs = document.querySelectorAll('[id^="editProductUSD_"]');
-            let subtotal = 0;
-            productInputs.forEach(input => {
-                subtotal += parseFloat(input.value) || 0;
-            });
-            
-            const subtotalEl = document.getElementById('groupProductSubtotal');
-            if (subtotalEl) {
-                subtotalEl.textContent = '$' + subtotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            }
-            
-            // デポジットプレビューも更新
-            updateGroupDepositPreview();
-        }
-        
-        // サプライヤー変更時にパターン選択肢を更新
-        function updateGroupDepositPattern() {
-            const supplierId = parseInt(document.getElementById('editGroupSupplierId').value);
-            const supplier = suppliers.find(s => s.id === supplierId);
-            const patternSelect = document.getElementById('editGroupDepositPattern');
-            
-            if (!supplier || !patternSelect) return;
-            
-            patternSelect.innerHTML = '<option value="">-- 選択 --</option>' +
-                supplier.paymentPatterns.map((pat, idx) => `
-                    <option value="${idx}">${pat.name}: ${pat.rates.join('→')}%</option>
-                `).join('');
-        }
-        
-        // パターン選択時にプレビュー更新
-        function applyGroupDepositPattern() {
-            updateGroupDepositPreview();
-        }
-        
-        function updateGroupDepositPreview() {
-            const supplierId = parseInt(document.getElementById('editGroupSupplierId').value);
-            const patternIdx = document.getElementById('editGroupDepositPattern').value;
-            const supplier = suppliers.find(s => s.id === supplierId);
-            const previewEl = document.getElementById('groupDepositPreview');
-            
-            if (!previewEl) return;
-            
-            // 製品小計を計算
-            const productInputs = document.querySelectorAll('[id^="editProductUSD_"]');
-            let totalUSD = 0;
-            productInputs.forEach(input => {
-                totalUSD += parseFloat(input.value) || 0;
-            });
-            
-            if (!supplier || patternIdx === '') {
-                previewEl.innerHTML = '<p class="text-xs text-slate-500 dark:text-slate-400">パターンを選択してください</p>';
-                return;
-            }
-            
-            const pattern = supplier.paymentPatterns[parseInt(patternIdx)];
-            if (!pattern) return;
-            
-            previewEl.innerHTML = pattern.rates.map((rate, idx) => {
-                const amount = totalUSD * rate / 100;
-                return `
-                    <div class="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-700 rounded">
-                        <span class="text-sm dark:text-white">第${idx + 1}回 (${rate}%)</span>
-                        <span class="font-semibold text-sm dark:text-white">$${amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                    </div>
-                `;
-            }).join('');
-        }
-        
-        // グループ編集保存
-        async function submitGroupEdit(projectNumber) {
-            const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
-            if (groupProjects.length === 0) return;
-            
-            // 共通設定を取得
-            const supplierId = parseInt(document.getElementById('editGroupSupplierId').value) || null;
-            const orderDate = document.getElementById('editGroupOrderDate').value;
-            const pickupDate = document.getElementById('editGroupPickupDate').value;
-            const workingDays = parseInt(document.getElementById('editGroupWorkingDays').value) || 30;
-            
-            // デポジットパターン
-            const supplier = suppliers.find(s => s.id === supplierId);
-            const patternIdx = document.getElementById('editGroupDepositPattern').value;
-            
-            // 各製品の金額を取得
-            const productInputs = document.querySelectorAll('[id^="editProductUSD_"]');
-            const productAmounts = {};
-            let totalUSD = 0;
-            
-            productInputs.forEach(input => {
-                const projectId = input.dataset.projectId;
-                const amount = parseFloat(input.value) || 0;
-                productAmounts[projectId] = amount;
-                totalUSD += amount;
-            });
-            
-            // デポジットスケジュールを作成
-            let depositSchedule = [];
-            if (supplier && patternIdx !== '') {
-                const pattern = supplier.paymentPatterns[parseInt(patternIdx)];
-                if (pattern) {
-                    depositSchedule = pattern.rates.map((rate, idx) => ({
-                        depositNumber: idx + 1,
-                        percentage: rate,
-                        amountUSD: Math.round(totalUSD * rate / 100 * 100) / 100,
-                        paid: false,
-                        paidDate: null,
-                        exchangeRate: null,
-                        amountJPY: null
-                    }));
-                }
-            }
-            
-            // 各製品を更新
-            groupProjects.forEach((p, idx) => {
-                p.supplierId = supplierId;
-                p.registeredDate = orderDate;
-                p.pickupDate = pickupDate;
-                p.workingDays = workingDays;
-                p.totalAmount = productAmounts[p.id] || 0;
-                
-                // デポジットは各製品の金額に応じて按分
-                if (depositSchedule.length > 0 && totalUSD > 0) {
-                    const ratio = (productAmounts[p.id] || 0) / totalUSD;
-                    p.depositSchedule = depositSchedule.map(d => ({
-                        ...d,
-                        amountUSD: Math.round(d.amountUSD * ratio * 100) / 100
-                    }));
-                } else if (depositSchedule.length > 0) {
-                    p.depositSchedule = depositSchedule.map(d => ({ ...d }));
-                }
-            });
-            
-            saveData();
-            closeGroupEditModal();
-            renderMain();
-            
-            showStatus(`✅ ${groupProjects.length}製品を更新しました`);
-            setTimeout(() => showStatus(''), 3000);
-        }
-
         function editProjectDetails(projectId) {
             const project = projects.find(p => String(p.id) === String(projectId));
             if (!project) return;
@@ -3273,9 +2970,9 @@
                             </div>
                         </div>
                         
-                        <div class="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-4 mt-4">
-                            <p class="text-sm text-blue-700 dark:text-blue-400">換算結果（JPY）</p>
-                            <p class="text-3xl font-bold text-blue-700 dark:text-blue-400" id="simResultJPY">¥0</p>
+                        <div class="bg-emerald-50 dark:bg-emerald-900/30 rounded-lg p-4 mt-4">
+                            <p class="text-sm text-emerald-700 dark:text-emerald-400">換算結果（JPY）</p>
+                            <p class="text-3xl font-bold text-emerald-700 dark:text-emerald-400" id="simResultJPY">¥0</p>
                         </div>
                         
                         <div class="flex justify-end mt-6">
@@ -3489,48 +3186,6 @@
             projects = projects.filter(p => String(p.id) !== String(projectId));
             saveData();
             renderMain();
-        }
-        
-        // 案件グループ削除（同一案件番号の全製品）
-        async function deleteProjectGroup(projectNumber) {
-            // グループ内の全製品を取得
-            const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
-            if (groupProjects.length === 0) return;
-            
-            const hasPaidDeposits = groupProjects.some(p => 
-                (p.depositSchedule || []).some(d => d.paid)
-            );
-            
-            let confirmMessage = `案件「${projectNumber}」を削除しますか？\n\n`;
-            confirmMessage += `製品数: ${groupProjects.length}件\n`;
-            confirmMessage += groupProjects.map(p => `・${p.productName}`).join('\n');
-            
-            if (hasPaidDeposits) {
-                confirmMessage += '\n\n⚠️ この案件には支払い済みの記録があります。';
-            }
-            
-            if (!confirm(confirmMessage)) return;
-            
-            // 二重確認（支払い済みがある場合）
-            if (hasPaidDeposits) {
-                if (!confirm('本当に削除してよろしいですか？\n支払い履歴も削除されます。')) return;
-            }
-            
-            // 在庫からも削除
-            try {
-                await deleteInventoryByProject(groupProjects[0]);
-            } catch (e) {
-                console.error('在庫削除エラー:', e);
-            }
-            
-            // プロジェクトから削除
-            const idsToDelete = groupProjects.map(p => String(p.id));
-            projects = projects.filter(p => !idsToDelete.includes(String(p.id)));
-            
-            await saveData();
-            renderMain();
-            
-            alert(`案件「${projectNumber}」を削除しました`);
         }
         
         // 在庫シートから該当案件のアイテムを削除
