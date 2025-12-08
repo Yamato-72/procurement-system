@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YS検品ナビ</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%2316a34a'/><stop offset='100%25' stop-color='%23166534'/></linearGradient></defs><circle cx='16' cy='16' r='15' fill='url(%23g)'/><path d='M9 16 L14 21 L23 11' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;900&display=swap');
+        * { font-family: 'Noto Sans JP', sans-serif; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="min-h-screen bg-slate-100 flex items-center justify-center">
+            <div class="text-center">
+                <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-green-600 mx-auto mb-4"></div>
+                <p class="text-slate-600 text-lg">初期化中...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CLIENT_ID = '47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
+        const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';
+        const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
+
+        let tokenClient;
+        let gapiInited = false;
+        let gisInited = false;
+        let accessToken = null;
+        let inventory = [];
+        let inspectionHistory = [];
+        let suppliers = [];
+        let isDarkMode = localStorage.getItem('darkMode') === 'true';
+        let html5QrCode = null;
+        let currentUser = localStorage.getItem('inspectionUser') || '';
+
+        // 不良理由リスト
+        const DEFECT_REASONS = [
+            '破損（輸送中）',
+            '破損（製造不良）',
+            '動作不良',
+            '外観不良',
+            '欠品・付属品不足',
+            '仕様違い',
+            'その他'
+        ];
+
+        // 対応リスト
+        const DEFECT_ACTIONS = [
+            '返品',
+            '交換依頼',
+            '修理',
+            '値引き交渉',
+            '廃棄',
+            '保留'
+        ];
+
+        // ダークモード初期化
+        if (isDarkMode) {
+            document.documentElement.classList.add('dark');
+        }
+
+        function toggleDarkMode() {
+            isDarkMode = !isDarkMode;
+            document.documentElement.classList.toggle('dark', isDarkMode);
+            localStorage.setItem('darkMode', isDarkMode);
+            renderMain();
+        }
+
+        function gapiLoaded() {
+            gapi.load('client', async () => {
+                await gapi.client.init({
+                    discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+                });
+                gapiInited = true;
+                maybeEnableButtons();
+            });
+        }
+
+        function gisLoaded() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: (response) => {
+                    if (response.error) {
+                        console.error(response);
+                        return;
+                    }
+                    accessToken = response.access_token;
+                    localStorage.setItem('lastToken', accessToken);
+                    loadData();
+                },
+            });
+            gisInited = true;
+            maybeEnableButtons();
+        }
+
+        function maybeEnableButtons() {
+            if (gapiInited && gisInited) {
+                const savedToken = localStorage.getItem('lastToken');
+                if (savedToken) {
+                    gapi.client.setToken({ access_token: savedToken });
+                    accessToken = savedToken;
+                    loadData();
+                } else {
+                    renderLoginScreen();
+                }
+            }
+        }
+
+        function handleAuthClick() {
+            if (!gapi.client.getToken()) {
+                tokenClient.requestAccessToken({ prompt: 'consent' });
+            } else {
+                loadData();
+            }
+        }
+
+        function handleSignoutClick() {
+            const token = gapi.client.getToken();
+            if (token) {
+                google.accounts.oauth2.revoke(token.access_token);
+                gapi.client.setToken('');
+                accessToken = null;
+                localStorage.removeItem('lastToken');
+            }
+            renderLoginScreen();
+        }
+
+        function renderLoginScreen() {
+            document.getElementById('app').innerHTML = `
+                <div class="min-h-screen bg-gradient-to-br from-green-600 to-emerald-800 flex items-center justify-center p-4">
+                    <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
+                        <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                        <h1 class="text-3xl font-bold text-slate-800 mb-2">YS検品ナビ</h1>
+                        <p class="text-slate-500 mb-8">品質管理・検品記録システム</p>
+                        <button onclick="handleAuthClick()" class="w-full py-4 bg-green-600 text-white text-lg font-semibold rounded-xl hover:bg-green-700 transition-all shadow-lg">
+                            Googleでログイン
+                        </button>
+                        <p class="mt-6 text-xs text-slate-400">スプレッドシートへのアクセス許可が必要です</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function loadData() {
+            try {
+                showStatus('データ読み込み中...');
+
+                // サプライヤー読み込み
+                const suppliersRes = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: 'サプライヤー!A2:E',
+                });
+                suppliers = (suppliersRes.result.values || []).map(row => ({
+                    id: row[0],
+                    name: row[1],
+                }));
+
+                // 在庫読み込み
+                const invRes = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '在庫!A2:U',
+                });
+                inventory = (invRes.result.values || []).map(row => ({
+                    id: row[0] || '',
+                    serial: row[1] || '',
+                    category: row[2] || '',
+                    productName: row[3] || '',
+                    orderPrefix: row[4] || '',
+                    orderNumber: row[5] || '',
+                    orderDate: row[6] || '',
+                    receiveDate: row[7] || '',
+                    status: row[8] || '入庫待ち',
+                    shipDate: row[9] || '',
+                    shipPrefix: row[10] || '',
+                    shipNumber: row[11] || '',
+                    costPrice: parseFloat(row[12]) || 0,
+                    note: row[13] || '',
+                    shelf: row[14] || '',
+                    location: row[15] || '',
+                    supplierId: row[16] || '',
+                    // 新規カラム（R〜U）
+                    inspectionDate: row[17] || '',
+                    inspector: row[18] || '',
+                    defectReason: row[19] || '',
+                    inspectionNote: row[20] || ''
+                }));
+
+                // 検品履歴読み込み（シートがなければ作成）
+                await loadInspectionHistory();
+
+                renderMain();
+            } catch (err) {
+                console.error('読み込みエラー:', err);
+                if (err.status === 401) {
+                    localStorage.removeItem('lastToken');
+                    renderLoginScreen();
+                } else {
+                    showStatus('エラー: ' + err.message, 'error');
+                }
+            }
+        }
+
+        async function loadInspectionHistory() {
+            try {
+                const res = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '検品履歴!A2:L',
+                });
+                inspectionHistory = (res.result.values || []).map(row => ({
+                    inspectionId: row[0] || '',
+                    inventoryId: row[1] || '',
+                    serial: row[2] || '',
+                    productName: row[3] || '',
+                    supplierId: row[4] || '',
+                    projectNumber: row[5] || '',
+                    inspectionDate: row[6] || '',
+                    inspector: row[7] || '',
+                    result: row[8] || '',
+                    defectReason: row[9] || '',
+                    defectDetail: row[10] || '',
+                    action: row[11] || ''
+                }));
+            } catch (e) {
+                // シートがない場合は作成
+                console.log('検品履歴シートを作成します');
+                await createInspectionHistorySheet();
+                inspectionHistory = [];
+            }
+        }
+
+        async function createInspectionHistorySheet() {
+            try {
+                await gapi.client.sheets.spreadsheets.batchUpdate({
+                    spreadsheetId: SPREADSHEET_ID,
+                    resource: {
+                        requests: [{
+                            addSheet: {
+                                properties: { title: '検品履歴' }
+                            }
+                        }]
+                    }
+                });
+                // ヘッダー追加
+                await gapi.client.sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '検品履歴!A1:L1',
+                    valueInputOption: 'RAW',
+                    resource: {
+                        values: [['検品ID', '在庫ID', 'Serial', '製品名', 'サプライヤーID', '案件番号', '検品日', '検品者', '結果', '不良理由', '不良詳細', '対応']]
+                    }
+                });
+            } catch (e) {
+                console.error('シート作成エラー:', e);
+            }
+        }
+
+        function showStatus(message, type = 'info') {
+            console.log(message);
+        }
+
+        function formatProjectNumber(prefix, number) {
+            if (!prefix && !number) return '';
+            return `${prefix || 'AD'}-${number || 0}`;
+        }
+
+        function getSupplierName(supplierId) {
+            const s = suppliers.find(sup => String(sup.id) === String(supplierId));
+            return s ? s.name : '不明';
+        }
+
+        // 検品待ちアイテムを取得
+        function getPendingInspectionItems() {
+            return inventory.filter(i => i.status === '検品待ち');
+        }
+
+        // 今日の検品済み件数
+        function getTodayInspectionCount() {
+            const today = new Date().toISOString().split('T')[0];
+            return inspectionHistory.filter(h => h.inspectionDate === today).length;
+        }
+
+        // 不良率計算
+        function getDefectRate() {
+            if (inspectionHistory.length === 0) return { rate: 0, total: 0, defects: 0 };
+            const defects = inspectionHistory.filter(h => h.result === '不良品').length;
+            return {
+                rate: (defects / inspectionHistory.length * 100).toFixed(1),
+                total: inspectionHistory.length,
+                defects: defects
+            };
+        }
+
+        function renderMain() {
+            const pending = getPendingInspectionItems();
+            const todayCount = getTodayInspectionCount();
+            const defectRate = getDefectRate();
+
+            document.getElementById('app').innerHTML = `
+                <div class="min-h-screen bg-slate-100 dark:bg-slate-900 transition-colors">
+                    <!-- ヘッダー -->
+                    <header class="bg-gradient-to-r from-green-600 to-emerald-700 text-white shadow-lg sticky top-0 z-30">
+                        <div class="max-w-4xl mx-auto px-4 py-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h1 class="text-xl font-bold">YS検品ナビ</h1>
+                                        <p class="text-xs text-green-100">品質管理システム</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <a href="inventory.html" class="p-2 bg-white/20 rounded-lg hover:bg-white/30" title="在庫ナビ">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                                        </svg>
+                                    </a>
+                                    <a href="index.html" class="p-2 bg-white/20 rounded-lg hover:bg-white/30" title="調達ナビ">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                        </svg>
+                                    </a>
+                                    <button onclick="toggleDarkMode()" class="p-2 bg-white/20 rounded-lg hover:bg-white/30">
+                                        ${isDarkMode ? '☀️' : '🌙'}
+                                    </button>
+                                    <button onclick="handleSignoutClick()" class="p-2 bg-white/20 rounded-lg hover:bg-white/30" title="サインアウト">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main class="max-w-4xl mx-auto px-4 py-6">
+                        <!-- 検品者設定 -->
+                        <div class="mb-4 flex items-center gap-3">
+                            <label class="text-sm text-slate-600 dark:text-slate-400">検品者:</label>
+                            <input type="text" id="inspectorName" value="${currentUser}" 
+                                   onchange="updateInspector(this.value)"
+                                   class="px-3 py-1.5 border dark:border-slate-600 rounded-lg text-sm dark:bg-slate-800 dark:text-white"
+                                   placeholder="名前を入力">
+                        </div>
+
+                        <!-- サマリーカード -->
+                        <div class="grid grid-cols-3 gap-3 mb-6">
+                            <div class="bg-amber-100 dark:bg-amber-900/30 rounded-xl p-4 text-center">
+                                <p class="text-3xl font-bold text-amber-700 dark:text-amber-400">${pending.length}</p>
+                                <p class="text-xs text-amber-600 dark:text-amber-500">検品待ち</p>
+                            </div>
+                            <div class="bg-green-100 dark:bg-green-900/30 rounded-xl p-4 text-center">
+                                <p class="text-3xl font-bold text-green-700 dark:text-green-400">${todayCount}</p>
+                                <p class="text-xs text-green-600 dark:text-green-500">本日検品</p>
+                            </div>
+                            <div class="bg-red-100 dark:bg-red-900/30 rounded-xl p-4 text-center">
+                                <p class="text-3xl font-bold text-red-700 dark:text-red-400">${defectRate.rate}%</p>
+                                <p class="text-xs text-red-600 dark:text-red-500">不良率</p>
+                            </div>
+                        </div>
+
+                        <!-- QRスキャンボタン -->
+                        <button onclick="openQRScanner()" class="w-full mb-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h2m10 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+                            </svg>
+                            QRスキャンで検品開始
+                        </button>
+
+                        <!-- 検品待ちリスト -->
+                        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden">
+                            <div class="px-4 py-3 bg-slate-50 dark:bg-slate-700 border-b dark:border-slate-600">
+                                <h2 class="font-bold text-slate-800 dark:text-white">📋 検品待ちリスト</h2>
+                            </div>
+                            <div class="divide-y dark:divide-slate-700">
+                                ${pending.length === 0 ? `
+                                    <div class="p-8 text-center text-slate-400">
+                                        <svg class="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
+                                        <p>検品待ちのアイテムはありません</p>
+                                    </div>
+                                ` : pending.map(item => `
+                                    <div onclick="startInspection('${item.id}')" class="p-4 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer transition-colors">
+                                        <div class="flex justify-between items-start">
+                                            <div class="flex-1">
+                                                <p class="font-semibold text-slate-900 dark:text-white">${item.productName}</p>
+                                                <p class="text-sm text-slate-500 dark:text-slate-400">
+                                                    ${formatProjectNumber(item.orderPrefix, item.orderNumber)} | 
+                                                    ${item.serial || 'Serial未設定'}
+                                                </p>
+                                                <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                                                    サプライヤー: ${getSupplierName(item.supplierId)}
+                                                </p>
+                                            </div>
+                                            <div class="text-green-600 dark:text-green-400">
+                                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- 最近の検品履歴 -->
+                        <div class="mt-6 bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden">
+                            <div class="px-4 py-3 bg-slate-50 dark:bg-slate-700 border-b dark:border-slate-600 flex justify-between items-center">
+                                <h2 class="font-bold text-slate-800 dark:text-white">📜 最近の検品（10件）</h2>
+                                <button onclick="loadData()" class="text-sm text-green-600 hover:text-green-800">更新</button>
+                            </div>
+                            <div class="divide-y dark:divide-slate-700 max-h-64 overflow-y-auto">
+                                ${inspectionHistory.slice(-10).reverse().map(h => `
+                                    <div class="p-3 flex justify-between items-center">
+                                        <div>
+                                            <p class="text-sm font-medium text-slate-900 dark:text-white">${h.productName}</p>
+                                            <p class="text-xs text-slate-500">${h.inspectionDate} by ${h.inspector}</p>
+                                        </div>
+                                        <span class="px-2 py-1 rounded-full text-xs font-semibold ${
+                                            h.result === '良品' 
+                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400' 
+                                                : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400'
+                                        }">
+                                            ${h.result}
+                                        </span>
+                                    </div>
+                                `).join('') || '<div class="p-4 text-center text-slate-400">履歴なし</div>'}
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            `;
+        }
+
+        function updateInspector(name) {
+            currentUser = name;
+            localStorage.setItem('inspectionUser', name);
+        }
+
+        // QRスキャナー
+        function openQRScanner() {
+            const modal = document.createElement('div');
+            modal.id = 'qrScannerModal';
+            modal.className = 'fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md overflow-hidden">
+                    <div class="p-4 bg-green-600 text-white flex justify-between items-center">
+                        <h3 class="font-bold">QRスキャン</h3>
+                        <button onclick="closeQRScanner()" class="p-1 hover:bg-white/20 rounded">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="qr-reader" style="width: 100%;"></div>
+                    <div class="p-4 text-center text-sm text-slate-500 dark:text-slate-400">
+                        QRコードをカメラにかざしてください
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            html5QrCode = new Html5Qrcode("qr-reader");
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                onScanSuccess,
+                () => {}
+            ).catch(err => {
+                console.error('カメラエラー:', err);
+                document.getElementById('qr-reader').innerHTML = `
+                    <div class="p-8 text-center text-red-500">
+                        <p>カメラを起動できません</p>
+                        <p class="text-sm mt-2">${err.message || err}</p>
+                    </div>
+                `;
+            });
+        }
+
+        function closeQRScanner() {
+            if (html5QrCode) {
+                html5QrCode.stop().catch(() => {});
+                html5QrCode = null;
+            }
+            const modal = document.getElementById('qrScannerModal');
+            if (modal) modal.remove();
+        }
+
+        function onScanSuccess(decodedText) {
+            closeQRScanner();
+            
+            // IDまたはSerialで検索
+            const item = inventory.find(i => 
+                String(i.id) === decodedText.trim() || 
+                i.serial?.toUpperCase() === decodedText.trim().toUpperCase()
+            );
+
+            if (item) {
+                startInspection(item.id);
+            } else {
+                alert(`「${decodedText}」に該当するアイテムが見つかりません`);
+            }
+        }
+
+        // 検品開始
+        function startInspection(itemId) {
+            const item = inventory.find(i => String(i.id) === String(itemId));
+            if (!item) return;
+
+            if (!currentUser) {
+                alert('検品者名を入力してください');
+                document.getElementById('inspectorName')?.focus();
+                return;
+            }
+
+            const modal = document.createElement('div');
+            modal.id = 'inspectionModal';
+            modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+                    <div class="p-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white">
+                        <h3 class="font-bold text-lg">検品実施</h3>
+                        <p class="text-sm text-green-100">検品者: ${currentUser}</p>
+                    </div>
+                    
+                    <div class="p-4 border-b dark:border-slate-700">
+                        <p class="text-lg font-bold text-slate-900 dark:text-white">${item.productName}</p>
+                        <p class="text-sm text-blue-600 dark:text-blue-400 font-mono">${formatProjectNumber(item.orderPrefix, item.orderNumber)}</p>
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Serial: ${item.serial || '未設定'}</p>
+                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">サプライヤー: ${getSupplierName(item.supplierId)}</p>
+                    </div>
+
+                    <div class="p-4 space-y-4">
+                        <!-- 検品チェックリスト -->
+                        <div class="space-y-2">
+                            <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">チェック項目</p>
+                            <label class="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg cursor-pointer">
+                                <input type="checkbox" id="check1" class="w-5 h-5 rounded text-green-600">
+                                <span class="text-sm text-slate-700 dark:text-slate-300">外観に異常なし</span>
+                            </label>
+                            <label class="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg cursor-pointer">
+                                <input type="checkbox" id="check2" class="w-5 h-5 rounded text-green-600">
+                                <span class="text-sm text-slate-700 dark:text-slate-300">通電・動作確認OK</span>
+                            </label>
+                            <label class="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg cursor-pointer">
+                                <input type="checkbox" id="check3" class="w-5 h-5 rounded text-green-600">
+                                <span class="text-sm text-slate-700 dark:text-slate-300">付属品揃っている</span>
+                            </label>
+                        </div>
+
+                        <!-- 不良時の入力 -->
+                        <div id="defectSection" class="hidden space-y-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                            <div>
+                                <label class="block text-sm font-semibold text-red-700 dark:text-red-400 mb-1">不良理由</label>
+                                <select id="defectReason" class="w-full p-2 border border-red-300 dark:border-red-700 rounded-lg dark:bg-slate-700 dark:text-white">
+                                    <option value="">選択してください</option>
+                                    ${DEFECT_REASONS.map(r => `<option value="${r}">${r}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-red-700 dark:text-red-400 mb-1">詳細</label>
+                                <textarea id="defectDetail" rows="2" class="w-full p-2 border border-red-300 dark:border-red-700 rounded-lg dark:bg-slate-700 dark:text-white" placeholder="具体的な不良内容"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-red-700 dark:text-red-400 mb-1">対応</label>
+                                <select id="defectAction" class="w-full p-2 border border-red-300 dark:border-red-700 rounded-lg dark:bg-slate-700 dark:text-white">
+                                    <option value="">選択してください</option>
+                                    ${DEFECT_ACTIONS.map(a => `<option value="${a}">${a}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 border-t dark:border-slate-700 space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <button onclick="completeInspection('${item.id}', '良品')" class="py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                良品
+                            </button>
+                            <button onclick="showDefectSection(); completeInspection('${item.id}', '不良品')" id="defectBtn" class="py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                                不良品
+                            </button>
+                        </div>
+                        <button onclick="closeInspectionModal()" class="w-full py-2 border dark:border-slate-600 text-slate-600 dark:text-slate-400 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700">
+                            キャンセル
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // 不良品ボタンの動作を修正
+            document.getElementById('defectBtn').onclick = function() {
+                const section = document.getElementById('defectSection');
+                if (section.classList.contains('hidden')) {
+                    section.classList.remove('hidden');
+                    this.textContent = '不良品で確定';
+                } else {
+                    completeInspection(item.id, '不良品');
+                }
+            };
+        }
+
+        function showDefectSection() {
+            document.getElementById('defectSection').classList.remove('hidden');
+        }
+
+        function closeInspectionModal() {
+            const modal = document.getElementById('inspectionModal');
+            if (modal) modal.remove();
+        }
+
+        async function completeInspection(itemId, result) {
+            const item = inventory.find(i => String(i.id) === String(itemId));
+            if (!item) return;
+
+            const today = new Date().toISOString().split('T')[0];
+            let defectReason = '';
+            let defectDetail = '';
+            let defectAction = '';
+
+            if (result === '不良品') {
+                defectReason = document.getElementById('defectReason')?.value || '';
+                defectDetail = document.getElementById('defectDetail')?.value || '';
+                defectAction = document.getElementById('defectAction')?.value || '';
+                
+                if (!defectReason) {
+                    alert('不良理由を選択してください');
+                    return;
+                }
+            }
+
+            try {
+                // 1. 在庫シートの行を特定
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '在庫!A2:A',
+                });
+                const ids = response.result.values || [];
+                const rowIndex = ids.findIndex(row => String(row[0]) === String(itemId));
+                
+                if (rowIndex === -1) {
+                    alert('アイテムが見つかりません');
+                    return;
+                }
+                const rowNum = rowIndex + 2;
+
+                // 2. 在庫シートを更新（ステータス + 検品情報）
+                const newStatus = result === '良品' ? '在庫中' : '不良品';
+                await gapi.client.sheets.spreadsheets.values.batchUpdate({
+                    spreadsheetId: SPREADSHEET_ID,
+                    resource: {
+                        valueInputOption: 'USER_ENTERED',
+                        data: [
+                            {
+                                range: `在庫!I${rowNum}`,
+                                values: [[newStatus]]
+                            },
+                            {
+                                range: `在庫!R${rowNum}:U${rowNum}`,
+                                values: [[today, currentUser, defectReason, defectDetail]]
+                            }
+                        ]
+                    }
+                });
+
+                // 3. 検品履歴に追加
+                const inspectionId = 'INS-' + Date.now();
+                await gapi.client.sheets.spreadsheets.values.append({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '検品履歴!A:L',
+                    valueInputOption: 'USER_ENTERED',
+                    resource: {
+                        values: [[
+                            inspectionId,
+                            item.id,
+                            item.serial,
+                            item.productName,
+                            item.supplierId,
+                            formatProjectNumber(item.orderPrefix, item.orderNumber),
+                            today,
+                            currentUser,
+                            result,
+                            defectReason,
+                            defectDetail,
+                            defectAction
+                        ]]
+                    }
+                });
+
+                closeInspectionModal();
+                
+                // 成功フィードバック
+                const feedback = document.createElement('div');
+                feedback.className = `fixed top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl shadow-lg text-white font-bold z-50 ${
+                    result === '良品' ? 'bg-green-600' : 'bg-red-600'
+                }`;
+                feedback.textContent = `✓ ${result}として記録しました`;
+                document.body.appendChild(feedback);
+                setTimeout(() => feedback.remove(), 2000);
+
+                // データ再読み込み
+                await loadData();
+
+            } catch (err) {
+                console.error('検品記録エラー:', err);
+                alert('エラーが発生しました: ' + err.message);
+            }
+        }
+
+        // 初期化
+        function checkAndInit() {
+            if (typeof gapi !== 'undefined' && typeof google !== 'undefined') {
+                gapiLoaded();
+                gisLoaded();
+            } else {
+                setTimeout(checkAndInit, 100);
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', checkAndInit);
+    </script>
+</body>
+</html>
