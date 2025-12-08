@@ -2940,15 +2940,34 @@
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4">
-                        <h3 class="text-xl font-bold mb-4">入庫処理</h3>
-                        <p class="text-sm text-slate-600 mb-2">Serial: <span class="font-mono font-semibold">${item.serial || "-"}</span></p>
-                        <p class="text-sm text-slate-600 mb-4">${item.productName}</p>
-                        <div>
-                            <label class="block text-sm font-semibold mb-1">入庫日 <span class="text-red-500">*</span></label>
-                            <input type="date" id="receiveDate" class="w-full px-3 py-2 border rounded-lg" value="${today}">
+                        <h3 class="text-xl font-bold mb-4 dark:text-white">入庫処理</h3>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-2">Serial: <span class="font-mono font-semibold">${item.serial || "-"}</span></p>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-4">${item.productName}</p>
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold mb-1 dark:text-slate-300">入庫日 <span class="text-red-500">*</span></label>
+                            <input type="date" id="receiveDate" class="w-full px-3 py-2 border dark:border-slate-600 rounded-lg dark:bg-slate-700 dark:text-white" value="${today}">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold mb-2 dark:text-slate-300">入庫後のステータス</label>
+                            <div class="space-y-2">
+                                <label class="flex items-center gap-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg cursor-pointer border-2 border-transparent hover:border-orange-300 dark:hover:border-orange-700">
+                                    <input type="radio" name="receiveStatus" value="検品待ち" class="w-4 h-4 text-orange-600">
+                                    <div class="flex-1">
+                                        <span class="font-semibold text-orange-700 dark:text-orange-400">🔍 検品待ち</span>
+                                        <p class="text-xs text-orange-600 dark:text-orange-500">検品ナビで検品後に在庫へ</p>
+                                    </div>
+                                </label>
+                                <label class="flex items-center gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg cursor-pointer border-2 border-transparent hover:border-emerald-300 dark:hover:border-emerald-700">
+                                    <input type="radio" name="receiveStatus" value="在庫中" checked class="w-4 h-4 text-emerald-600">
+                                    <div class="flex-1">
+                                        <span class="font-semibold text-emerald-700 dark:text-emerald-400">✅ 在庫中（検品スキップ）</span>
+                                        <p class="text-xs text-emerald-600 dark:text-emerald-500">検品不要、すぐに在庫へ</p>
+                                    </div>
+                                </label>
+                            </div>
                         </div>
                         <div class="flex gap-3 mt-6">
-                            <button onclick="closeModal('receiveModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50">キャンセル</button>
+                            <button onclick="closeModal('receiveModal')" class="flex-1 px-4 py-2 border dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 dark:text-white">キャンセル</button>
                             <button onclick="submitReceive('${id}')" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">入庫</button>
                         </div>
                     </div>
@@ -2962,6 +2981,7 @@
             if (!item) return;
 
             const receiveDate = document.getElementById('receiveDate').value;
+            const newStatus = document.querySelector('input[name="receiveStatus"]:checked')?.value || '在庫中';
 
             if (!receiveDate) {
                 alert('入庫日を入力してください');
@@ -2969,16 +2989,21 @@
             }
 
             item.receiveDate = receiveDate;
-            item.status = '在庫中';
+            item.status = newStatus;
             
             saveData();
             closeModal('receiveModal');
             renderMain();
             
-            // 同じ案件の全アイテムが入庫済みかチェック
-            const projectNumber = formatProjectNumber(item.orderPrefix, item.orderNumber);
-            if (projectNumber) {
-                await checkAndUpdateProcurement(projectNumber);
+            const statusText = newStatus === '検品待ち' ? '🔍 検品待ちに設定' : '✅ 在庫に追加';
+            showStatus(`${statusText}: ${item.serial || item.productName}`, 'success');
+            
+            // 在庫中の場合のみ、同じ案件の全アイテムが入庫済みかチェック
+            if (newStatus === '在庫中') {
+                const projectNumber = formatProjectNumber(item.orderPrefix, item.orderNumber);
+                if (projectNumber) {
+                    await checkAndUpdateProcurement(projectNumber);
+                }
             }
         }
         
