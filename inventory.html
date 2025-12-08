@@ -4139,31 +4139,92 @@
             const normalizedCode = code.trim().toUpperCase();
             console.log('検索中:', normalizedCode, '在庫数:', inventory.length);
             
-            // コードからアイテムを検索（Serial or 案件番号）
-            const item = inventory.find(i => {
+            // まずIDで完全一致検索（QRにIDが入っている場合）
+            const itemById = inventory.find(i => String(i.id) === code.trim());
+            if (itemById) {
+                showScanActionModal(itemById);
+                return;
+            }
+            
+            // シリアルで完全一致検索
+            const itemBySerial = inventory.find(i => {
                 const serial = (i.serial || '').trim().toUpperCase();
+                return serial && serial === normalizedCode;
+            });
+            if (itemBySerial) {
+                showScanActionModal(itemBySerial);
+                return;
+            }
+            
+            // 案件番号で検索（複数マッチの可能性あり）
+            const itemsByProject = inventory.filter(i => {
                 const projectNum = formatProjectNumber(i.orderPrefix, i.orderNumber).toUpperCase();
-                
-                // 完全一致
-                if (serial === normalizedCode) return true;
-                if (projectNum === normalizedCode) return true;
-                
-                // 部分一致（どちらかが含まれる）
+                return projectNum === normalizedCode;
+            });
+            
+            if (itemsByProject.length === 1) {
+                showScanActionModal(itemsByProject[0]);
+                return;
+            } else if (itemsByProject.length > 1) {
+                // 複数マッチ → 選択モーダルを表示
+                showMultiMatchModal(itemsByProject, normalizedCode);
+                return;
+            }
+            
+            // 部分一致検索（シリアル）
+            const itemByPartial = inventory.find(i => {
+                const serial = (i.serial || '').trim().toUpperCase();
                 if (serial && serial.includes(normalizedCode)) return true;
                 if (serial && normalizedCode.includes(serial)) return true;
-                
                 return false;
             });
             
-            if (item) {
-                // アイテムが見つかった場合、アクション選択モーダルを表示
-                showScanActionModal(item);
-            } else {
-                // 見つからない場合、デバッグ情報を表示
-                console.log('検索失敗。在庫内シリアル一覧:', inventory.map(i => i.serial).filter(s => s).slice(0, 20));
-                alert(`「${code}」に該当するアイテムが見つかりません。\n\n新規登録しますか？`);
-                // TODO: 新規登録フローへ
+            if (itemByPartial) {
+                showScanActionModal(itemByPartial);
+                return;
             }
+            
+            // 見つからない場合
+            console.log('検索失敗。在庫内シリアル一覧:', inventory.map(i => i.serial).filter(s => s).slice(0, 20));
+            alert(`「${code}」に該当するアイテムが見つかりません。\n\n新規登録しますか？`);
+            // TODO: 新規登録フローへ
+        }
+        
+        // 複数マッチ時の選択モーダル
+        function showMultiMatchModal(items, searchCode) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+            modal.id = 'multiMatchModal';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-md shadow-2xl max-h-[80vh] overflow-hidden flex flex-col">
+                    <div class="p-4 border-b dark:border-slate-700 text-center">
+                        <p class="text-lg font-bold text-blue-600 dark:text-blue-400">${searchCode}</p>
+                        <p class="text-sm text-slate-500 dark:text-slate-400">${items.length}件見つかりました - 選択してください</p>
+                    </div>
+                    <div class="p-4 overflow-y-auto flex-1 space-y-2">
+                        ${items.map(item => `
+                            <button onclick="document.getElementById('multiMatchModal').remove();showScanActionModal(inventory.find(i=>String(i.id)==='${item.id}'))" 
+                                    class="w-full p-3 text-left bg-slate-50 dark:bg-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600 border dark:border-slate-600">
+                                <p class="font-semibold text-slate-900 dark:text-white">${item.productName}</p>
+                                <p class="text-sm text-slate-600 dark:text-slate-400">
+                                    ${item.serial || 'Serial未設定'} 
+                                    <span class="ml-2 px-2 py-0.5 text-xs rounded-full ${
+                                        item.status === '在庫中' ? 'bg-emerald-100 text-emerald-700' :
+                                        item.status === '入庫待ち' ? 'bg-amber-100 text-amber-700' :
+                                        'bg-slate-200 text-slate-700'
+                                    }">${item.status}</span>
+                                </p>
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div class="p-4 border-t dark:border-slate-700">
+                        <button onclick="document.getElementById('multiMatchModal').remove()" class="w-full py-2 border dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-400">
+                            キャンセル
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
         }
         
         function showScanActionModal(item) {
