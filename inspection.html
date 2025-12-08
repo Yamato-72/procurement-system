@@ -331,14 +331,25 @@
             return inspectionHistory.filter(h => h.inspectionDate === today).length;
         }
 
-        // 不良率計算
+        // 今期の開始日を取得（7月〜6月が会計年度）
+        function getCurrentFiscalYearStart() {
+            const now = new Date();
+            const year = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+            return `${year}-07-01`;
+        }
+
+        // 不良率計算（今期のみ）
         function getDefectRate() {
-            if (inspectionHistory.length === 0) return { rate: 0, total: 0, defects: 0 };
-            const defects = inspectionHistory.filter(h => h.result === '不良品').length;
+            const fiscalStart = getCurrentFiscalYearStart();
+            const currentPeriodHistory = inspectionHistory.filter(h => h.inspectionDate >= fiscalStart);
+            
+            if (currentPeriodHistory.length === 0) return { rate: 0, total: 0, defects: 0, period: fiscalStart };
+            const defects = currentPeriodHistory.filter(h => h.result === '不良品').length;
             return {
-                rate: (defects / inspectionHistory.length * 100).toFixed(1),
-                total: inspectionHistory.length,
-                defects: defects
+                rate: (defects / currentPeriodHistory.length * 100).toFixed(1),
+                total: currentPeriodHistory.length,
+                defects: defects,
+                period: fiscalStart
             };
         }
 
@@ -408,9 +419,9 @@
                                 <p class="text-3xl font-bold text-green-700 dark:text-green-400">${todayCount}</p>
                                 <p class="text-xs text-green-600 dark:text-green-500">本日検品</p>
                             </div>
-                            <div class="bg-red-100 dark:bg-red-900/30 rounded-xl p-4 text-center">
+                            <div class="bg-red-100 dark:bg-red-900/30 rounded-xl p-4 text-center" title="今期: ${defectRate.defects}件/${defectRate.total}件">
                                 <p class="text-3xl font-bold text-red-700 dark:text-red-400">${defectRate.rate}%</p>
-                                <p class="text-xs text-red-600 dark:text-red-500">不良率</p>
+                                <p class="text-xs text-red-600 dark:text-red-500">今期不良率</p>
                             </div>
                         </div>
 
