@@ -61,6 +61,11 @@
         const AUTO_RELOAD_SECONDS = 60; // 60秒間隔
         let lastDataHash = ''; // データ変更検知用
         let lastSaveTime = 0; // 最後に保存した時刻
+        
+        // トークン自動リフレッシュ
+        let tokenRefreshTimer = null;
+        let tokenExpiresAt = null;
+        const TOKEN_REFRESH_MINUTES = 50; // 50分ごとにリフレッシュ（有効期限60分の前）
 
         // 案件番号ヘルパー関数
         // 表示用フォーマット（例: AD-1681）
@@ -187,23 +192,145 @@
                     }
                     accessToken = resp.access_token;
                     sessionStorage.setItem('googleAccessToken', accessToken);
+                    
+                    // トークン有効期限を記録（デフォルト60分）
+                    const expiresIn = resp.expires_in || 3600;
+                    tokenExpiresAt = Date.now() + (expiresIn * 1000);
+                    sessionStorage.setItem('tokenExpiresAt', tokenExpiresAt.toString());
+                    
+                    // 自動リフレッシュタイマー設定
+                    startTokenRefreshTimer();
+                    
                     loadData();
                 },
             });
             gisInited = true;
             maybeEnableButtons();
         }
+        
+        // トークン自動リフレッシュタイマー
+        function startTokenRefreshTimer() {
+            // 既存のタイマーをクリア
+            if (tokenRefreshTimer) {
+                clearTimeout(tokenRefreshTimer);
+            }
+            
+            // 50分後にリフレッシュ
+            tokenRefreshTimer = setTimeout(() => {
+                console.log('🔄 トークン自動リフレッシュ中...');
+                silentTokenRefresh();
+            }, TOKEN_REFRESH_MINUTES * 60 * 1000);
+            
+            console.log(`⏰ トークンリフレッシュ予定: ${TOKEN_REFRESH_MINUTES}分後`);
+        }
+        
+        // サイレントリフレッシュ（ユーザーに見えない形で更新）
+        function silentTokenRefresh() {
+            if (!tokenClient) return;
+            
+            tokenClient.callback = (resp) => {
+                if (resp.error !== undefined) {
+                    console.error('トークンリフレッシュ失敗:', resp.error);
+                    showConnectionStatus('warning');
+                    return;
+                }
+                accessToken = resp.access_token;
+                sessionStorage.setItem('googleAccessToken', accessToken);
+                
+                const expiresIn = resp.expires_in || 3600;
+                tokenExpiresAt = Date.now() + (expiresIn * 1000);
+                sessionStorage.setItem('tokenExpiresAt', tokenExpiresAt.toString());
+                
+                console.log('✅ トークンリフレッシュ成功');
+                showConnectionStatus('connected');
+                startTokenRefreshTimer();
+            };
+            
+            tokenClient.requestAccessToken({ prompt: '' });
+        }
+        
+        // 接続状態表示
+        function showConnectionStatus(status) {
+            const indicator = document.getElementById('connectionIndicator');
+            if (!indicator) return;
+            
+            if (status === 'connected') {
+                indicator.className = 'w-2 h-2 rounded-full bg-green-400';
+                indicator.title = '接続中';
+            } else if (status === 'warning') {
+                indicator.className = 'w-2 h-2 rounded-full bg-yellow-400 animate-pulse';
+                indicator.title = '再接続が必要な可能性があります';
+            } else {
+                indicator.className = 'w-2 h-2 rounded-full bg-red-400';
+                indicator.title = '接続エラー';
+            }
+        }
+        
+        // API呼び出しラッパー（エラー時に自動再認証）
+        async function apiCallWithRetry(apiCall) {
+            try {
+                return await apiCall();
+            } catch (err) {
+                if (err.status === 401 || err.status === 403) {
+                    console.log('🔑 認証エラー、再認証を試行...');
+                    
+                    // 再認証を試みる
+                    return new Promise((resolve, reject) => {
+                        tokenClient.callback = async (resp) => {
+                            if (resp.error) {
+                                showConnectionStatus('error');
+                                reject(new Error('再認証に失敗しました。ページを更新してください。'));
+                                return;
+                            }
+                            accessToken = resp.access_token;
+                            sessionStorage.setItem('googleAccessToken', accessToken);
+                            gapi.client.setToken({ access_token: accessToken });
+                            
+                            tokenExpiresAt = Date.now() + 3600000;
+                            sessionStorage.setItem('tokenExpiresAt', tokenExpiresAt.toString());
+                            startTokenRefreshTimer();
+                            showConnectionStatus('connected');
+                            
+                            try {
+                                const result = await apiCall();
+                                resolve(result);
+                            } catch (retryErr) {
+                                reject(retryErr);
+                            }
+                        };
+                        tokenClient.requestAccessToken({ prompt: '' });
+                    });
+                }
+                throw err;
+            }
+        }
 
         function maybeEnableButtons() {
             if (gapiInited && gisInited) {
                 const savedToken = sessionStorage.getItem('googleAccessToken');
-                if (savedToken) {
-                    accessToken = savedToken;
-                    gapi.client.setToken({ access_token: accessToken });
-                    loadData();
-                } else {
-                    renderSignIn();
+                const savedExpiry = sessionStorage.getItem('tokenExpiresAt');
+                
+                // トークンがあり、有効期限内かチェック
+                if (savedToken && savedExpiry) {
+                    const expiresAt = parseInt(savedExpiry);
+                    const now = Date.now();
+                    
+                    // 有効期限まで5分以上ある場合のみ使用
+                    if (expiresAt > now + 300000) {
+                        accessToken = savedToken;
+                        tokenExpiresAt = expiresAt;
+                        gapi.client.setToken({ access_token: accessToken });
+                        startTokenRefreshTimer();
+                        loadData();
+                        return;
+                    } else {
+                        // 期限切れ間近または期限切れ → クリア
+                        console.log('⚠️ トークン期限切れ、再ログインが必要');
+                        sessionStorage.removeItem('googleAccessToken');
+                        sessionStorage.removeItem('tokenExpiresAt');
+                    }
                 }
+                renderSignIn();
             }
         }
 
@@ -214,6 +341,15 @@
                 }
                 accessToken = resp.access_token;
                 sessionStorage.setItem('googleAccessToken', accessToken);
+                
+                // トークン有効期限を記録
+                const expiresIn = resp.expires_in || 3600;
+                tokenExpiresAt = Date.now() + (expiresIn * 1000);
+                sessionStorage.setItem('tokenExpiresAt', tokenExpiresAt.toString());
+                
+                // 自動リフレッシュタイマー設定
+                startTokenRefreshTimer();
+                
                 await loadData();
             };
 
@@ -227,7 +363,15 @@
         function handleSignoutClick() {
             accessToken = null;
             sessionStorage.removeItem('googleAccessToken');
+            sessionStorage.removeItem('tokenExpiresAt');
             gapi.client.setToken(null);
+            
+            // タイマーをクリア
+            if (tokenRefreshTimer) {
+                clearTimeout(tokenRefreshTimer);
+                tokenRefreshTimer = null;
+            }
+            
             renderSignIn();
         }
 
@@ -1264,7 +1408,10 @@
                             </div>
                             <div class="flex items-center justify-between mt-2 text-xs text-slate-500 dark:text-slate-400">
                                 <div class="flex items-center gap-3">
-                                    <span>最終更新: ${lastUpdatedText}</span>
+                                    <span class="flex items-center gap-1">
+                                        <span id="connectionIndicator" class="w-2 h-2 rounded-full bg-green-400" title="接続中"></span>
+                                        最終更新: ${lastUpdatedText}
+                                    </span>
                                     <button onclick="toggleAutoReload()" class="flex items-center gap-1 px-2 py-0.5 rounded ${autoReloadEnabled ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}" title="${autoReloadEnabled ? '自動同期ON (60秒)' : '自動同期OFF'}">
                                         <span class="${autoReloadEnabled ? 'animate-pulse' : ''}">🔄</span>
                                         <span class="hidden sm:inline">${autoReloadEnabled ? '自動同期ON' : '自動同期OFF'}</span>
