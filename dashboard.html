@@ -205,48 +205,19 @@
                 </div>
             </div>
 
-            <!-- AI分析 -->
-            <div class="flex flex-col">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded flex items-center justify-center" style="background:var(--purple-bg)">
-                            <i data-lucide="sparkles" class="w-3.5 h-3.5" style="color:var(--purple)"></i>
-                        </div>
-                        <span class="font-medium text-sm">AI分析</span>
-                    </div>
-                    <div class="flex gap-1">
-                        <button class="mode-btn active" data-mode="quick" onclick="setMode('quick')">クイック</button>
-                        <button class="mode-btn" data-mode="detail" onclick="setMode('detail')">詳細</button>
-                        <button class="mode-btn" data-mode="cost" onclick="setMode('cost')">コスト</button>
-                        <button class="mode-btn" data-mode="sales" onclick="setMode('sales')">売上</button>
-                        <button class="mode-btn" data-mode="supplier" onclick="setMode('supplier')">サプライヤー</button>
-                    </div>
-                </div>
-                <div id="analysisResult" class="flex-1 bg-card rounded-lg p-3 text-xs overflow-auto mb-2">
-                    <p class="t-sub">「分析」をクリック</p>
-                </div>
-                <div class="flex gap-2">
-                    <input type="text" id="chatInput" placeholder="質問を入力..." class="flex-1" onkeypress="if(event.key==='Enter')sendChat()">
-                    <button onclick="runAnalysis()" class="btn btn-primary">分析</button>
-                    <button onclick="sendChat()" class="btn" style="background:var(--gray);color:#fff">送信</button>
-                </div>
-            </div>
-
             <!-- グラフ2つ（売上） -->
             <div class="grid grid-cols-2 gap-3">
-                <div class="cursor-pointer hover:opacity-80 transition-opacity" onclick="analyzeChart('salesTrend')">
+                <div>
                     <div class="flex items-center gap-1 mb-2">
                         <i data-lucide="trending-up" class="w-3.5 h-3.5" style="color:var(--green)"></i>
                         <span class="text-xs font-medium">売上推移（6ヶ月）</span>
-                        <i data-lucide="sparkles" class="w-3 h-3 t-sub ml-auto" title="クリックでAI分析"></i>
                     </div>
                     <div class="h-28"><canvas id="salesChart"></canvas></div>
                 </div>
-                <div class="cursor-pointer hover:opacity-80 transition-opacity" onclick="analyzeChart('salesCategory')">
+                <div>
                     <div class="flex items-center gap-1 mb-2">
                         <i data-lucide="pie-chart" class="w-3.5 h-3.5" style="color:var(--purple)"></i>
                         <span class="text-xs font-medium">カテゴリ別売上</span>
-                        <i data-lucide="sparkles" class="w-3 h-3 t-sub ml-auto" title="クリックでAI分析"></i>
                     </div>
                     <div class="h-28"><canvas id="salesCategoryChart"></canvas></div>
                 </div>
@@ -284,19 +255,17 @@
 
             <!-- グラフ2つ -->
             <div class="grid grid-cols-2 gap-3">
-                <div class="cursor-pointer hover:opacity-80 transition-opacity" onclick="analyzeChart('paymentForecast')">
+                <div>
                     <div class="flex items-center gap-1 mb-2">
                         <i data-lucide="bar-chart-2" class="w-3.5 h-3.5" style="color:var(--green)"></i>
                         <span class="text-xs font-medium">支払い予定（4週）</span>
-                        <i data-lucide="sparkles" class="w-3 h-3 t-sub ml-auto" title="クリックでAI分析"></i>
                     </div>
                     <div class="h-28"><canvas id="forecastChart"></canvas></div>
                 </div>
-                <div class="cursor-pointer hover:opacity-80 transition-opacity" onclick="analyzeChart('inventoryFlow')">
+                <div>
                     <div class="flex items-center gap-1 mb-2">
                         <i data-lucide="trending-up" class="w-3.5 h-3.5" style="color:var(--purple)"></i>
                         <span class="text-xs font-medium">入出庫推移</span>
-                        <i data-lucide="sparkles" class="w-3 h-3 t-sub ml-auto" title="クリックでAI分析"></i>
                     </div>
                     <div class="h-28"><canvas id="flowChart"></canvas></div>
                 </div>
@@ -331,41 +300,6 @@
     <div id="popover" class="popover">
         <div class="popover-title"><i data-lucide="info" class="w-4 h-4"></i><span id="popoverTitle">-</span></div>
         <div class="popover-content" id="popoverContent"></div>
-    </div>
-
-    <!-- 設定ボタン -->
-    <div id="settingsBtn" class="fixed bottom-4 left-4 hidden">
-        <button onclick="showSettingsModal()" class="flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg text-sm hover:opacity-90 bg-card border border-def">
-            <i data-lucide="settings" class="w-4 h-4 t-sub"></i>
-            <span class="t-sub">設定</span>
-        </button>
-    </div>
-
-    <!-- 設定モーダル -->
-    <div id="settingsModal" class="fixed inset-0 bg-black/40 z-50 hidden flex items-center justify-center p-4">
-        <div class="rounded-lg max-w-md w-full overflow-hidden flex flex-col" style="background:var(--bg)">
-            <div class="p-3 flex justify-between items-center border-b border-def">
-                <div class="flex items-center gap-2">
-                    <div class="w-6 h-6 rounded flex items-center justify-center" style="background:var(--gray-bg)">
-                        <i data-lucide="settings" class="w-3.5 h-3.5" style="color:var(--gray)"></i>
-                    </div>
-                    <span class="font-medium text-sm">設定</span>
-                </div>
-                <button onclick="closeSettingsModal()" class="hover-bg p-1"><i data-lucide="x" class="w-4 h-4"></i></button>
-            </div>
-            <div class="p-4 space-y-4">
-                <div>
-                    <label class="text-xs font-medium block mb-1">Anthropic APIキー</label>
-                    <input type="password" id="apiKeyInput" placeholder="sk-ant-..." class="w-full text-sm">
-                    <p class="text-xs t-sub mt-1">AI分析機能に必要です。<a href="https://console.anthropic.com/" target="_blank" class="underline" style="color:var(--blue)">取得はこちら</a></p>
-                </div>
-                <div id="apiKeyStatus" class="text-xs"></div>
-            </div>
-            <div class="p-3 border-t border-def flex justify-end gap-2">
-                <button onclick="closeSettingsModal()" class="btn" style="background:var(--gray-bg);color:var(--text)">キャンセル</button>
-                <button onclick="saveApiKey()" class="btn btn-primary">保存</button>
-            </div>
-        </div>
     </div>
 
     <!-- ナレッジボタン -->
@@ -403,8 +337,7 @@
         const CLIENT_ID = '47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
         const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';
         let accessToken = null, inventory = [], archivedInventory = [], projects = [], suppliers = [], knowledge = [], salesData = [];
-        let charts = {}, currentMode = 'quick';
-        let apiKey = localStorage.getItem('anthropicApiKey') || '';
+        let charts = {};
         
         // 売上データ（6期・7期）
         const SALES_RAW_DATA = [
@@ -550,31 +483,7 @@
             document.getElementById('loginSection').classList.add('hidden');
             document.getElementById('mainContent').classList.remove('hidden');
             document.getElementById('knowledgeBtn').classList.remove('hidden');
-            document.getElementById('settingsBtn').classList.remove('hidden');
             lucide.createIcons();
-        }
-
-        // 設定モーダル
-        function showSettingsModal() {
-            document.getElementById('settingsModal').classList.remove('hidden');
-            document.getElementById('apiKeyInput').value = apiKey;
-            updateApiKeyStatus();
-            lucide.createIcons();
-        }
-        function closeSettingsModal() { document.getElementById('settingsModal').classList.add('hidden'); }
-        function saveApiKey() {
-            apiKey = document.getElementById('apiKeyInput').value.trim();
-            localStorage.setItem('anthropicApiKey', apiKey);
-            updateApiKeyStatus();
-            closeSettingsModal();
-        }
-        function updateApiKeyStatus() {
-            const el = document.getElementById('apiKeyStatus');
-            if (apiKey) {
-                el.innerHTML = '<span class="tag tag-green">✓ APIキー設定済み</span>';
-            } else {
-                el.innerHTML = '<span class="tag tag-yellow">APIキー未設定</span>';
-            }
         }
 
         async function loadData() {
@@ -877,131 +786,6 @@
             });
         }
 
-        // AI分析
-        function setMode(m) {
-            currentMode = m;
-            document.querySelectorAll('.mode-btn[data-mode]').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
-        }
-
-        async function runAnalysis() {
-            const el = document.getElementById('analysisResult');
-            if (!apiKey) {
-                el.innerHTML = '<p class="t-sub">APIキーを設定してください → <button onclick="showSettingsModal()" class="underline" style="color:var(--blue)">設定</button></p>';
-                return;
-            }
-            el.innerHTML = '<p class="t-sub"><i data-lucide="loader-2" class="w-4 h-4 inline animate-spin mr-1"></i>分析中...</p>';
-            lucide.createIcons();
-            const d = prepareData();
-            const prompts = {
-                quick: '今すぐ対応すべき3〜5項目を優先度順に。売上・在庫・支払いの観点から。形式: ● 高/中/低 タイトル: 内容',
-                detail: '1. 現状サマリー（売上・在庫・支払い） 2. リスク・課題 3. 改善案 を簡潔に',
-                cost: '1. キャッシュフロー状況 2. 来月支払い予測 3. コスト削減提案',
-                supplier: '1. サプライヤー依存度リスク 2. 各社評価 3. 戦略提案',
-                sales: '1. 売上トレンド分析 2. カテゴリ別成長率 3. 来月予測と在庫推奨'
-            };
-            const prompt = `支払・在庫・売上データ: ${JSON.stringify(d)}\n\nナレッジ: ${knowledge.map(k => k.content).join('; ')}\n\n${prompts[currentMode]}\n\n日本語で簡潔に。現在は7期（2025年7月〜）です。`;
-            try {
-                const r = await fetch('https://api.anthropic.com/v1/messages', { 
-                    method: 'POST', 
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'x-api-key': apiKey,
-                        'anthropic-version': '2023-06-01',
-                        'anthropic-dangerous-direct-browser-access': 'true'
-                    }, 
-                    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 800, messages: [{ role: 'user', content: prompt }] }) 
-                });
-                if (!r.ok) {
-                    const err = await r.json();
-                    throw new Error(err.error?.message || 'API Error');
-                }
-                const j = await r.json();
-                const text = j.content?.[0]?.text || '';
-                el.innerHTML = text.split('\n').filter(l => l.trim()).map(l => {
-                    if (l.includes('● 高')) return `<div class="mb-1.5 p-1.5 rounded" style="background:var(--red-bg)">${l}</div>`;
-                    if (l.includes('● 中')) return `<div class="mb-1.5 p-1.5 rounded" style="background:var(--yellow-bg)">${l}</div>`;
-                    if (l.includes('● 低')) return `<div class="mb-1.5 p-1.5 rounded" style="background:var(--green-bg)">${l}</div>`;
-                    return `<div class="mb-1">${l}</div>`;
-                }).join('');
-            } catch (e) { el.innerHTML = `<p style="color:var(--red)">エラー: ${e.message}</p>`; }
-        }
-
-        async function sendChat() {
-            const inp = document.getElementById('chatInput');
-            const msg = inp.value.trim();
-            if (!msg) return;
-            const el = document.getElementById('analysisResult');
-            if (!apiKey) {
-                el.innerHTML = '<p class="t-sub">APIキーを設定してください → <button onclick="showSettingsModal()" class="underline" style="color:var(--blue)">設定</button></p>';
-                return;
-            }
-            inp.value = '';
-            el.innerHTML = '<p class="t-sub"><i data-lucide="loader-2" class="w-4 h-4 inline animate-spin mr-1"></i>回答中...</p>';
-            lucide.createIcons();
-            const d = prepareData();
-            try {
-                const r = await fetch('https://api.anthropic.com/v1/messages', { 
-                    method: 'POST', 
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'x-api-key': apiKey,
-                        'anthropic-version': '2023-06-01',
-                        'anthropic-dangerous-direct-browser-access': 'true'
-                    }, 
-                    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 500, messages: [{ role: 'user', content: `データ: ${JSON.stringify(d)}\n\n質問: ${msg}\n\n簡潔に回答。` }] }) 
-                });
-                if (!r.ok) {
-                    const err = await r.json();
-                    throw new Error(err.error?.message || 'API Error');
-                }
-                const j = await r.json();
-                el.innerHTML = (j.content?.[0]?.text || 'エラー').split('\n').map(l => `<div class="mb-1">${l}</div>`).join('');
-            } catch (e) { el.innerHTML = `<p style="color:var(--red)">エラー: ${e.message}</p>`; }
-        }
-
-        function prepareData() {
-            const today = new Date();
-            const inStock = inventory.filter(i => i.status === '在庫中');
-            let ut = 0, uc = 0;
-            projects.forEach(p => { (p.depositSchedule || []).forEach(d => { if (!d.paid) { ut += d.amountJPY || (d.amountUSD * 150) || 0; uc++; } }); });
-            const supplierStats = {};
-            projects.forEach(p => { const n = suppliers.find(s => s.id === p.supplierId)?.name || '他'; supplierStats[n] = (supplierStats[n] || 0) + p.totalAmount; });
-            const categoryStats = {};
-            inStock.forEach(i => { categoryStats[i.category] = (categoryStats[i.category] || 0) + 1; });
-            
-            // 売上データ集計（直近6ヶ月）
-            const salesMonths = [];
-            for (let i = 5; i >= 0; i--) { 
-                const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-                salesMonths.push(d.toISOString().slice(0, 7));
-            }
-            const salesByCategory = {};
-            const salesByMonth = {};
-            SALES_RAW_DATA.filter(s => salesMonths.includes(s.month)).forEach(s => {
-                salesByCategory[s.category] = (salesByCategory[s.category] || 0) + s.amount;
-                salesByMonth[s.month] = (salesByMonth[s.month] || 0) + s.amount;
-            });
-            const totalSales6m = Object.values(salesByMonth).reduce((a, b) => a + b, 0);
-            
-            // 7期売上（今期）
-            const sales7 = SALES_RAW_DATA.filter(s => s.period === '7期').reduce((a, s) => a + s.amount, 0);
-            
-            return { 
-                inStock: inStock.length, 
-                waiting: inventory.filter(i => i.status === '入庫待ち').length, 
-                unpaid: uc, 
-                unpaidTotal: ut, 
-                supplierStats, 
-                categoryStats,
-                salesByCategory,
-                salesByMonth,
-                totalSales6m,
-                sales7期: sales7,
-                currentPeriod: '7期',
-                currentMonth: today.toISOString().slice(0, 7)
-            };
-        }
-
         // ナレッジ
         function showKnowledgeModal() { document.getElementById('knowledgeModal').classList.remove('hidden'); renderKnowledgeList(); lucide.createIcons(); }
         function closeKnowledgeModal() { document.getElementById('knowledgeModal').classList.add('hidden'); }
@@ -1041,57 +825,7 @@
                 google.accounts.oauth2.revoke(sessionStorage.getItem('googleAccessToken'), () => {});
                 document.getElementById('mainContent').classList.add('hidden');
                 document.getElementById('knowledgeBtn').classList.add('hidden');
-                document.getElementById('settingsBtn').classList.add('hidden');
                 document.getElementById('loginSection').classList.remove('hidden');
-            }
-        }
-
-        // グラフクリックでAI分析
-        async function analyzeChart(chartType) {
-            if (!apiKey) {
-                alert('APIキーを設定してください（左下の設定ボタン）');
-                return;
-            }
-            
-            const el = document.getElementById('analysisResult');
-            el.innerHTML = '<p class="t-sub"><i data-lucide="loader-2" class="w-4 h-4 inline animate-spin mr-1"></i>グラフを分析中...</p>';
-            lucide.createIcons();
-            
-            const d = prepareData();
-            let prompt = '';
-            
-            switch(chartType) {
-                case 'salesTrend':
-                    prompt = `売上推移データ: ${JSON.stringify(d.salesByMonth)}\n\n直近6ヶ月の売上トレンドを分析して、1)傾向 2)異常値 3)来月予測 を簡潔に。`;
-                    break;
-                case 'salesCategory':
-                    prompt = `カテゴリ別売上: ${JSON.stringify(d.salesByCategory)}\n\nカテゴリ別の売上構成を分析して、1)主力カテゴリ 2)成長カテゴリ 3)在庫への示唆 を簡潔に。`;
-                    break;
-                case 'paymentForecast':
-                    prompt = `未払い件数: ${d.unpaid}件、未払い総額: ¥${d.unpaidTotal}、サプライヤー別: ${JSON.stringify(d.supplierStats)}\n\n今後4週間の支払い予測とキャッシュフロー管理のアドバイスを簡潔に。`;
-                    break;
-                case 'inventoryFlow':
-                    prompt = `在庫中: ${d.inStock}件、入庫待ち: ${d.waiting}件、カテゴリ: ${JSON.stringify(d.categoryStats)}\n\n入出庫の傾向を分析して、1)回転率評価 2)滞留リスク 3)発注推奨 を簡潔に。`;
-                    break;
-            }
-            
-            try {
-                const r = await fetch('https://api.anthropic.com/v1/messages', { 
-                    method: 'POST', 
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'x-api-key': apiKey,
-                        'anthropic-version': '2023-06-01',
-                        'anthropic-dangerous-direct-browser-access': 'true'
-                    }, 
-                    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 400, messages: [{ role: 'user', content: prompt + '\n\n日本語で簡潔に。' }] }) 
-                });
-                if (!r.ok) throw new Error('API Error');
-                const j = await r.json();
-                el.innerHTML = `<div class="mb-2 text-xs font-medium" style="color:var(--purple)">📊 グラフ分析結果</div>` + 
-                    (j.content?.[0]?.text || '').split('\n').map(l => `<div class="mb-1">${l}</div>`).join('');
-            } catch (e) { 
-                el.innerHTML = `<p style="color:var(--red)">エラー: ${e.message}</p>`; 
             }
         }
 
