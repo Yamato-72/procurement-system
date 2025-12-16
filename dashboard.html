@@ -131,23 +131,11 @@
                 </a>
                 <button onclick="loadData()" class="hover-bg p-1.5 t-sub" title="更新"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
                 <button onclick="toggleDarkMode()" class="hover-bg p-1.5 t-sub" title="ダークモード"><i data-lucide="moon" class="w-4 h-4"></i></button>
-                <button onclick="signOut()" class="hover-bg p-1.5 t-sub" title="サインアウト"><i data-lucide="log-out" class="w-4 h-4"></i></button>
             </div>
         </header>
 
-        <!-- ログイン -->
-        <div id="loginSection" class="flex items-center justify-center">
-            <div class="text-center">
-                <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style="background:var(--blue-bg)">
-                    <i data-lucide="compass" class="w-8 h-8" style="color:var(--blue)"></i>
-                </div>
-                <p class="text-sm mb-4">Googleアカウントでログイン</p>
-                <button onclick="handleAuth()" class="btn btn-primary px-5 py-2">ログイン</button>
-            </div>
-        </div>
-
         <!-- メイン -->
-        <div id="mainContent" class="main-grid hidden">
+        <div id="mainContent" class="main-grid">
             
             <!-- KPIバー -->
             <div class="kpi-bar" style="grid-column: 1 / -1;">
@@ -467,27 +455,12 @@
             initDarkMode(); lucide.createIcons();
             gapi.load('client', async () => {
                 await gapi.client.init({ discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'] });
-                const t = sessionStorage.getItem('googleAccessToken');
-                if (t) { accessToken = t; gapi.client.setToken({ access_token: accessToken }); showMain(); loadData(); }
+                document.getElementById('knowledgeBtn').classList.remove('hidden');
+                loadData();
             });
         }
 
-        function handleAuth() {
-            google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID, scope: 'https://www.googleapis.com/auth/spreadsheets',
-                callback: (r) => { if (r.access_token) { accessToken = r.access_token; sessionStorage.setItem('googleAccessToken', accessToken); gapi.client.setToken({ access_token: accessToken }); showMain(); loadData(); } }
-            }).requestAccessToken();
-        }
-
-        function showMain() {
-            document.getElementById('loginSection').classList.add('hidden');
-            document.getElementById('mainContent').classList.remove('hidden');
-            document.getElementById('knowledgeBtn').classList.remove('hidden');
-            lucide.createIcons();
-        }
-
         async function loadData() {
-            if (!accessToken) return;
             try {
                 const [supRes, prjRes, invRes] = await Promise.all([
                     gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'サプライヤー!A2:C' }),
@@ -818,16 +791,6 @@
 
         function toggleDarkMode() { document.documentElement.classList.toggle('dark'); localStorage.setItem('darkMode', document.documentElement.classList.contains('dark')); }
         function initDarkMode() { if (localStorage.getItem('darkMode') === 'true' || (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark'); }
-        function signOut() {
-            if (confirm('サインアウトしますか？')) {
-                sessionStorage.removeItem('googleAccessToken');
-                accessToken = null;
-                google.accounts.oauth2.revoke(sessionStorage.getItem('googleAccessToken'), () => {});
-                document.getElementById('mainContent').classList.add('hidden');
-                document.getElementById('knowledgeBtn').classList.add('hidden');
-                document.getElementById('loginSection').classList.remove('hidden');
-            }
-        }
 
         // ポップオーバー
         let currentPopover = null;
@@ -968,7 +931,7 @@
             }
         });
 
-        window.onload = () => { const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.onload = init; document.head.appendChild(s); };
+        window.onload = () => { init(); };
     </script>
 </body>
 </html>
