@@ -1,0 +1,91 @@
+/**
+ * YS調達ナビ - ダッシュボード固有スタイル
+ */
+
+/* Dashboard Grid Layout */
+.dashboard {
+    display: grid;
+    height: 100vh;
+    grid-template-rows: auto 1fr;
+}
+
+.main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 300px;
+    grid-template-rows: auto 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    padding: 1px;
+    overflow: hidden;
+}
+
+.main-grid > * {
+    background: var(--bg);
+    padding: 12px;
+    overflow: hidden;
+}
+
+/* KPI Bar */
+.kpi-bar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px !important;
+    overflow-x: auto;
+}
+
+.kpi {
+    flex: 1;
+    min-width: 90px;
+    padding: 10px;
+    border-radius: 6px;
+    background: var(--bg-card);
+    cursor: pointer;
+    transition: transform 80ms, box-shadow 80ms;
+}
+
+.kpi:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.kpi-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 6px;
+}
+
+.kpi-value {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.kpi-label {
+    font-size: 10px;
+    color: var(--text-sub);
+    margin-top: 2px;
+}
+
+.kpi-sub {
+    font-size: 10px;
+    margin-top: 4px;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .dashboard {
+        height: auto;
+    }
+
+    .main-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+    }
+
+    .main-grid > * {
+        min-height: 200px;
+    }
+}

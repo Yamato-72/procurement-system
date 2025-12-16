@@ -1,0 +1,376 @@
+/**
+ * YS在庫ナビ - 在庫ページ固有スタイル
+ */
+
+/* Loading Animation */
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Inventory Table */
+.inventory-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.inventory-table th {
+    text-align: left;
+    padding: 12px 8px;
+    background: rgb(248 250 252);
+    border-bottom: 2px solid rgb(226 232 240);
+    font-weight: 600;
+    color: rgb(71 85 105);
+    position: sticky;
+    top: 0;
+}
+
+.dark .inventory-table th {
+    background: rgb(30 41 59);
+    border-color: rgb(51 65 85);
+    color: rgb(148 163 184);
+}
+
+.inventory-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid rgb(241 245 249);
+}
+
+.dark .inventory-table td {
+    border-color: rgb(51 65 85);
+}
+
+.inventory-table tr:hover td {
+    background: rgb(248 250 252);
+}
+
+.dark .inventory-table tr:hover td {
+    background: rgb(51 65 85);
+}
+
+/* Status Badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.status-waiting {
+    background: rgb(254 243 199);
+    color: rgb(161 98 7);
+}
+
+.dark .status-waiting {
+    background: rgba(161, 98, 7, 0.3);
+    color: rgb(253 224 71);
+}
+
+.status-inspection {
+    background: rgb(254 215 170);
+    color: rgb(194 65 12);
+}
+
+.dark .status-inspection {
+    background: rgba(194, 65, 12, 0.3);
+    color: rgb(253 186 116);
+}
+
+.status-in-stock {
+    background: rgb(220 252 231);
+    color: rgb(21 128 61);
+}
+
+.dark .status-in-stock {
+    background: rgba(21, 128, 61, 0.3);
+    color: rgb(134 239 172);
+}
+
+.status-shipped {
+    background: rgb(219 234 254);
+    color: rgb(29 78 216);
+}
+
+.dark .status-shipped {
+    background: rgba(29, 78, 216, 0.3);
+    color: rgb(147 197 253);
+}
+
+.status-defect {
+    background: rgb(254 226 226);
+    color: rgb(185 28 28);
+}
+
+.dark .status-defect {
+    background: rgba(185, 28, 28, 0.3);
+    color: rgb(252 165 165);
+}
+
+/* Filter Panel */
+.filter-panel {
+    background: rgb(248 250 252);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.dark .filter-panel {
+    background: rgb(30 41 59);
+}
+
+.filter-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.filter-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgb(71 85 105);
+    margin-bottom: 4px;
+}
+
+.dark .filter-label {
+    color: rgb(148 163 184);
+}
+
+/* Search Input */
+.search-input {
+    width: 100%;
+    padding: 10px 12px 10px 40px;
+    border: 1px solid rgb(226 232 240);
+    border-radius: 8px;
+    font-size: 14px;
+    background: white;
+}
+
+.dark .search-input {
+    background: rgb(15 23 42);
+    border-color: rgb(51 65 85);
+    color: white;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #2383e2;
+    box-shadow: 0 0 0 3px rgba(35, 131, 226, 0.1);
+}
+
+.search-container {
+    position: relative;
+}
+
+.search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgb(148 163 184);
+}
+
+/* Bulk Action Bar */
+.bulk-action-bar {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgb(30 41 59);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    z-index: 40;
+}
+
+.bulk-action-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+    transition: all 150ms;
+}
+
+.bulk-action-btn-primary {
+    background: #2383e2;
+    color: white;
+}
+
+.bulk-action-btn-primary:hover {
+    background: #1a6fc2;
+}
+
+.bulk-action-btn-cancel {
+    background: rgb(71 85 105);
+    color: white;
+}
+
+.bulk-action-btn-cancel:hover {
+    background: rgb(100 116 139);
+}
+
+/* QR Code Display */
+.qr-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    background: white;
+    border-radius: 8px;
+}
+
+.dark .qr-container {
+    background: rgb(30 41 59);
+}
+
+/* Inventory Card (Mobile) */
+.inventory-card {
+    background: white;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.dark .inventory-card {
+    background: rgb(30 41 59);
+}
+
+/* Group Header */
+.group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: rgb(248 250 252);
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 8px;
+}
+
+.dark .group-header {
+    background: rgb(30 41 59);
+}
+
+.group-header:hover {
+    background: rgb(241 245 249);
+}
+
+.dark .group-header:hover {
+    background: rgb(51 65 85);
+}
+
+.group-badge {
+    background: #2383e2;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Shelf Badge */
+.shelf-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    background: rgb(219 234 254);
+    color: rgb(29 78 216);
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.dark .shelf-badge {
+    background: rgba(29, 78, 216, 0.3);
+    color: rgb(147 197 253);
+}
+
+.shelf-badge.empty {
+    background: rgb(254 226 226);
+    color: rgb(185 28 28);
+}
+
+.dark .shelf-badge.empty {
+    background: rgba(185, 28, 28, 0.3);
+    color: rgb(252 165 165);
+}
+
+/* Connection Indicator */
+.connection-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.connection-connected {
+    background: #22c55e;
+}
+
+.connection-warning {
+    background: #eab308;
+    animation: pulse 2s infinite;
+}
+
+.connection-error {
+    background: #ef4444;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Detail Modal */
+.detail-modal {
+    background: white;
+    border-radius: 16px;
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.dark .detail-modal {
+    background: rgb(30 41 59);
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgb(241 245 249);
+}
+
+.dark .detail-row {
+    border-color: rgb(51 65 85);
+}
+
+.detail-label {
+    font-size: 13px;
+    color: rgb(100 116 139);
+}
+
+.dark .detail-label {
+    color: rgb(148 163 184);
+}
+
+.detail-value {
+    font-size: 13px;
+    font-weight: 500;
+}
