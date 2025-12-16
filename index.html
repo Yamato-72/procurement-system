@@ -32,18 +32,13 @@
     </div>
 
     <script>
-        const CLIENT_ID = '47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
         const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';
         const PRODUCT_MASTER_ID = '1YnEJ5LEYBwZJ2zDYnjUpkpjnB2naHFVAtPdzcv81nvI'; // 製品マスタ
-        const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly';
         const PARENT_FOLDER_ID = '1EvObQiCJgxJCzd_kQJ1PNbOUMD5P-Zxp';
         const IMPORT_PERMIT_FOLDER_ID = '1YELi1u_fn1NiH09P_CONfBlUNQ_DtjwL'; // 輸入許可書フォルダ
         const INVOICE_FOLDER_ID = '1NzYjGGFzbNdG2wBYT1nreiehPH_TpRJr'; // 海外請求書フォルダ
 
-        let tokenClient;
         let gapiInited = false;
-        let gisInited = false;
-        let accessToken = null;
         let suppliers = [];
         let projects = [];
         let productMaster = []; // 製品マスタ
@@ -412,7 +407,6 @@
         }
 
         async function saveData() {
-            if (!accessToken) return;
             try {
                 showStatus('保存中...');
                 
