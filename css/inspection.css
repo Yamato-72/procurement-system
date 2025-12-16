@@ -1,0 +1,215 @@
+/**
+ * YS検品ナビ - 検品ページ固有スタイル
+ */
+
+/* Loading Animation */
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Summary Cards */
+.summary-card {
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+}
+
+.summary-card-amber {
+    background: rgb(254 243 199);
+}
+
+.dark .summary-card-amber {
+    background: rgba(180, 83, 9, 0.3);
+}
+
+.summary-card-green {
+    background: rgb(220 252 231);
+}
+
+.dark .summary-card-green {
+    background: rgba(5, 150, 105, 0.3);
+}
+
+.summary-card-red {
+    background: rgb(254 226 226);
+}
+
+.dark .summary-card-red {
+    background: rgba(185, 28, 28, 0.3);
+}
+
+/* QR Scanner Button */
+.qr-scan-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(to right, #16a34a, #059669);
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 12px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    border: none;
+    cursor: pointer;
+    transition: box-shadow 200ms, transform 200ms;
+}
+
+.qr-scan-btn:hover {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+/* Inspection List */
+.inspection-list-item {
+    padding: 16px;
+    cursor: pointer;
+    transition: background 150ms;
+}
+
+.inspection-list-item:hover {
+    background: rgb(248 250 252);
+}
+
+.dark .inspection-list-item:hover {
+    background: rgb(51 65 85);
+}
+
+/* Result Badge */
+.result-badge {
+    padding: 4px 8px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.result-badge-good {
+    background: rgb(220 252 231);
+    color: rgb(21 128 61);
+}
+
+.dark .result-badge-good {
+    background: rgba(5, 150, 105, 0.5);
+    color: rgb(134 239 172);
+}
+
+.result-badge-defect {
+    background: rgb(254 226 226);
+    color: rgb(185 28 28);
+}
+
+.dark .result-badge-defect {
+    background: rgba(185, 28, 28, 0.5);
+    color: rgb(252 165 165);
+}
+
+/* Modal */
+.inspection-modal {
+    background: white;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 448px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.dark .inspection-modal {
+    background: rgb(30 41 59);
+}
+
+/* Checklist Item */
+.checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px;
+    background: rgb(248 250 252);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.dark .checklist-item {
+    background: rgb(51 65 85);
+}
+
+/* Defect Section */
+.defect-section {
+    padding: 12px;
+    background: rgb(254 242 242);
+    border-radius: 8px;
+    border: 1px solid rgb(254 202 202);
+}
+
+.dark .defect-section {
+    background: rgba(185, 28, 28, 0.2);
+    border-color: rgb(127 29 29);
+}
+
+/* Action Buttons */
+.action-btn-good {
+    padding: 12px;
+    background: #16a34a;
+    color: white;
+    font-weight: bold;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 150ms;
+}
+
+.action-btn-good:hover {
+    background: #15803d;
+}
+
+.action-btn-defect {
+    padding: 12px;
+    background: #dc2626;
+    color: white;
+    font-weight: bold;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 150ms;
+}
+
+.action-btn-defect:hover {
+    background: #b91c1c;
+}
+
+/* Feedback Toast */
+.feedback-toast {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 24px;
+    border-radius: 12px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    color: white;
+    font-weight: bold;
+    z-index: 50;
+}
+
+.feedback-toast-good {
+    background: #16a34a;
+}
+
+.feedback-toast-defect {
+    background: #dc2626;
+}
