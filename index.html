@@ -1311,6 +1311,9 @@
                                                         <button onclick="event.stopPropagation();editGroupDetails('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-blue-600" title="グループ編集">
                                                             <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                                         </button>
+                                                        <button onclick="event.stopPropagation();copyGroupInvoiceText('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-purple-600" title="インボイス情報をコピー">
+                                                            <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+                                                        </button>
                                                         <button onclick="event.stopPropagation();openInventoryForProject('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-emerald-600" title="在庫を見る">
                                                             <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
                                                         </button>
@@ -2308,12 +2311,12 @@
             renderMain();
         }
 
-        // インボイス用テキスト生成
+        // インボイス用テキスト生成（単一）
         function generateInvoiceText(project) {
             const pickupDateDisplay = project.pickupDate ? project.pickupDate.replace(/-/g, '/') : '未設定';
             
             let text = `PJ番号：${formatProjectNumber(project)}\n`;
-            text += `Serial：${project.serial || ''}\n`;
+            text += `Serial：${project.serial || 'none'}\n`;
             text += `集荷予定日：${pickupDateDisplay}\n\n`;
             
             project.depositSchedule.forEach(dep => {
@@ -2323,18 +2326,118 @@
             return text.trim();
         }
 
-        // クリップボードにコピー
-        function copyInvoiceText(projectId) {
-            const project = projects.find(p => String(p.id) === String(projectId));
-            if (!project) return;
+        // グループ用シリアルフォーマット
+        function formatGroupSerials(items) {
+            // シリアルを抽出（空を除く）
+            const serials = items.map(p => p.serial).filter(s => s && s.trim());
             
-            const text = generateInvoiceText(project);
+            if (serials.length === 0) return 'none';
+            if (serials.length === 1) return serials[0];
+            
+            // ソート
+            serials.sort();
+            
+            // 連番チェック（YS0001, YS0002... のパターン）
+            const pattern = /^([A-Za-z]+)(\d+)$/;
+            const parsed = serials.map(s => {
+                const match = s.match(pattern);
+                if (match) {
+                    return { original: s, prefix: match[1], num: parseInt(match[2]) };
+                }
+                return null;
+            });
+            
+            // 全て同じプレフィックスで連番なら範囲表示
+            if (parsed.every(p => p !== null)) {
+                const prefixes = [...new Set(parsed.map(p => p.prefix))];
+                if (prefixes.length === 1) {
+                    const nums = parsed.map(p => p.num).sort((a, b) => a - b);
+                    const minNum = nums[0];
+                    const maxNum = nums[nums.length - 1];
+                    
+                    // 連続してるかチェック
+                    const isConsecutive = (maxNum - minNum + 1) === nums.length;
+                    
+                    if (isConsecutive && nums.length > 1) {
+                        // 連番: YS0001～YS0005
+                        const prefix = prefixes[0];
+                        const padLen = parsed[0].original.length - prefix.length;
+                        const minStr = String(minNum).padStart(padLen, '0');
+                        const maxStr = String(maxNum).padStart(padLen, '0');
+                        return `${prefix}${minStr}～${prefix}${maxStr}`;
+                    }
+                }
+            }
+            
+            // 枝番パターンチェック（YS0001-1, YS0001-2... のパターン）
+            const branchPattern = /^(.+)-(\d+)$/;
+            const branchParsed = serials.map(s => {
+                const match = s.match(branchPattern);
+                if (match) {
+                    return { original: s, base: match[1], branch: parseInt(match[2]) };
+                }
+                return null;
+            });
+            
+            if (branchParsed.every(p => p !== null)) {
+                const bases = [...new Set(branchParsed.map(p => p.base))];
+                if (bases.length === 1) {
+                    const branches = branchParsed.map(p => p.branch).sort((a, b) => a - b);
+                    const minBranch = branches[0];
+                    const maxBranch = branches[branches.length - 1];
+                    return `${bases[0]}（${minBranch}～${maxBranch}）`;
+                }
+            }
+            
+            // どのパターンにも当てはまらない場合はカンマ区切り
+            return serials.join(', ');
+        }
+
+        // グループ用インボイステキスト生成
+        function generateGroupInvoiceText(projectNumber) {
+            const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
+            if (groupProjects.length === 0) return '';
+            
+            const representative = groupProjects[0];
+            const pickupDateDisplay = representative.pickupDate ? representative.pickupDate.replace(/-/g, '/') : '未設定';
+            const serialDisplay = formatGroupSerials(groupProjects);
+            
+            let text = `PJ番号：${projectNumber}\n`;
+            text += `Serial：${serialDisplay}\n`;
+            text += `集荷予定日：${pickupDateDisplay}\n\n`;
+            
+            // デポジット情報（代表から取得）
+            const depositSchedule = representative.depositSchedule || [];
+            depositSchedule.forEach(dep => {
+                const status = dep.paid ? '✓済' : '未';
+                text += `${dep.percentage}%  $${(dep.amountUSD || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} [${status}]\n`;
+            });
+            
+            return text.trim();
+        }
+
+        // グループ用クリップボードコピー
+        function copyGroupInvoiceText(projectNumber) {
+            const text = generateGroupInvoiceText(projectNumber);
+            if (!text) {
+                showStatus('コピーするデータがありません', 'error');
+                return;
+            }
+            
             navigator.clipboard.writeText(text).then(() => {
-                showStatus('コピーしました！');
+                showStatus('📋 インボイス情報をコピーしました！');
                 setTimeout(() => showStatus(''), 2000);
             }).catch(err => {
                 console.error('コピーエラー:', err);
-                alert('コピーに失敗しました');
+                // フォールバック：テキストエリアを使う方法
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showStatus('📋 インボイス情報をコピーしました！');
+                setTimeout(() => showStatus(''), 2000);
             });
         }
 
