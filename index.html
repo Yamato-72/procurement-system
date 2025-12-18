@@ -2506,7 +2506,12 @@
                             <div class="space-y-2" id="groupProductList">
                                 ${groupProjects.map((p, idx) => `
                                     <div class="p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
-                                        <p class="font-semibold text-sm dark:text-white mb-2">${p.productName}</p>
+                                        <div class="mb-2">
+                                            <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1">製品名</label>
+                                            <input type="text" id="editProductName_${idx}" value="${p.productName || ''}"
+                                                   data-project-id="${p.id}"
+                                                   class="w-full px-2 py-1 border rounded dark:bg-slate-600 dark:border-slate-500 dark:text-white font-semibold">
+                                        </div>
                                         <div class="grid grid-cols-3 gap-2">
                                             <div>
                                                 <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1">数量</label>
@@ -2694,16 +2699,18 @@
             const supplier = suppliers.find(s => s.id === supplierId);
             const patternIdx = document.getElementById('editGroupDepositPattern').value;
             
-            // 各製品の金額・数量・Serialを取得
+            // 各製品の金額・数量・Serial・製品名を取得
             const productAmounts = {};
             const productQuantities = {};
             const productSerials = {};
+            const productNames = {};
             let totalUSD = 0;
             
             groupProjects.forEach((p, idx) => {
                 const amountInput = document.getElementById(`editProductUSD_${idx}`);
                 const qtyInput = document.getElementById(`editProductQty_${idx}`);
                 const serialInput = document.getElementById(`editProductSerial_${idx}`);
+                const nameInput = document.getElementById(`editProductName_${idx}`);
                 
                 if (amountInput) {
                     productAmounts[p.id] = parseFloat(amountInput.value) || 0;
@@ -2714,6 +2721,9 @@
                 }
                 if (serialInput) {
                     productSerials[p.id] = serialInput.value.trim();
+                }
+                if (nameInput) {
+                    productNames[p.id] = nameInput.value.trim();
                 }
             });
             
@@ -2736,6 +2746,7 @@
             
             // 各製品を更新
             const oldSerials = groupProjects.map(p => p.serial);
+            const oldProductNames = groupProjects.map(p => p.productName);
             
             groupProjects.forEach((p, idx) => {
                 p.supplierId = supplierId;
@@ -2745,6 +2756,7 @@
                 p.totalAmount = productAmounts[p.id] || 0;
                 p.quantity = productQuantities[p.id] || 1;
                 p.serial = productSerials[p.id] || '';
+                p.productName = productNames[p.id] || p.productName;
                 
                 // デポジットは各製品の金額に応じて按分
                 if (depositSchedule.length > 0 && totalUSD > 0) {
@@ -2758,10 +2770,21 @@
                 }
             });
             
-            // 在庫シートのSerialも更新（変更があった場合）
+            // 在庫シートのSerial・製品名も更新（変更があった場合）
             groupProjects.forEach((p, idx) => {
-                if (oldSerials[idx] !== p.serial) {
-                    updateInventorySerial(formatProjectNumber(p), oldSerials[idx], p.serial);
+                const serialChanged = oldSerials[idx] !== p.serial;
+                const nameChanged = oldProductNames[idx] !== p.productName;
+                
+                if (serialChanged || nameChanged) {
+                    updateInventoryFromProject(
+                        formatProjectNumber(p), 
+                        oldSerials[idx], 
+                        formatProjectNumber(p), 
+                        p.serial, 
+                        p.quantity, 
+                        oldProductNames[idx], 
+                        p.productName
+                    );
                 }
             });
             
