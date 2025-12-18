@@ -2505,18 +2505,29 @@
                             <h4 class="text-sm font-bold mb-3 dark:text-white">📦 製品明細</h4>
                             <div class="space-y-2" id="groupProductList">
                                 ${groupProjects.map((p, idx) => `
-                                    <div class="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
-                                        <div class="flex-1">
-                                            <p class="font-semibold text-sm dark:text-white">${p.productName}</p>
-                                            <p class="text-xs text-slate-500 dark:text-slate-400">${p.quantity || 1}台 / Serial: ${p.serial || '未設定'}</p>
+                                    <div class="p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                                        <p class="font-semibold text-sm dark:text-white mb-2">${p.productName}</p>
+                                        <div class="grid grid-cols-3 gap-2">
+                                            <div>
+                                                <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1">数量</label>
+                                                <input type="number" id="editProductQty_${idx}" value="${p.quantity || 1}" min="1"
+                                                       data-project-id="${p.id}"
+                                                       class="w-full px-2 py-1 border rounded dark:bg-slate-600 dark:border-slate-500 dark:text-white text-center">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1">Serial</label>
+                                                <input type="text" id="editProductSerial_${idx}" value="${p.serial || ''}"
+                                                       data-project-id="${p.id}"
+                                                       class="w-full px-2 py-1 border rounded dark:bg-slate-600 dark:border-slate-500 dark:text-white">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1">金額 (USD)</label>
+                                                <input type="number" id="editProductUSD_${idx}" value="${p.totalAmount || 0}" step="0.01" 
+                                                       data-project-id="${p.id}"
+                                                       oninput="updateGroupTotal()"
+                                                       class="w-full px-2 py-1 border rounded dark:bg-slate-600 dark:border-slate-500 dark:text-white text-right">
+                                            </div>
                                         </div>
-                                        <div class="w-32">
-                                            <input type="number" id="editProductUSD_${idx}" value="${p.totalAmount || 0}" step="0.01" 
-                                                   data-project-id="${p.id}"
-                                                   oninput="updateGroupTotal()"
-                                                   class="w-full px-2 py-1 border rounded dark:bg-slate-600 dark:border-slate-500 dark:text-white text-right">
-                                        </div>
-                                        <span class="text-xs text-slate-500 dark:text-slate-400">USD</span>
                                     </div>
                                 `).join('')}
                             </div>
@@ -2683,16 +2694,27 @@
             const supplier = suppliers.find(s => s.id === supplierId);
             const patternIdx = document.getElementById('editGroupDepositPattern').value;
             
-            // 各製品の金額を取得
-            const productInputs = document.querySelectorAll('[id^="editProductUSD_"]');
+            // 各製品の金額・数量・Serialを取得
             const productAmounts = {};
+            const productQuantities = {};
+            const productSerials = {};
             let totalUSD = 0;
             
-            productInputs.forEach(input => {
-                const projectId = input.dataset.projectId;
-                const amount = parseFloat(input.value) || 0;
-                productAmounts[projectId] = amount;
-                totalUSD += amount;
+            groupProjects.forEach((p, idx) => {
+                const amountInput = document.getElementById(`editProductUSD_${idx}`);
+                const qtyInput = document.getElementById(`editProductQty_${idx}`);
+                const serialInput = document.getElementById(`editProductSerial_${idx}`);
+                
+                if (amountInput) {
+                    productAmounts[p.id] = parseFloat(amountInput.value) || 0;
+                    totalUSD += productAmounts[p.id];
+                }
+                if (qtyInput) {
+                    productQuantities[p.id] = parseInt(qtyInput.value) || 1;
+                }
+                if (serialInput) {
+                    productSerials[p.id] = serialInput.value.trim();
+                }
             });
             
             // デポジットスケジュールを作成
@@ -2713,12 +2735,16 @@
             }
             
             // 各製品を更新
+            const oldSerials = groupProjects.map(p => p.serial);
+            
             groupProjects.forEach((p, idx) => {
                 p.supplierId = supplierId;
                 p.registeredDate = orderDate;
                 p.pickupDate = pickupDate;
                 p.workingDays = workingDays;
                 p.totalAmount = productAmounts[p.id] || 0;
+                p.quantity = productQuantities[p.id] || 1;
+                p.serial = productSerials[p.id] || '';
                 
                 // デポジットは各製品の金額に応じて按分
                 if (depositSchedule.length > 0 && totalUSD > 0) {
@@ -2729,6 +2755,13 @@
                     }));
                 } else if (depositSchedule.length > 0) {
                     p.depositSchedule = depositSchedule.map(d => ({ ...d }));
+                }
+            });
+            
+            // 在庫シートのSerialも更新（変更があった場合）
+            groupProjects.forEach((p, idx) => {
+                if (oldSerials[idx] !== p.serial) {
+                    updateInventorySerial(formatProjectNumber(p), oldSerials[idx], p.serial);
                 }
             });
             
@@ -3101,6 +3134,53 @@
             } catch (error) {
                 console.error('在庫シート更新エラー:', error);
                 showStatus('在庫シート更新エラー: ' + error.message);
+            }
+        }
+
+        // 在庫シートのSerial更新（シンプル版）
+        async function updateInventorySerial(projectNumber, oldSerial, newSerial) {
+            if (!oldSerial && !newSerial) return;
+            if (oldSerial === newSerial) return;
+            
+            try {
+                // 在庫データを取得
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '在庫!A2:Q',
+                });
+                const rows = response.result.values || [];
+                
+                const updates = [];
+                
+                rows.forEach((row, index) => {
+                    const rowNum = index + 2;
+                    const itemProjectNumber = formatProjectNumber({
+                        projectPrefix: row[4] || '',
+                        projectNumber: row[5] || ''
+                    });
+                    const itemSerial = row[1] || '';
+                    
+                    // 案件番号が一致し、旧Serialとも一致する場合
+                    if (itemProjectNumber === projectNumber && itemSerial === oldSerial) {
+                        updates.push({
+                            range: `在庫!B${rowNum}`,
+                            values: [[newSerial]]
+                        });
+                    }
+                });
+                
+                if (updates.length > 0) {
+                    await gapi.client.sheets.spreadsheets.values.batchUpdate({
+                        spreadsheetId: SPREADSHEET_ID,
+                        resource: {
+                            valueInputOption: 'RAW',
+                            data: updates
+                        }
+                    });
+                    console.log(`在庫シートのSerial更新: ${oldSerial} → ${newSerial}`);
+                }
+            } catch (error) {
+                console.error('Serial更新エラー:', error);
             }
         }
 
