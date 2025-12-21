@@ -584,9 +584,13 @@
             });
             saveData();
 
-            // 在庫シートにも追加
-            if (category) {
-                await addToInventory(serial, category, productName, projectNumberFull, todayStr, quantity);
+            // 在庫シートにも追加（カテゴリがなくても「その他」で追加）
+            const inventoryCategory = category || 'その他';
+            try {
+                await addToInventory(serial, inventoryCategory, productName, projectNumberFull, todayStr, quantity, supplierId);
+                console.log(`✅ 在庫追加: ${projectNumberFull} / ${productName} / ${quantity}台`);
+            } catch (invErr) {
+                console.error(`⚠️ 在庫追加エラー: ${projectNumberFull}`, invErr);
             }
         }
 
@@ -664,9 +668,13 @@
                         values: newRows
                     }
                 });
+                
+                console.log(`✅ 在庫シート追加完了: ${quantity}行 (${serial})`);
 
             } catch (err) {
                 console.error('在庫追加エラー:', err);
+                console.error('パラメータ:', { serial, category, productName, projectNumber, orderDate, quantity });
+                throw err; // エラーを上位に伝播
             }
         }
 
@@ -2568,6 +2576,7 @@
                         
                         <div class="flex gap-3">
                             <button onclick="closeGroupEditModal()" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
+                            <button onclick="addGroupToInventory('${projectNumber}')" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm" title="在庫シートに追加">📦 在庫追加</button>
                             <button onclick="submitGroupEdit('${projectNumber}')" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">保存</button>
                         </div>
                     </div>
@@ -2579,6 +2588,43 @@
         function closeGroupEditModal() {
             const modal = document.getElementById('editGroupModal');
             if (modal) modal.remove();
+        }
+        
+        // グループの製品を在庫シートに追加
+        async function addGroupToInventory(projectNumber) {
+            const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
+            if (groupProjects.length === 0) return;
+            
+            // モーダルから最新の値を取得
+            const supplierId = document.getElementById('editGroupSupplierId').value || '';
+            const orderDate = document.getElementById('editGroupOrderDate').value || new Date().toISOString().split('T')[0];
+            
+            let addedCount = 0;
+            
+            for (let idx = 0; idx < groupProjects.length; idx++) {
+                const p = groupProjects[idx];
+                
+                // モーダルの入力値を取得
+                const qtyInput = document.getElementById(`editProductQty_${idx}`);
+                const serialInput = document.getElementById(`editProductSerial_${idx}`);
+                const nameInput = document.getElementById(`editProductName_${idx}`);
+                
+                const quantity = qtyInput ? parseInt(qtyInput.value) || 1 : (p.quantity || 1);
+                const serial = serialInput ? serialInput.value.trim() : (p.serial || generateSerial(quantity));
+                const productName = nameInput ? nameInput.value.trim() : p.productName;
+                const category = detectCategory(productName) || 'その他';
+                
+                try {
+                    await addToInventory(serial, category, productName, projectNumber, orderDate, quantity, supplierId);
+                    addedCount += quantity;
+                    console.log(`✅ 在庫追加: ${productName} x ${quantity}`);
+                } catch (err) {
+                    console.error(`在庫追加エラー: ${productName}`, err);
+                }
+            }
+            
+            showStatus(`✅ 在庫シートに${addedCount}件追加しました`);
+            setTimeout(() => showStatus(''), 3000);
         }
         
         // 数量比で按分
@@ -4211,9 +4257,13 @@
                         sourceFile: file.name
                     });
                     
-                    // 在庫シートにも追加
-                    if (category) {
-                        await addToInventory(serial, category, productName, projectNumberFull, todayStr, quantity);
+                    // 在庫シートにも追加（カテゴリがなくても「その他」で追加）
+                    const inventoryCategory = category || 'その他';
+                    try {
+                        await addToInventory(serial, inventoryCategory, productName, projectNumberFull, todayStr, quantity, supplier?.id || '');
+                        console.log(`✅ 在庫追加: ${projectNumberFull} / ${productName} / ${quantity}台`);
+                    } catch (invErr) {
+                        console.error(`⚠️ 在庫追加エラー: ${projectNumberFull}`, invErr);
                     }
                     
                     successCount++;
