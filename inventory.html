@@ -1833,6 +1833,7 @@
                                 <button onclick="showBulkLocationModal()" class="px-3 py-1.5 bg-teal-600 text-white text-xs sm:text-sm rounded hover:bg-teal-700">場所変更</button>
                                 <button onclick="bulkReceive()" class="px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700">一括入庫</button>
                                 <button onclick="showBulkShipModal()" class="px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700">一括出庫</button>
+                                <button onclick="bulkDelete()" class="px-3 py-1.5 bg-red-600 text-white text-xs sm:text-sm rounded hover:bg-red-700">一括削除</button>
                                 <button onclick="cancelBulkSelect()" class="px-3 py-1.5 bg-slate-600 text-white text-xs sm:text-sm rounded hover:bg-slate-700">キャンセル</button>
                             </div>
                         </div>
@@ -3894,6 +3895,38 @@
             saveData();
             closeModal('editModal');
             renderMain();
+        }
+
+        // 一括削除
+        async function bulkDelete() {
+            const count = selectedItems.size;
+            if (count === 0) return;
+            
+            // 選択されたアイテムの情報を表示
+            const selectedList = Array.from(selectedItems).map(id => {
+                const item = inventory.find(i => String(i.id) === String(id));
+                return item ? `${item.serial || '(シリアルなし)'} - ${item.productName || '(製品名なし)'}` : id;
+            });
+            
+            const confirmMsg = `以下の${count}件を削除しますか？\n\n${selectedList.slice(0, 10).join('\n')}${count > 10 ? `\n... 他${count - 10}件` : ''}\n\n※この操作は取り消せません`;
+            
+            if (!confirm(confirmMsg)) return;
+            
+            showStatus(`削除中... (${count}件)`);
+            
+            // 選択されたアイテムを削除
+            const idsToDelete = new Set(selectedItems);
+            inventory = inventory.filter(i => !idsToDelete.has(String(i.id)));
+            
+            // 選択をクリア
+            selectedItems.clear();
+            bulkSelectMode = false;
+            
+            await saveData();
+            renderMain();
+            
+            showStatus(`✅ ${count}件を削除しました`);
+            setTimeout(() => showStatus(''), 3000);
         }
 
         // アーカイブ処理
