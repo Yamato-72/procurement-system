@@ -129,7 +129,7 @@
         ];
 
         // ステータスリスト
-        const STATUSES = ['入庫待ち', '検品待ち', '在庫中', '出庫済', '不良品'];
+        const STATUSES = ['入庫待ち', '検品待ち', '在庫中', '出庫済', '社内使用', '不良品'];
 
         // 保管場所リスト
         const LOCATIONS = ['蓮田', '東京', '大阪'];
@@ -1281,6 +1281,7 @@
                 case '検品待ち': return 'bg-orange-100 text-orange-700';
                 case '在庫中': return 'bg-emerald-100 text-emerald-700';
                 case '出庫済': return 'bg-blue-100 text-blue-700';
+                case '社内使用': return 'bg-purple-100 text-purple-700';
                 case '不良品': return 'bg-red-100 text-red-700';
                 default: return 'bg-slate-100 text-slate-700';
             }
@@ -1661,8 +1662,9 @@
                                                         <td class="px-3 py-2 text-center" onclick="event.stopPropagation()">
                                                             <div class="flex gap-1 justify-center">
                                                                 ${item.status === '入庫待ち' ? `<button onclick="showReceiveModal('${item.id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">入庫</button>` : ''}
-                                                                ${item.status === '在庫中' ? `<button onclick="showShipModal('${item.id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button>` : ''}
+                                                                ${item.status === '在庫中' ? `<button onclick="showShipModal('${item.id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button><button onclick="showInternalUseModal('${item.id}')" class="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700">社内</button>` : ''}
                                                                 <button onclick="editItem('${item.id}')" class="px-2 py-1 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-white text-xs rounded hover:bg-slate-300 dark:hover:bg-slate-500">編集</button>
+                                                                ${item.status === '出庫済' || item.status === '社内使用' ? `<button onclick="archiveItem('${item.id}')" class="px-2 py-1 bg-slate-500 text-white text-xs rounded hover:bg-slate-600">保管</button>` : ''}
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -1680,6 +1682,7 @@
                                             waiting: items.filter(i => i.status === '入庫待ち').length,
                                             inStock: items.filter(i => i.status === '在庫中').length,
                                             shipped: items.filter(i => i.status === '出庫済').length,
+                                            internal: items.filter(i => i.status === '社内使用').length,
                                             issue: items.filter(i => i.status === '不具合').length
                                         };
                                         const folderUrl = folderCache[project] || null;
@@ -1713,6 +1716,7 @@
                                                         ${statusCounts.waiting > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">待${statusCounts.waiting}</span>` : ''}
                                                         ${statusCounts.inStock > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">庫${statusCounts.inStock}</span>` : ''}
                                                         ${statusCounts.shipped > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">出${statusCounts.shipped}</span>` : ''}
+                                                        ${statusCounts.internal > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">社${statusCounts.internal}</span>` : ''}
                                                         ${statusCounts.issue > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">不${statusCounts.issue}</span>` : ''}
                                                     </div>
                                                 </div>
@@ -1761,9 +1765,10 @@
                                                                                 ` : ''}
                                                                                 ${item.status === '在庫中' ? `
                                                                                     <button onclick="showShipModal('${item.id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button>
+                                                                                    <button onclick="showInternalUseModal('${item.id}')" class="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700">社内</button>
                                                                                 ` : ''}
                                                                                 <button onclick="editItem('${item.id}')" class="px-2 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">編集</button>
-                                                                                ${item.status === '出庫済' ? `
+                                                                                ${item.status === '出庫済' || item.status === '社内使用' ? `
                                                                                     <button onclick="archiveItem('${item.id}')" class="px-2 py-1 bg-slate-500 text-white text-xs rounded hover:bg-slate-600">保管</button>
                                                                                 ` : ''}
                                                                             </div>
@@ -1803,9 +1808,10 @@
                                                                     ` : ''}
                                                                     ${item.status === '在庫中' ? `
                                                                         <button onclick="showShipModal('${item.id}')" class="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button>
+                                                                        <button onclick="showInternalUseModal('${item.id}')" class="px-3 py-1.5 bg-purple-600 text-white text-xs rounded hover:bg-purple-700">社内</button>
                                                                     ` : ''}
                                                                     <button onclick="editItem('${item.id}')" class="px-3 py-1.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-white text-xs rounded hover:bg-slate-300 dark:hover:bg-slate-500">編集</button>
-                                                                    ${item.status === '出庫済' ? `
+                                                                    ${item.status === '出庫済' || item.status === '社内使用' ? `
                                                                         <button onclick="archiveItem('${item.id}')" class="px-3 py-1.5 bg-slate-500 text-white text-xs rounded hover:bg-slate-600">保管</button>
                                                                     ` : ''}
                                                                 </div>
@@ -3294,6 +3300,68 @@
                 </div>
             `;
             document.body.appendChild(modal);
+        }
+
+        // 社内使用モーダル
+        function showInternalUseModal(id) {
+            const item = inventory.find(i => String(i.id) === String(id));
+            if (!item) return;
+
+            const today = new Date().toISOString().split('T')[0];
+            const modal = document.createElement('div');
+            modal.id = 'internalUseModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4">
+                        <h3 class="text-xl font-bold mb-4 dark:text-white">🏢 社内使用</h3>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-2">Serial: <span class="font-mono font-semibold">${item.serial || "-"}</span></p>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-4">${item.productName}</p>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">使用日</label>
+                                <input type="date" id="internalUseDate" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${today}">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">用途・備考</label>
+                                <input type="text" id="internalUseNote" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.note || ''}" placeholder="例：倉庫備品、デモ機、検証用など">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">保管場所</label>
+                                <select id="internalUseLocation" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                    ${LOCATIONS.map(loc => `<option value="${loc}" ${item.location === loc ? 'selected' : ''}>${loc}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex gap-3 mt-6">
+                            <button onclick="closeModal('internalUseModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
+                            <button onclick="submitInternalUse('${id}')" class="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">社内使用に変更</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // 社内使用処理
+        function submitInternalUse(id) {
+            const item = inventory.find(i => String(i.id) === String(id));
+            if (!item) return;
+
+            const useDate = document.getElementById('internalUseDate').value;
+            const note = document.getElementById('internalUseNote').value.trim();
+            const location = document.getElementById('internalUseLocation').value;
+
+            item.status = '社内使用';
+            item.shipDate = useDate;
+            item.note = note;
+            item.location = location;
+
+            closeModal('internalUseModal');
+            saveData();
+            renderMain();
+            showStatus('✅ 社内使用に変更しました');
+            setTimeout(() => showStatus(''), 3000);
         }
 
         function toggleShipMethod() {
