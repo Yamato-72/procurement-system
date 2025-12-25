@@ -1843,6 +1843,7 @@
                                 <button onclick="bulkReceive()" class="px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700">一括入庫</button>
                                 <button onclick="showBulkShipModal()" class="px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700">一括出庫</button>
                                 <button onclick="bulkDelete()" class="px-3 py-1.5 bg-red-600 text-white text-xs sm:text-sm rounded hover:bg-red-700">一括削除</button>
+                                <button onclick="bulkArchive()" class="px-3 py-1.5 bg-slate-700 text-white text-xs sm:text-sm rounded hover:bg-slate-800">一括保管</button>
                                 <button onclick="cancelBulkSelect()" class="px-3 py-1.5 bg-slate-600 text-white text-xs sm:text-sm rounded hover:bg-slate-700">キャンセル</button>
                             </div>
                         </div>
@@ -3950,6 +3951,55 @@
             
             saveData();
             renderMain();
+        }
+
+        // 一括保管（アーカイブ）
+        async function bulkArchive() {
+            const count = selectedItems.size;
+            if (count === 0) return;
+            
+            // 選択されたアイテムの情報を取得
+            const selectedList = Array.from(selectedItems).map(id => {
+                const item = inventory.find(i => String(i.id) === String(id));
+                return item;
+            }).filter(item => item);
+            
+            // 出庫済以外のアイテムがあるか確認
+            const nonShippedItems = selectedList.filter(item => item.status !== '出庫済');
+            
+            let confirmMsg = `${count}件をアーカイブしますか？\n\n`;
+            
+            if (nonShippedItems.length > 0) {
+                confirmMsg += `⚠️ 出庫済以外のアイテムが${nonShippedItems.length}件含まれています：\n`;
+                confirmMsg += nonShippedItems.slice(0, 5).map(i => `  - ${i.serial || '(シリアルなし)'}: ${i.status}`).join('\n');
+                if (nonShippedItems.length > 5) {
+                    confirmMsg += `\n  ... 他${nonShippedItems.length - 5}件`;
+                }
+                confirmMsg += '\n\n続行しますか？';
+            }
+            
+            if (!confirm(confirmMsg)) return;
+            
+            showStatus(`アーカイブ中... (${count}件)`);
+            
+            // 選択されたアイテムをアーカイブに移動
+            const idsToArchive = new Set(selectedItems);
+            
+            selectedList.forEach(item => {
+                archivedInventory.push(item);
+            });
+            
+            inventory = inventory.filter(i => !idsToArchive.has(String(i.id)));
+            
+            // 選択をクリア
+            selectedItems.clear();
+            bulkSelectMode = false;
+            
+            await saveData();
+            renderMain();
+            
+            showStatus(`✅ ${count}件をアーカイブしました`);
+            setTimeout(() => showStatus(''), 3000);
         }
 
         // アーカイブ一覧モーダル
