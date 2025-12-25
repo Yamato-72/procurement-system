@@ -129,7 +129,7 @@
         ];
 
         // ステータスリスト
-        const STATUSES = ['入庫待ち', '検品待ち', '在庫中', '出庫済', '社内使用', '不良品'];
+        const STATUSES = ['入庫待ち', '検品待ち', '在庫中', '出庫済', '社内使用', '不良品', '廃棄'];
 
         // 保管場所リスト
         const LOCATIONS = ['蓮田', '東京', '大阪'];
@@ -1283,6 +1283,7 @@
                 case '出庫済': return 'bg-blue-100 text-blue-700';
                 case '社内使用': return 'bg-purple-100 text-purple-700';
                 case '不良品': return 'bg-red-100 text-red-700';
+                case '廃棄': return 'bg-slate-200 text-slate-600';
                 default: return 'bg-slate-100 text-slate-700';
             }
         }
@@ -1663,8 +1664,9 @@
                                                             <div class="flex gap-1 justify-center">
                                                                 ${item.status === '入庫待ち' ? `<button onclick="showReceiveModal('${item.id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">入庫</button>` : ''}
                                                                 ${item.status === '在庫中' ? `<button onclick="showShipModal('${item.id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button><button onclick="showInternalUseModal('${item.id}')" class="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700">社内</button>` : ''}
+                                                                ${item.status === '不良品' ? `<button onclick="showDisposeModal('${item.id}')" class="px-2 py-1 bg-slate-400 text-white text-xs rounded hover:bg-slate-500">廃棄</button>` : ''}
                                                                 <button onclick="editItem('${item.id}')" class="px-2 py-1 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-white text-xs rounded hover:bg-slate-300 dark:hover:bg-slate-500">編集</button>
-                                                                ${item.status === '出庫済' || item.status === '社内使用' ? `<button onclick="archiveItem('${item.id}')" class="px-2 py-1 bg-slate-500 text-white text-xs rounded hover:bg-slate-600">保管</button>` : ''}
+                                                                ${item.status === '出庫済' || item.status === '社内使用' || item.status === '廃棄' ? `<button onclick="archiveItem('${item.id}')" class="px-2 py-1 bg-slate-500 text-white text-xs rounded hover:bg-slate-600">保管</button>` : ''}
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -1683,7 +1685,8 @@
                                             inStock: items.filter(i => i.status === '在庫中').length,
                                             shipped: items.filter(i => i.status === '出庫済').length,
                                             internal: items.filter(i => i.status === '社内使用').length,
-                                            issue: items.filter(i => i.status === '不具合').length
+                                            issue: items.filter(i => i.status === '不良品').length,
+                                            disposed: items.filter(i => i.status === '廃棄').length
                                         };
                                         const folderUrl = folderCache[project] || null;
                                         // グループ内の備考を取得（ユニークなもの）
@@ -1718,6 +1721,7 @@
                                                         ${statusCounts.shipped > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">出${statusCounts.shipped}</span>` : ''}
                                                         ${statusCounts.internal > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">社${statusCounts.internal}</span>` : ''}
                                                         ${statusCounts.issue > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">不${statusCounts.issue}</span>` : ''}
+                                                        ${statusCounts.disposed > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300">廃${statusCounts.disposed}</span>` : ''}
                                                     </div>
                                                 </div>
                                                 ${isExpanded ? `
@@ -1767,8 +1771,11 @@
                                                                                     <button onclick="showShipModal('${item.id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button>
                                                                                     <button onclick="showInternalUseModal('${item.id}')" class="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700">社内</button>
                                                                                 ` : ''}
+                                                                                ${item.status === '不良品' ? `
+                                                                                    <button onclick="showDisposeModal('${item.id}')" class="px-2 py-1 bg-slate-400 text-white text-xs rounded hover:bg-slate-500">廃棄</button>
+                                                                                ` : ''}
                                                                                 <button onclick="editItem('${item.id}')" class="px-2 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">編集</button>
-                                                                                ${item.status === '出庫済' || item.status === '社内使用' ? `
+                                                                                ${item.status === '出庫済' || item.status === '社内使用' || item.status === '廃棄' ? `
                                                                                     <button onclick="archiveItem('${item.id}')" class="px-2 py-1 bg-slate-500 text-white text-xs rounded hover:bg-slate-600">保管</button>
                                                                                 ` : ''}
                                                                             </div>
@@ -1810,8 +1817,11 @@
                                                                         <button onclick="showShipModal('${item.id}')" class="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button>
                                                                         <button onclick="showInternalUseModal('${item.id}')" class="px-3 py-1.5 bg-purple-600 text-white text-xs rounded hover:bg-purple-700">社内</button>
                                                                     ` : ''}
+                                                                    ${item.status === '不良品' ? `
+                                                                        <button onclick="showDisposeModal('${item.id}')" class="px-3 py-1.5 bg-slate-400 text-white text-xs rounded hover:bg-slate-500">廃棄</button>
+                                                                    ` : ''}
                                                                     <button onclick="editItem('${item.id}')" class="px-3 py-1.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-white text-xs rounded hover:bg-slate-300 dark:hover:bg-slate-500">編集</button>
-                                                                    ${item.status === '出庫済' || item.status === '社内使用' ? `
+                                                                    ${item.status === '出庫済' || item.status === '社内使用' || item.status === '廃棄' ? `
                                                                         <button onclick="archiveItem('${item.id}')" class="px-3 py-1.5 bg-slate-500 text-white text-xs rounded hover:bg-slate-600">保管</button>
                                                                     ` : ''}
                                                                 </div>
@@ -1846,6 +1856,7 @@
                                 <button onclick="showBulkSupplierModal()" class="px-3 py-1.5 bg-orange-600 text-white text-xs sm:text-sm rounded hover:bg-orange-700">サプライヤー</button>
                                 <button onclick="showBulkShelfModal()" class="px-3 py-1.5 bg-purple-600 text-white text-xs sm:text-sm rounded hover:bg-purple-700">棚番変更</button>
                                 <button onclick="showBulkLocationModal()" class="px-3 py-1.5 bg-teal-600 text-white text-xs sm:text-sm rounded hover:bg-teal-700">場所変更</button>
+                                <button onclick="showBulkEditModal()" class="px-3 py-1.5 bg-cyan-600 text-white text-xs sm:text-sm rounded hover:bg-cyan-700">一括編集</button>
                                 <button onclick="bulkReceive()" class="px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700">一括入庫</button>
                                 <button onclick="showBulkShipModal()" class="px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700">一括出庫</button>
                                 <button onclick="bulkDelete()" class="px-3 py-1.5 bg-red-600 text-white text-xs sm:text-sm rounded hover:bg-red-700">一括削除</button>
@@ -2061,6 +2072,115 @@
             saveData();
             closeModal('bulkLocationModal');
             cancelBulkSelect();
+        }
+
+        // 一括編集モーダル
+        function showBulkEditModal() {
+            // 選択されたアイテムの共通値を取得
+            const selectedList = Array.from(selectedItems).map(id => 
+                inventory.find(i => String(i.id) === String(id))
+            ).filter(item => item);
+            
+            if (selectedList.length === 0) return;
+            
+            // 共通値があれば初期値として表示
+            const commonNote = selectedList.every(i => i.note === selectedList[0].note) ? (selectedList[0].note || '') : '';
+            const commonCategory = selectedList.every(i => i.category === selectedList[0].category) ? (selectedList[0].category || '') : '';
+            const commonProductName = selectedList.every(i => i.productName === selectedList[0].productName) ? (selectedList[0].productName || '') : '';
+            
+            const modal = document.createElement('div');
+            modal.id = 'bulkEditModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4">
+                        <h3 class="text-lg font-bold mb-4 dark:text-white">✏️ 一括編集（${selectedItems.size}件）</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">※空欄のフィールドは変更されません</p>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">備考</label>
+                                <input type="text" id="bulkEditNote" value="${commonNote}" 
+                                       class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" 
+                                       placeholder="${commonNote ? '' : '(複数の値あり)'}">
+                                <label class="flex items-center gap-2 mt-1">
+                                    <input type="checkbox" id="bulkEditNoteApply" ${commonNote ? 'checked' : ''}>
+                                    <span class="text-xs text-slate-500 dark:text-slate-400">この値を適用</span>
+                                </label>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">種別</label>
+                                <select id="bulkEditCategory" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                    <option value="">-- 変更しない --</option>
+                                    ${CATEGORIES.map(c => `<option value="${c}" ${commonCategory === c ? 'selected' : ''}>${c}</option>`).join('')}
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">製品名</label>
+                                <input type="text" id="bulkEditProductName" value="${commonProductName}" 
+                                       class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" 
+                                       placeholder="${commonProductName ? '' : '(複数の値あり)'}">
+                                <label class="flex items-center gap-2 mt-1">
+                                    <input type="checkbox" id="bulkEditProductNameApply" ${commonProductName ? 'checked' : ''}>
+                                    <span class="text-xs text-slate-500 dark:text-slate-400">この値を適用</span>
+                                </label>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">ステータス</label>
+                                <select id="bulkEditStatus" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                    <option value="">-- 変更しない --</option>
+                                    ${STATUSES.map(s => `<option value="${s}">${s}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-2 mt-6">
+                            <button onclick="submitBulkEdit()" class="flex-1 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700">適用</button>
+                            <button onclick="closeModal('bulkEditModal')" class="flex-1 px-4 py-2 bg-slate-300 dark:bg-slate-600 text-slate-700 dark:text-white rounded-lg hover:bg-slate-400">キャンセル</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function submitBulkEdit() {
+            const noteApply = document.getElementById('bulkEditNoteApply').checked;
+            const note = document.getElementById('bulkEditNote').value;
+            const category = document.getElementById('bulkEditCategory').value;
+            const productNameApply = document.getElementById('bulkEditProductNameApply').checked;
+            const productName = document.getElementById('bulkEditProductName').value;
+            const status = document.getElementById('bulkEditStatus').value;
+            
+            let updatedCount = 0;
+            
+            selectedItems.forEach(id => {
+                const item = inventory.find(i => String(i.id) === String(id));
+                if (item) {
+                    if (noteApply) {
+                        item.note = note;
+                    }
+                    if (category) {
+                        item.category = category;
+                    }
+                    if (productNameApply && productName) {
+                        item.productName = productName;
+                    }
+                    if (status) {
+                        item.status = status;
+                    }
+                    updatedCount++;
+                }
+            });
+            
+            saveData();
+            closeModal('bulkEditModal');
+            cancelBulkSelect();
+            
+            showStatus(`✅ ${updatedCount}件を更新しました`);
+            setTimeout(() => showStatus(''), 3000);
         }
 
         // 一括入庫
@@ -3361,6 +3481,71 @@
             saveData();
             renderMain();
             showStatus('✅ 社内使用に変更しました');
+            setTimeout(() => showStatus(''), 3000);
+        }
+
+        // 廃棄モーダル
+        function showDisposeModal(id) {
+            const item = inventory.find(i => String(i.id) === String(id));
+            if (!item) return;
+
+            const today = new Date().toISOString().split('T')[0];
+            const modal = document.createElement('div');
+            modal.id = 'disposeModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4">
+                        <h3 class="text-xl font-bold mb-4 dark:text-white">🗑️ 廃棄処理</h3>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-2">Serial: <span class="font-mono font-semibold">${item.serial || "-"}</span></p>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-4">${item.productName}</p>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">廃棄日</label>
+                                <input type="date" id="disposeDate" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${today}">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">廃棄理由</label>
+                                <select id="disposeReason" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                    <option value="故障・修理不可">故障・修理不可</option>
+                                    <option value="経年劣化">経年劣化</option>
+                                    <option value="破損">破損</option>
+                                    <option value="返品不可">返品不可</option>
+                                    <option value="その他">その他</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">備考</label>
+                                <input type="text" id="disposeNote" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.note || ''}" placeholder="詳細な理由など">
+                            </div>
+                        </div>
+                        <div class="flex gap-3 mt-6">
+                            <button onclick="closeModal('disposeModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
+                            <button onclick="submitDispose('${id}')" class="flex-1 px-4 py-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600">廃棄する</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // 廃棄処理
+        function submitDispose(id) {
+            const item = inventory.find(i => String(i.id) === String(id));
+            if (!item) return;
+
+            const disposeDate = document.getElementById('disposeDate').value;
+            const disposeReason = document.getElementById('disposeReason').value;
+            const disposeNote = document.getElementById('disposeNote').value.trim();
+
+            item.status = '廃棄';
+            item.shipDate = disposeDate;
+            item.note = disposeReason + (disposeNote ? `: ${disposeNote}` : '');
+
+            closeModal('disposeModal');
+            saveData();
+            renderMain();
+            showStatus('✅ 廃棄処理が完了しました');
             setTimeout(() => showStatus(''), 3000);
         }
 
