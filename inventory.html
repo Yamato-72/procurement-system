@@ -44,6 +44,7 @@
         let accessToken = null;
         let inventory = [];
         let archivedInventory = [];
+        let archiveLoaded = false; // アーカイブ読み込み完了フラグ
         let folderCache = {};
         let lastUpdated = null; // 最終更新日時
         let isDarkMode = localStorage.getItem('darkMode') === 'true'; // ダークモード状態
@@ -675,10 +676,12 @@
                             supplierId: row[16] || ''
                         };
                     });
+                    archiveLoaded = true; // アーカイブ読み込み完了
                 } catch (e) {
                     console.log('アーカイブシートがないため新規作成します');
                     archivedInventory = [];
                     await createArchiveSheet();
+                    archiveLoaded = true; // 新規作成も完了扱い
                 }
 
                 // 製品マスタを読み込み
@@ -1078,40 +1081,45 @@
                     resource: { values: inventoryData }
                 });
 
-                const archiveData = [
-                    ['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税別)', '備考', '棚番', '保管場所', 'サプライヤーID'],
-                    ...archivedInventory.map(item => [
-                        item.id,
-                        item.serial,
-                        item.category,
-                        item.productName,
-                        item.orderPrefix || '',
-                        item.orderNumber || '',
-                        item.orderDate,
-                        item.receiveDate,
-                        item.status,
-                        item.shipDate,
-                        item.shipPrefix || '',
-                        item.shipNumber || '',
-                        item.costJPY,
-                        item.note,
-                        item.shelfNo,
-                        item.location,
-                        item.supplierId || ''
-                    ])
-                ];
-                
-                // まずクリアしてから書き込み（削除された行も反映）
-                await gapi.client.sheets.spreadsheets.values.clear({
-                    spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫アーカイブ!A:Z'
-                });
-                await gapi.client.sheets.spreadsheets.values.update({
-                    spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫アーカイブ!A1',
-                    valueInputOption: 'RAW',
-                    resource: { values: archiveData }
-                });
+                // アーカイブの保存（読み込み完了している場合のみ）
+                if (archiveLoaded) {
+                    const archiveData = [
+                        ['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税別)', '備考', '棚番', '保管場所', 'サプライヤーID'],
+                        ...archivedInventory.map(item => [
+                            item.id,
+                            item.serial,
+                            item.category,
+                            item.productName,
+                            item.orderPrefix || '',
+                            item.orderNumber || '',
+                            item.orderDate,
+                            item.receiveDate,
+                            item.status,
+                            item.shipDate,
+                            item.shipPrefix || '',
+                            item.shipNumber || '',
+                            item.costJPY,
+                            item.note,
+                            item.shelfNo,
+                            item.location,
+                            item.supplierId || ''
+                        ])
+                    ];
+                    
+                    // まずクリアしてから書き込み（削除された行も反映）
+                    await gapi.client.sheets.spreadsheets.values.clear({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: '在庫アーカイブ!A:Z'
+                    });
+                    await gapi.client.sheets.spreadsheets.values.update({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: '在庫アーカイブ!A1',
+                        valueInputOption: 'RAW',
+                        resource: { values: archiveData }
+                    });
+                } else {
+                    console.log('アーカイブ未読み込みのため保存をスキップ');
+                }
 
                 // 保存後にハッシュを更新
                 lastSaveTime = Date.now();
