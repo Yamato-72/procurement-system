@@ -2096,24 +2096,27 @@
             const commonCategory = selectedList.every(i => i.category === selectedList[0].category) ? (selectedList[0].category || '') : '';
             const commonProductName = selectedList.every(i => i.productName === selectedList[0].productName) ? (selectedList[0].productName || '') : '';
             
+            // HTMLエスケープ
+            const escapeHtml = (str) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            
             const modal = document.createElement('div');
             modal.id = 'bulkEditModal';
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4">
                         <h3 class="text-lg font-bold mb-4 dark:text-white">✏️ 一括編集（${selectedItems.size}件）</h3>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">※空欄のフィールドは変更されません</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">※チェックを入れた項目のみ変更されます</p>
                         
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">備考</label>
-                                <input type="text" id="bulkEditNote" value="${commonNote}" 
-                                       class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" 
-                                       placeholder="${commonNote ? '' : '(複数の値あり)'}">
-                                <label class="flex items-center gap-2 mt-1">
-                                    <input type="checkbox" id="bulkEditNoteApply" ${commonNote ? 'checked' : ''}>
-                                    <span class="text-xs text-slate-500 dark:text-slate-400">この値を適用</span>
+                                <label class="flex items-center gap-2 mb-1">
+                                    <input type="checkbox" id="bulkEditNoteApply" ${commonNote ? 'checked' : ''} class="w-4 h-4">
+                                    <span class="text-sm font-semibold dark:text-slate-300">備考</span>
                                 </label>
+                                <input type="text" id="bulkEditNote" value="${escapeHtml(commonNote)}" 
+                                       oninput="document.getElementById('bulkEditNoteApply').checked = true"
+                                       class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" 
+                                       placeholder="${commonNote ? '' : '(複数の値あり - 入力すると適用)'}">
                             </div>
                             
                             <div>
@@ -2125,14 +2128,14 @@
                             </div>
                             
                             <div>
-                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">製品名</label>
-                                <input type="text" id="bulkEditProductName" value="${commonProductName}" 
-                                       class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" 
-                                       placeholder="${commonProductName ? '' : '(複数の値あり)'}">
-                                <label class="flex items-center gap-2 mt-1">
-                                    <input type="checkbox" id="bulkEditProductNameApply" ${commonProductName ? 'checked' : ''}>
-                                    <span class="text-xs text-slate-500 dark:text-slate-400">この値を適用</span>
+                                <label class="flex items-center gap-2 mb-1">
+                                    <input type="checkbox" id="bulkEditProductNameApply" ${commonProductName ? 'checked' : ''} class="w-4 h-4">
+                                    <span class="text-sm font-semibold dark:text-slate-300">製品名</span>
                                 </label>
+                                <input type="text" id="bulkEditProductName" value="${escapeHtml(commonProductName)}" 
+                                       oninput="document.getElementById('bulkEditProductNameApply').checked = true"
+                                       class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" 
+                                       placeholder="${commonProductName ? '' : '(複数の値あり - 入力すると適用)'}">
                             </div>
                             
                             <div>
@@ -2173,7 +2176,7 @@
                     if (category) {
                         item.category = category;
                     }
-                    if (productNameApply && productName) {
+                    if (productNameApply) {
                         item.productName = productName;
                     }
                     if (status) {
@@ -2183,12 +2186,16 @@
                 }
             });
             
-            saveData();
             closeModal('bulkEditModal');
-            cancelBulkSelect();
             
-            showStatus(`✅ ${updatedCount}件を更新しました`);
-            setTimeout(() => showStatus(''), 3000);
+            // 非同期で保存
+            (async () => {
+                await saveData();
+                showStatus(`✅ ${updatedCount}件を更新しました`);
+                setTimeout(() => showStatus(''), 3000);
+            })();
+            
+            cancelBulkSelect();
         }
 
         // 一括入庫
