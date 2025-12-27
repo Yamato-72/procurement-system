@@ -153,8 +153,8 @@
         // 詳細フィルタ開閉状態
         let showDetailFilters = false;
 
-        // 折りたたみ状態（案件番号ごと）
-        let expandedProjects = {};
+        // 折りたたみ状態（案件番号ごと）- localStorageで保持
+        let expandedProjects = JSON.parse(localStorage.getItem('inventoryExpandedProjects') || '{}');
 
         // 棚番リスト（1〜30）
         const SHELF_NUMBERS = Array.from({length: 30}, (_, i) => String(i + 1));
@@ -1254,12 +1254,15 @@
         function setGroupMode(mode) {
             groupMode = mode;
             expandedProjects = {}; // 展開状態リセット
+            localStorage.setItem('inventoryExpandedProjects', JSON.stringify(expandedProjects));
             renderMain();
         }
 
         // 折りたたみトグル
         function toggleProject(project) {
             expandedProjects[project] = !expandedProjects[project];
+            // localStorageに保存
+            localStorage.setItem('inventoryExpandedProjects', JSON.stringify(expandedProjects));
             renderMain();
         }
 
@@ -1860,16 +1863,32 @@
                         <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
                             <span class="font-semibold text-sm">${selectedItems.size}件選択中</span>
                             <div class="flex flex-wrap gap-2">
-                                <button onclick="showBulkProjectModal()" class="px-3 py-1.5 bg-indigo-600 text-white text-xs sm:text-sm rounded hover:bg-indigo-700">案件変更</button>
-                                <button onclick="showBulkSupplierModal()" class="px-3 py-1.5 bg-orange-600 text-white text-xs sm:text-sm rounded hover:bg-orange-700">サプライヤー</button>
-                                <button onclick="showBulkShelfModal()" class="px-3 py-1.5 bg-purple-600 text-white text-xs sm:text-sm rounded hover:bg-purple-700">棚番変更</button>
-                                <button onclick="showBulkLocationModal()" class="px-3 py-1.5 bg-teal-600 text-white text-xs sm:text-sm rounded hover:bg-teal-700">場所変更</button>
-                                <button onclick="showBulkEditModal()" class="px-3 py-1.5 bg-cyan-600 text-white text-xs sm:text-sm rounded hover:bg-cyan-700">一括編集</button>
-                                <button onclick="bulkReceive()" class="px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700">一括入庫</button>
-                                <button onclick="showBulkShipModal()" class="px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700">一括出庫</button>
-                                <button onclick="bulkDelete()" class="px-3 py-1.5 bg-red-600 text-white text-xs sm:text-sm rounded hover:bg-red-700">一括削除</button>
-                                <button onclick="bulkArchive()" class="px-3 py-1.5 bg-slate-700 text-white text-xs sm:text-sm rounded hover:bg-slate-800">一括保管</button>
-                                <button onclick="cancelBulkSelect()" class="px-3 py-1.5 bg-slate-600 text-white text-xs sm:text-sm rounded hover:bg-slate-700">キャンセル</button>
+                                <!-- PC: 全ボタン表示 -->
+                                <button onclick="showBulkProjectModal()" class="hidden sm:block px-3 py-1.5 bg-indigo-600 text-white text-xs sm:text-sm rounded hover:bg-indigo-700">案件変更</button>
+                                <button onclick="showBulkSupplierModal()" class="hidden sm:block px-3 py-1.5 bg-orange-600 text-white text-xs sm:text-sm rounded hover:bg-orange-700">サプライヤー</button>
+                                <button onclick="showBulkShelfModal()" class="hidden sm:block px-3 py-1.5 bg-purple-600 text-white text-xs sm:text-sm rounded hover:bg-purple-700">棚番変更</button>
+                                <button onclick="showBulkLocationModal()" class="hidden sm:block px-3 py-1.5 bg-teal-600 text-white text-xs sm:text-sm rounded hover:bg-teal-700">場所変更</button>
+                                <button onclick="showBulkEditModal()" class="px-3 py-1.5 bg-cyan-600 text-white text-xs sm:text-sm rounded hover:bg-cyan-700">編集</button>
+                                <button onclick="bulkReceive()" class="px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700">入庫</button>
+                                <button onclick="showBulkShipModal()" class="px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700">出庫</button>
+                                <button onclick="bulkDelete()" class="hidden sm:block px-3 py-1.5 bg-red-600 text-white text-xs sm:text-sm rounded hover:bg-red-700">一括削除</button>
+                                <button onclick="bulkArchive()" class="hidden sm:block px-3 py-1.5 bg-slate-700 text-white text-xs sm:text-sm rounded hover:bg-slate-800">一括保管</button>
+                                
+                                <!-- スマホ: その他メニュー -->
+                                <div class="relative sm:hidden">
+                                    <button onclick="toggleBulkMoreMenu()" class="px-3 py-1.5 bg-slate-700 text-white text-xs rounded hover:bg-slate-800">その他 ▼</button>
+                                    <div id="bulkMoreMenu" class="hidden absolute bottom-full right-0 mb-2 w-36 bg-white dark:bg-slate-800 rounded-lg shadow-lg border dark:border-slate-700 overflow-hidden">
+                                        <button onclick="showBulkProjectModal();closeBulkMoreMenu()" class="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-700">案件変更</button>
+                                        <button onclick="showBulkSupplierModal();closeBulkMoreMenu()" class="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-700">サプライヤー</button>
+                                        <button onclick="showBulkShelfModal();closeBulkMoreMenu()" class="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-700">棚番変更</button>
+                                        <button onclick="showBulkLocationModal();closeBulkMoreMenu()" class="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-700">場所変更</button>
+                                        <div class="border-t dark:border-slate-600"></div>
+                                        <button onclick="bulkDelete();closeBulkMoreMenu()" class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-slate-100 dark:hover:bg-slate-700">削除</button>
+                                        <button onclick="bulkArchive();closeBulkMoreMenu()" class="w-full px-4 py-2 text-left text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700">保管</button>
+                                    </div>
+                                </div>
+                                
+                                <button onclick="cancelBulkSelect()" class="px-3 py-1.5 bg-slate-600 text-white text-xs sm:text-sm rounded hover:bg-slate-700">×</button>
                             </div>
                         </div>
                     </div>
@@ -1928,6 +1947,21 @@
             bulkSelectMode = false;
             selectedItems.clear();
             renderMain();
+        }
+
+        // スマホ用その他メニュー
+        function toggleBulkMoreMenu() {
+            const menu = document.getElementById('bulkMoreMenu');
+            if (menu) {
+                menu.classList.toggle('hidden');
+            }
+        }
+        
+        function closeBulkMoreMenu() {
+            const menu = document.getElementById('bulkMoreMenu');
+            if (menu) {
+                menu.classList.add('hidden');
+            }
         }
 
         // 一括案件番号変更モーダル
@@ -2458,7 +2492,7 @@
                 noShelf: false,
                 location: ''
             };
-            expandedProjects = {};
+            // expandedProjectsはリセットしない（展開状態を維持）
             showDetailFilters = false;
             viewMode = 'group'; // フィルタクリア時はグループ表示に戻す
             renderMain();
