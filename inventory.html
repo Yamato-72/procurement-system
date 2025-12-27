@@ -158,6 +158,49 @@
 
         // 棚番リスト（1〜30）
         const SHELF_NUMBERS = Array.from({length: 30}, (_, i) => String(i + 1));
+        
+        // 使用中の棚番を取得（使用数順）
+        function getUsedShelfNumbers() {
+            const counts = {};
+            inventory.forEach(item => {
+                if (item.shelfNo && item.status === '在庫中') {
+                    counts[item.shelfNo] = (counts[item.shelfNo] || 0) + 1;
+                }
+            });
+            // 使用数順にソート
+            return Object.entries(counts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([shelf, count]) => ({ shelf, count }));
+        }
+        
+        // 棚番選択肢を生成（使用中を優先表示）
+        function getShelfOptions(selectedValue = '') {
+            const usedShelves = getUsedShelfNumbers();
+            const usedShelfSet = new Set(usedShelves.map(u => u.shelf));
+            
+            let options = '<option value="">未設定</option>';
+            
+            // 使用中の棚番（件数付き）
+            if (usedShelves.length > 0) {
+                options += '<optgroup label="使用中">';
+                usedShelves.forEach(({ shelf, count }) => {
+                    options += `<option value="${shelf}" ${selectedValue === shelf ? 'selected' : ''}>${shelf} (${count}件)</option>`;
+                });
+                options += '</optgroup>';
+            }
+            
+            // 空いている棚番
+            const emptyShelves = SHELF_NUMBERS.filter(n => !usedShelfSet.has(n));
+            if (emptyShelves.length > 0) {
+                options += '<optgroup label="空き">';
+                emptyShelves.forEach(shelf => {
+                    options += `<option value="${shelf}" ${selectedValue === shelf ? 'selected' : ''}>${shelf}</option>`;
+                });
+                options += '</optgroup>';
+            }
+            
+            return options;
+        }
 
         // 原価帯リスト
         const COST_RANGES = [
@@ -1558,7 +1601,7 @@
                                             <label class="text-xs text-slate-600 block mb-1">棚番</label>
                                             <select id="filterShelfNo" onchange="applyFilters()" class="w-full px-2 py-1.5 text-sm border rounded-lg">
                                                 <option value="">すべて</option>
-                                                ${SHELF_NUMBERS.map(n => `<option value="${n}" ${currentFilters.shelfNo === n ? 'selected' : ''}>${n}</option>`).join('')}
+                                                ${getUsedShelfNumbers().map(({shelf, count}) => `<option value="${shelf}" ${currentFilters.shelfNo === shelf ? 'selected' : ''}>${shelf} (${count})</option>`).join('')}
                                             </select>
                                         </div>
                                         <div>
@@ -1704,6 +1747,14 @@
                                         const groupNotes = [...new Set(items.map(i => i.note).filter(n => n && n.trim()))];
                                         const groupNoteDisplay = groupNotes.length > 0 ? groupNotes[0] : '';
                                         const hasMoreNotes = groupNotes.length > 1;
+                                        
+                                        // 発注グループ時：出庫先案件を取得
+                                        // 出庫先グループ時：発注元案件を取得
+                                        const relatedProjects = groupMode === 'order' 
+                                            ? [...new Set(items.map(i => formatProjectNumber(i.shipPrefix, i.shipNumber)).filter(p => p))]
+                                            : [...new Set(items.map(i => formatProjectNumber(i.orderPrefix, i.orderNumber)).filter(p => p))];
+                                        const relatedLabel = groupMode === 'order' ? '→' : '←';
+                                        
                                         return `
                                             <div id="group-${project.replace(/[^a-zA-Z0-9]/g, '-')}" class="border-b dark:border-slate-700 last:border-b-0">
                                                 <div onclick="toggleProject('${project}')" class="p-3 sm:p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 active:bg-slate-100 dark:active:bg-slate-600">
@@ -1720,6 +1771,11 @@
                                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
                                                             </span>
                                                         ` : '')}
+                                                        ${relatedProjects.length > 0 ? `
+                                                            <span class="text-xs text-slate-400 dark:text-slate-500 hidden sm:inline flex-shrink-0" title="${groupMode === 'order' ? '出庫先' : '発注元'}: ${relatedProjects.join(', ')}">
+                                                                ${relatedLabel} ${relatedProjects.slice(0, 2).join(', ')}${relatedProjects.length > 2 ? ` +${relatedProjects.length - 2}` : ''}
+                                                            </span>
+                                                        ` : ''}
                                                         ${groupNoteDisplay ? `
                                                             <span class="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[200px] sm:max-w-[300px] hidden sm:inline" title="${groupNotes.join(' / ')}">
                                                                 📝 ${groupNoteDisplay}${hasMoreNotes ? '...' : ''}
@@ -2018,8 +2074,7 @@
                         <div class="mb-4">
                             <label class="block text-sm font-semibold mb-1 dark:text-slate-300">棚番</label>
                             <select id="bulkShelfNo" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                                <option value="">未設定</option>
-                                ${SHELF_NUMBERS.map(n => `<option value="${n}">${n}</option>`).join('')}
+                                ${getShelfOptions('')}
                             </select>
                         </div>
                         <div class="flex gap-2">
@@ -3775,8 +3830,7 @@
                                 <div>
                                     <label class="block text-sm font-semibold mb-1 dark:text-slate-300">棚番</label>
                                     <select id="detailEditShelfNo" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                                        <option value="">未設定</option>
-                                        ${SHELF_NUMBERS.map(n => `<option value="${n}" ${item.shelfNo === n ? 'selected' : ''}>${n}</option>`).join('')}
+                                        ${getShelfOptions(item.shelfNo)}
                                     </select>
                                 </div>
                                 <div>
@@ -3940,8 +3994,7 @@
                                 <div>
                                     <label class="block text-sm font-semibold mb-1 dark:text-slate-300">棚番</label>
                                     <select id="editShelfNo" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                                        <option value="">未設定</option>
-                                        ${SHELF_NUMBERS.map(n => `<option value="${n}" ${item.shelfNo === n ? 'selected' : ''}>${n}</option>`).join('')}
+                                        ${getShelfOptions(item.shelfNo)}
                                     </select>
                                 </div>
                                 <div>
