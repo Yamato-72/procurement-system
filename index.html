@@ -2630,7 +2630,7 @@
         // グループ編集モーダルに製品を追加
         async function addGroupProduct(projectNumber) {
             // 案件番号をパース
-            const parsed = parseProjectNumber(projectNumber);
+            const parsed = parseProjectNumberString(projectNumber);
             
             // 既存のグループから共通設定を取得
             const existingProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
