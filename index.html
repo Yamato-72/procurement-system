@@ -2513,13 +2513,18 @@
                             <h4 class="text-sm font-bold mb-3 dark:text-white">📦 製品明細</h4>
                             <div class="space-y-2" id="groupProductList">
                                 ${groupProjects.map((p, idx) => `
-                                    <div class="p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
-                                        <div class="mb-2">
+                                    <div class="p-3 bg-slate-50 dark:bg-slate-700 rounded-lg" id="groupProductItem_${idx}">
+                                        <div class="flex justify-between items-start mb-2">
                                             <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1">製品名</label>
-                                            <input type="text" id="editProductName_${idx}" value="${p.productName || ''}"
-                                                   data-project-id="${p.id}"
-                                                   class="w-full px-2 py-1 border rounded dark:bg-slate-600 dark:border-slate-500 dark:text-white font-semibold">
+                                            ${groupProjects.length > 1 ? `
+                                                <button onclick="removeGroupProduct(${idx}, '${p.id}')" class="text-red-500 hover:text-red-700 text-xs px-2 py-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30" title="この製品を削除">
+                                                    🗑️ 削除
+                                                </button>
+                                            ` : ''}
                                         </div>
+                                        <input type="text" id="editProductName_${idx}" value="${p.productName || ''}"
+                                               data-project-id="${p.id}"
+                                               class="w-full px-2 py-1 border rounded dark:bg-slate-600 dark:border-slate-500 dark:text-white font-semibold mb-2">
                                         <div class="grid grid-cols-3 gap-2">
                                             <div>
                                                 <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1">数量</label>
@@ -2588,6 +2593,35 @@
         function closeGroupEditModal() {
             const modal = document.getElementById('editGroupModal');
             if (modal) modal.remove();
+        }
+        
+        // グループ編集モーダルから製品を削除
+        async function removeGroupProduct(idx, projectId) {
+            const project = projects.find(p => String(p.id) === String(projectId));
+            if (!project) return;
+            
+            const productName = project.productName || '(製品名なし)';
+            if (!confirm(`「${productName}」を削除しますか？\n\n※この操作は保存後に反映されます`)) {
+                return;
+            }
+            
+            // プロジェクトを削除
+            projects = projects.filter(p => String(p.id) !== String(projectId));
+            
+            // UIから該当アイテムを非表示
+            const itemEl = document.getElementById(`groupProductItem_${idx}`);
+            if (itemEl) {
+                itemEl.style.display = 'none';
+            }
+            
+            // 合計を更新
+            updateGroupTotal();
+            
+            // データを保存
+            await saveData();
+            
+            showStatus('✅ 製品を削除しました');
+            setTimeout(() => showStatus(''), 2000);
         }
         
         // グループの製品を在庫シートに追加
@@ -2665,6 +2699,9 @@
             const productInputs = document.querySelectorAll('[id^="editProductUSD_"]');
             let subtotal = 0;
             productInputs.forEach(input => {
+                // 親要素が非表示の場合はスキップ
+                const parentItem = input.closest('[id^="groupProductItem_"]');
+                if (parentItem && parentItem.style.display === 'none') return;
                 subtotal += parseFloat(input.value) || 0;
             });
             
