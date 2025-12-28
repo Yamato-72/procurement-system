@@ -2549,6 +2549,9 @@
                                     </div>
                                 `).join('')}
                             </div>
+                            <button onclick="addGroupProduct('${projectNumber}')" class="mt-2 w-full px-3 py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-500 dark:text-slate-400 hover:border-blue-400 hover:text-blue-600 dark:hover:border-blue-500 dark:hover:text-blue-400 text-sm">
+                                + 製品を追加
+                            </button>
                             <div class="mt-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded flex justify-between">
                                 <span class="text-sm text-slate-600 dark:text-slate-300">製品小計:</span>
                                 <span id="groupProductSubtotal" class="font-bold text-blue-600 dark:text-blue-400">$${totalUSD.toLocaleString()}</span>
@@ -2622,6 +2625,87 @@
             
             showStatus('✅ 製品を削除しました');
             setTimeout(() => showStatus(''), 2000);
+        }
+        
+        // グループ編集モーダルに製品を追加
+        async function addGroupProduct(projectNumber) {
+            // 案件番号をパース
+            const parsed = parseProjectNumber(projectNumber);
+            
+            // 既存のグループから共通設定を取得
+            const existingProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
+            const representative = existingProjects[0] || {};
+            
+            // 新しい製品を作成
+            const newProject = {
+                id: Date.now(),
+                projectPrefix: parsed.prefix,
+                projectNumber: parsed.number,
+                productName: '',
+                quantity: 1,
+                serial: '',
+                totalAmount: 0,
+                supplierId: representative.supplierId || null,
+                registeredDate: representative.registeredDate || new Date().toISOString().split('T')[0],
+                pickupDate: representative.pickupDate || '',
+                workingDays: representative.workingDays || 30,
+                status: representative.status || '発注済',
+                depositSchedule: []
+            };
+            
+            // プロジェクトに追加
+            projects.push(newProject);
+            
+            // UIに新しい製品を追加
+            const productList = document.getElementById('groupProductList');
+            if (productList) {
+                const idx = existingProjects.length; // 新しいインデックス
+                const newItemHtml = `
+                    <div class="p-3 bg-slate-50 dark:bg-slate-700 rounded-lg border-2 border-blue-400" id="groupProductItem_${idx}">
+                        <div class="flex justify-between items-start mb-2">
+                            <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1">製品名 <span class="text-blue-500">(新規)</span></label>
+                            <button onclick="removeGroupProduct(${idx}, '${newProject.id}')" class="text-red-500 hover:text-red-700 text-xs px-2 py-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30" title="この製品を削除">
+                                🗑️ 削除
+                            </button>
+                        </div>
+                        <input type="text" id="editProductName_${idx}" value=""
+                               data-project-id="${newProject.id}"
+                               class="w-full px-2 py-1 border rounded dark:bg-slate-600 dark:border-slate-500 dark:text-white font-semibold mb-2"
+                               placeholder="製品名を入力">
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1">数量</label>
+                                <input type="number" id="editProductQty_${idx}" value="1" min="1"
+                                       data-project-id="${newProject.id}"
+                                       class="w-full px-2 py-1 border rounded dark:bg-slate-600 dark:border-slate-500 dark:text-white text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1">Serial</label>
+                                <input type="text" id="editProductSerial_${idx}" value=""
+                                       data-project-id="${newProject.id}"
+                                       class="w-full px-2 py-1 border rounded dark:bg-slate-600 dark:border-slate-500 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1">金額 (USD)</label>
+                                <input type="number" id="editProductUSD_${idx}" value="0" step="0.01" 
+                                       data-project-id="${newProject.id}"
+                                       oninput="updateGroupTotal()"
+                                       class="w-full px-2 py-1 border rounded dark:bg-slate-600 dark:border-slate-500 dark:text-white text-right">
+                            </div>
+                        </div>
+                    </div>
+                `;
+                productList.insertAdjacentHTML('beforeend', newItemHtml);
+                
+                // 新しい製品名入力欄にフォーカス
+                setTimeout(() => {
+                    const nameInput = document.getElementById(`editProductName_${idx}`);
+                    if (nameInput) nameInput.focus();
+                }, 100);
+            }
+            
+            showStatus('✅ 製品を追加しました（保存ボタンで確定）');
+            setTimeout(() => showStatus(''), 3000);
         }
         
         // グループの製品を在庫シートに追加
