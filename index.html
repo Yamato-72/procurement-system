@@ -56,6 +56,22 @@
         let isDarkMode = localStorage.getItem('darkMode') === 'true'; // ダークモード状態
         let processedPermitFiles = []; // 処理済み輸入許可書ファイルID
         
+        // 種別リスト
+        const CATEGORIES = [
+            'マルチディスプレイ',
+            '屋外',
+            '屋外LED',
+            '屋内',
+            '屋内LED',
+            'LEDコントローラー',
+            'STUDIA',
+            'マトリクス',
+            'メディアプレーヤー',
+            'OPS',
+            'スタンド/金具',
+            '周辺機器'
+        ];
+        
         // 製品マスタのシート一覧
         const PRODUCT_MASTER_SHEETS = [
             { name: 'LCD', category: 'ディスプレイ' },
@@ -4138,7 +4154,7 @@
                         </div>
                         <div class="flex gap-3 mt-6">
                             <button onclick="closeModal('expenseModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
-                            <button onclick="submitExpense(${projectId})" class="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">追加</button>
+                            <button onclick="submitExpense('${projectId}')" class="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">追加</button>
                         </div>
                     </div>
                 </div>
