@@ -4082,7 +4082,7 @@
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">費用種別 <span class="text-red-500">*</span></label>
-                                <select id="expenseType" onchange="updateIncludeInCostDefault();updateExpenseTypeUI()" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <select id="expenseType" onchange="updateExpenseTypeUI()" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                                     <optgroup label="物流関連">
                                         <option value="国際送料">国際送料</option>
                                         <option value="国内配送料">国内配送料</option>
@@ -4132,11 +4132,11 @@
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">金額（円） <span class="text-red-500">*</span></label>
                                 <input type="number" id="expenseAmount" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="45000" step="1">
                             </div>
-                            <div class="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                            <div id="expenseIncludeInCostWrapper" class="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
                                 <input type="checkbox" id="expenseIncludeInCost" checked class="w-5 h-5 rounded">
                                 <div>
                                     <label for="expenseIncludeInCost" class="text-sm font-semibold dark:text-slate-300">製品原価に含む</label>
-                                    <p class="text-xs text-slate-500 dark:text-slate-400">在庫の取得金に反映されます</p>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">メイン製品の取得金に上乗せされます</p>
                                 </div>
                             </div>
                             <div>
@@ -4166,10 +4166,25 @@
         function updateExpenseTypeUI() {
             const type = document.getElementById('expenseType').value;
             const itemDetails = document.getElementById('expenseItemDetails');
+            const includeInCostWrapper = document.getElementById('expenseIncludeInCostWrapper');
+            const includeInCostCheckbox = document.getElementById('expenseIncludeInCost');
+            
+            // 付帯品の場合は付帯品入力欄を表示
             if (type === '付帯品') {
                 itemDetails.classList.remove('hidden');
             } else {
                 itemDetails.classList.add('hidden');
+            }
+            
+            // 付帯品・外注系は「製品原価に含む」を非表示にしてOFFにする
+            const hideIncludeInCostTypes = ['付帯品', '施工外注費', '設置工事費', '加工費'];
+            if (hideIncludeInCostTypes.includes(type)) {
+                includeInCostWrapper.classList.add('hidden');
+                includeInCostCheckbox.checked = false;
+            } else {
+                includeInCostWrapper.classList.remove('hidden');
+                // 物流・通関系はデフォルトON
+                includeInCostCheckbox.checked = true;
             }
         }
 
