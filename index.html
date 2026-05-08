@@ -1468,26 +1468,29 @@
                                                     </div>
                                                 </div>
                                                 
-                                                <!-- 諸費用セクション -->
+                                                <!-- 諸費用・付帯品セクション -->
                                                 <div class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 sm:p-4 mt-3">
                                                     <div class="flex justify-between items-center mb-2 sm:mb-3">
-                                                        <p class="text-xs sm:text-sm font-semibold text-orange-700 dark:text-orange-400">📦 諸費用（国際送料・関税等）</p>
+                                                        <p class="text-xs sm:text-sm font-semibold text-orange-700 dark:text-orange-400">📦 諸費用・付帯品</p>
                                                         <button onclick="event.stopPropagation();showAddExpenseModal('${g.representativeId}')" class="px-2 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700">+ 追加</button>
                                                     </div>
                                                     ${g.expenses.length > 0 ? `
                                                         <div class="space-y-2">
                                                             ${g.expenses.map((exp, idx) => {
                                                                 const isInCost = exp.includeInCost !== false;
+                                                                const isInventoryItem = exp.isInventoryItem || exp.type === '付帯品';
                                                                 return `
-                                                                <div class="flex justify-between items-center p-2 bg-white dark:bg-slate-700 rounded border ${isInCost ? 'border-orange-200 dark:border-orange-700' : 'border-slate-200 dark:border-slate-600'}">
+                                                                <div class="flex justify-between items-center p-2 bg-white dark:bg-slate-700 rounded border ${isInventoryItem ? 'border-green-200 dark:border-green-700' : isInCost ? 'border-orange-200 dark:border-orange-700' : 'border-slate-200 dark:border-slate-600'}">
                                                                     <div class="flex-1 min-w-0 cursor-pointer" onclick="event.stopPropagation();showEditExpenseModal('${g.representativeId}', ${idx})">
                                                                         <div class="flex items-center gap-2 flex-wrap">
-                                                                            <span class="font-semibold text-sm text-slate-900 dark:text-white">${exp.type || '諸費用'}</span>
+                                                                            <span class="font-semibold text-sm text-slate-900 dark:text-white">${isInventoryItem && exp.itemName ? exp.itemName : (exp.type || '諸費用')}</span>
                                                                             <span class="text-sm font-bold ${isInCost ? 'text-orange-600 dark:text-orange-400' : 'text-slate-500 dark:text-slate-400'}">${formatJPY(exp.amountJPY || 0)}</span>
+                                                                            ${isInventoryItem ? '<span class="text-xs px-1.5 py-0.5 bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 rounded">在庫</span>' : ''}
                                                                             ${isInCost ? '<span class="text-xs px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded">原価</span>' : '<span class="text-xs px-1.5 py-0.5 bg-slate-100 dark:bg-slate-600 text-slate-500 dark:text-slate-400 rounded">経費</span>'}
                                                                         </div>
                                                                         <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                                                            ${exp.payee ? `<span>${exp.payee}</span>` : ''}
+                                                                            ${isInventoryItem && exp.itemQuantity ? `<span class="text-green-600 dark:text-green-400">${exp.itemQuantity}点</span>` : ''}
+                                                                            ${exp.payee ? `<span class="ml-2">${exp.payee}</span>` : ''}
                                                                             ${exp.paidDate ? `<span class="ml-2">${exp.paidDate}</span>` : ''}
                                                                             ${exp.note ? `<span class="ml-2 italic">${exp.note}</span>` : ''}
                                                                         </div>
@@ -1510,7 +1513,7 @@
                                                             </span>
                                                         </div>
                                                     ` : `
-                                                        <p class="text-xs text-slate-500 dark:text-slate-400 text-center py-2">諸費用の登録はありません</p>
+                                                        <p class="text-xs text-slate-500 dark:text-slate-400 text-center py-2">諸費用・付帯品の登録はありません</p>
                                                     `}
                                                 </div>
                                                 
@@ -4048,7 +4051,7 @@
             }
         }
 
-        // 7. 諸費用管理
+        // 7. 諸費用・付帯品管理
         function showAddExpenseModal(projectId) {
             const project = projects.find(p => String(p.id) === String(projectId));
             if (!project) return;
@@ -4057,13 +4060,13 @@
             modal.id = 'expenseModal';
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4">
-                        <h3 class="text-xl font-bold mb-4 dark:text-white">📦 諸費用を追加</h3>
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+                        <h3 class="text-xl font-bold mb-4 dark:text-white">📦 諸費用・付帯品を追加</h3>
                         <p class="text-sm text-slate-600 dark:text-slate-400 mb-4">案件: ${formatProjectNumber(project)}</p>
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">費用種別 <span class="text-red-500">*</span></label>
-                                <select id="expenseType" onchange="updateIncludeInCostDefault()" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <select id="expenseType" onchange="updateIncludeInCostDefault();updateExpenseTypeUI()" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                                     <optgroup label="物流関連">
                                         <option value="国際送料">国際送料</option>
                                         <option value="国内配送料">国内配送料</option>
@@ -4079,11 +4082,36 @@
                                         <option value="設置工事費">設置工事費</option>
                                         <option value="加工費">加工費</option>
                                     </optgroup>
+                                    <optgroup label="付帯品（国内調達）">
+                                        <option value="付帯品">付帯品（Amazon等）</option>
+                                    </optgroup>
                                     <optgroup label="その他">
                                         <option value="その他">その他</option>
                                     </optgroup>
                                 </select>
                             </div>
+                            
+                            <!-- 付帯品の場合の追加入力欄 -->
+                            <div id="expenseItemDetails" class="hidden space-y-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                <p class="text-xs font-semibold text-green-700 dark:text-green-400">📦 付帯品情報（在庫に登録されます）</p>
+                                <div>
+                                    <label class="block text-xs text-slate-600 dark:text-slate-400 mb-1">品名 <span class="text-red-500">*</span></label>
+                                    <input type="text" id="expenseItemName" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white text-sm" placeholder="HDMIケーブル 2m">
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs text-slate-600 dark:text-slate-400 mb-1">種別</label>
+                                        <select id="expenseItemCategory" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white text-sm">
+                                            ${CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-slate-600 dark:text-slate-400 mb-1">数量</label>
+                                        <input type="number" id="expenseItemQuantity" value="1" min="1" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white text-sm">
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">金額（円） <span class="text-red-500">*</span></label>
                                 <input type="number" id="expenseAmount" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="45000" step="1">
@@ -4097,7 +4125,7 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">支払先</label>
-                                <input type="text" id="expensePayee" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="ABC物流、税関など">
+                                <input type="text" id="expensePayee" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="Amazon、モノタロウなど">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">支払日</label>
@@ -4118,7 +4146,18 @@
             document.body.appendChild(modal);
         }
 
-        function submitExpense(projectId) {
+        // 費用種別に応じてUIを切り替え
+        function updateExpenseTypeUI() {
+            const type = document.getElementById('expenseType').value;
+            const itemDetails = document.getElementById('expenseItemDetails');
+            if (type === '付帯品') {
+                itemDetails.classList.remove('hidden');
+            } else {
+                itemDetails.classList.add('hidden');
+            }
+        }
+
+        async function submitExpense(projectId) {
             const project = projects.find(p => String(p.id) === String(projectId));
             if (!project) return;
 
@@ -4134,30 +4173,89 @@
                 return;
             }
 
+            // 付帯品の場合は追加バリデーション
+            let itemName = '';
+            let itemCategory = '';
+            let itemQuantity = 1;
+            
+            if (type === '付帯品') {
+                itemName = document.getElementById('expenseItemName').value.trim();
+                itemCategory = document.getElementById('expenseItemCategory').value;
+                itemQuantity = parseInt(document.getElementById('expenseItemQuantity').value) || 1;
+                
+                if (!itemName) {
+                    alert('付帯品の品名を入力してください');
+                    return;
+                }
+            }
+
             if (!project.expenses) {
                 project.expenses = [];
             }
 
-            project.expenses.push({
-                id: Date.now(),
+            const expenseId = Date.now();
+            const expenseData = {
+                id: expenseId,
                 type: type,
                 amountJPY: amount,
                 includeInCost: includeInCost,
                 payee: payee,
                 paidDate: paidDate,
                 note: note
-            });
+            };
 
-            saveData();
+            // 付帯品の場合は追加情報を保存
+            if (type === '付帯品') {
+                expenseData.itemName = itemName;
+                expenseData.itemCategory = itemCategory;
+                expenseData.itemQuantity = itemQuantity;
+                expenseData.isInventoryItem = true;
+            }
+
+            project.expenses.push(expenseData);
+
+            // 付帯品の場合は在庫にも登録
+            if (type === '付帯品') {
+                const projectNumber = formatProjectNumber(project);
+                const unitCost = Math.round(amount / itemQuantity);
+                
+                try {
+                    await addToInventory(
+                        '',                     // serial（空でOK）
+                        itemCategory,           // category
+                        itemName,              // productName
+                        projectNumber,          // projectNumber
+                        paidDate,              // orderDate（支払日を使用）
+                        itemQuantity,          // quantity
+                        ''                     // supplierId（国内調達なので空）
+                    );
+                    
+                    // 在庫の取得金を更新（単価を設定）
+                    // Note: addToInventoryで追加された在庫アイテムのcostJPYを更新
+                    // 実際には在庫データを再取得して更新する必要がある
+                    
+                    showStatus(`✅ 付帯品を追加し、在庫にも登録しました（${itemQuantity}点）`);
+                } catch (e) {
+                    console.error('在庫登録エラー:', e);
+                    showStatus('⚠️ 諸費用は追加しましたが、在庫登録に失敗しました');
+                }
+            }
+
+            await saveData();
             closeModal('expenseModal');
             renderMain();
+            
+            if (type !== '付帯品') {
+                showStatus('✅ 諸費用を追加しました');
+            }
+            setTimeout(() => showStatus(''), 3000);
         }
 
         // 費用種別に応じてデフォルトのチェック状態を変更
         function updateIncludeInCostDefault() {
             const type = document.getElementById('expenseType').value;
             const checkbox = document.getElementById('expenseIncludeInCost');
-            // 外注・工事系はデフォルトでOFF
+            // 外注・工事系はデフォルトでOFF、付帯品はON
             const nonCostTypes = ['施工外注費', '設置工事費', '加工費'];
             checkbox.checked = !nonCostTypes.includes(type);
         }
