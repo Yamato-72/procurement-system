@@ -1474,12 +1474,15 @@
                                                     </div>
                                                     ${g.expenses.length > 0 ? `
                                                         <div class="space-y-2">
-                                                            ${g.expenses.map((exp, idx) => `
-                                                                <div class="flex justify-between items-center p-2 bg-white dark:bg-slate-700 rounded border border-orange-200 dark:border-orange-700">
+                                                            ${g.expenses.map((exp, idx) => {
+                                                                const isInCost = exp.includeInCost !== false;
+                                                                return `
+                                                                <div class="flex justify-between items-center p-2 bg-white dark:bg-slate-700 rounded border ${isInCost ? 'border-orange-200 dark:border-orange-700' : 'border-slate-200 dark:border-slate-600'}">
                                                                     <div class="flex-1 min-w-0 cursor-pointer" onclick="event.stopPropagation();showEditExpenseModal('${g.representativeId}', ${idx})">
                                                                         <div class="flex items-center gap-2 flex-wrap">
                                                                             <span class="font-semibold text-sm text-slate-900 dark:text-white">${exp.type || '諸費用'}</span>
-                                                                            <span class="text-sm font-bold text-orange-600 dark:text-orange-400">${formatJPY(exp.amountJPY || 0)}</span>
+                                                                            <span class="text-sm font-bold ${isInCost ? 'text-orange-600 dark:text-orange-400' : 'text-slate-500 dark:text-slate-400'}">${formatJPY(exp.amountJPY || 0)}</span>
+                                                                            ${isInCost ? '<span class="text-xs px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded">原価</span>' : '<span class="text-xs px-1.5 py-0.5 bg-slate-100 dark:bg-slate-600 text-slate-500 dark:text-slate-400 rounded">経費</span>'}
                                                                         </div>
                                                                         <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                                                                             ${exp.payee ? `<span>${exp.payee}</span>` : ''}
@@ -1494,11 +1497,14 @@
                                                                         </svg>
                                                                     </button>
                                                                 </div>
-                                                            `).join('')}
+                                                            `}).join('')}
                                                         </div>
-                                                        <div class="mt-2 pt-2 border-t border-orange-200 dark:border-orange-700">
-                                                            <span class="text-sm font-semibold text-orange-700 dark:text-orange-400">
-                                                                諸費用計: ${formatJPY(g.expenses.reduce((sum, e) => sum + (e.amountJPY || 0), 0))}
+                                                        <div class="mt-2 pt-2 border-t border-orange-200 dark:border-orange-700 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                                                            <span class="text-orange-700 dark:text-orange-400">
+                                                                原価算入: <span class="font-semibold">${formatJPY(g.expenses.filter(e => e.includeInCost !== false).reduce((sum, e) => sum + (e.amountJPY || 0), 0))}</span>
+                                                            </span>
+                                                            <span class="text-slate-500 dark:text-slate-400">
+                                                                経費のみ: <span class="font-semibold">${formatJPY(g.expenses.filter(e => e.includeInCost === false).reduce((sum, e) => sum + (e.amountJPY || 0), 0))}</span>
                                                             </span>
                                                         </div>
                                                     ` : `
@@ -1508,19 +1514,36 @@
                                                 
                                                 <!-- 総原価サマリー -->
                                                 <div class="bg-slate-100 dark:bg-slate-600 rounded-lg p-3 sm:p-4 mt-3">
-                                                    <p class="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">総原価サマリー</p>
-                                                    <div class="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-                                                        <span>製品代金: <span class="font-bold">${formatJPY(totalPaidJPY)}</span></span>
-                                                        <span>諸費用: <span class="font-bold text-orange-600">${formatJPY(g.expenses.reduce((sum, e) => sum + (e.amountJPY || 0), 0))}</span></span>
+                                                    <p class="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">💰 コストサマリー</p>
+                                                    <div class="grid grid-cols-2 gap-2 text-sm">
+                                                        <div>
+                                                            <span class="text-slate-500 dark:text-slate-400">製品代金</span>
+                                                            <span class="font-bold ml-1">${formatJPY(totalPaidJPY)}</span>
+                                                        </div>
+                                                        <div>
+                                                            <span class="text-slate-500 dark:text-slate-400">諸費用（原価）</span>
+                                                            <span class="font-bold text-orange-600 ml-1">${formatJPY(g.expenses.filter(e => e.includeInCost !== false).reduce((sum, e) => sum + (e.amountJPY || 0), 0))}</span>
+                                                        </div>
                                                     </div>
-                                                    <div class="mt-2 pt-2 border-t border-slate-300 dark:border-slate-500">
-                                                        <span class="text-base font-bold text-slate-900 dark:text-white">
-                                                            総原価: ${formatJPY(totalPaidJPY + g.expenses.reduce((sum, e) => sum + (e.amountJPY || 0), 0))}
-                                                        </span>
-                                                        ${allPaid && totalQuantity > 0 ? `
-                                                            <span class="text-sm text-slate-600 dark:text-slate-400 ml-2">
-                                                                (平均単価: ${formatJPY(Math.round((totalPaidJPY + g.expenses.reduce((sum, e) => sum + (e.amountJPY || 0), 0)) / totalQuantity))})
+                                                    <div class="mt-2 pt-2 border-t border-slate-300 dark:border-slate-500 space-y-1">
+                                                        <div class="flex justify-between items-center">
+                                                            <span class="text-sm text-slate-600 dark:text-slate-400">📦 製品原価（在庫取得金）</span>
+                                                            <span class="text-base font-bold text-blue-600 dark:text-blue-400">
+                                                                ${formatJPY(totalPaidJPY + g.expenses.filter(e => e.includeInCost !== false).reduce((sum, e) => sum + (e.amountJPY || 0), 0))}
                                                             </span>
+                                                        </div>
+                                                        ${g.expenses.filter(e => e.includeInCost === false).length > 0 ? `
+                                                        <div class="flex justify-between items-center">
+                                                            <span class="text-sm text-slate-600 dark:text-slate-400">📋 案件総費用（経費含む）</span>
+                                                            <span class="text-base font-bold text-slate-700 dark:text-white">
+                                                                ${formatJPY(totalPaidJPY + g.expenses.reduce((sum, e) => sum + (e.amountJPY || 0), 0))}
+                                                            </span>
+                                                        </div>
+                                                        ` : ''}
+                                                        ${allPaid && totalQuantity > 0 ? `
+                                                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                                            平均単価: ${formatJPY(Math.round((totalPaidJPY + g.expenses.filter(e => e.includeInCost !== false).reduce((sum, e) => sum + (e.amountJPY || 0), 0)) / totalQuantity))} / 個
+                                                        </div>
                                                         ` : ''}
                                                     </div>
                                                 </div>
@@ -4038,7 +4061,7 @@
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">費用種別 <span class="text-red-500">*</span></label>
-                                <select id="expenseType" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <select id="expenseType" onchange="updateIncludeInCostDefault()" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                                     <optgroup label="物流関連">
                                         <option value="国際送料">国際送料</option>
                                         <option value="国内配送料">国内配送料</option>
@@ -4062,6 +4085,13 @@
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">金額（円） <span class="text-red-500">*</span></label>
                                 <input type="number" id="expenseAmount" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="45000" step="1">
+                            </div>
+                            <div class="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                                <input type="checkbox" id="expenseIncludeInCost" checked class="w-5 h-5 rounded">
+                                <div>
+                                    <label for="expenseIncludeInCost" class="text-sm font-semibold dark:text-slate-300">製品原価に含む</label>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">在庫の取得金に反映されます</p>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">支払先</label>
@@ -4092,6 +4122,7 @@
 
             const type = document.getElementById('expenseType').value;
             const amount = parseFloat(document.getElementById('expenseAmount').value);
+            const includeInCost = document.getElementById('expenseIncludeInCost').checked;
             const payee = document.getElementById('expensePayee').value.trim();
             const paidDate = document.getElementById('expensePaidDate').value;
             const note = document.getElementById('expenseNote').value.trim();
@@ -4109,6 +4140,7 @@
                 id: Date.now(),
                 type: type,
                 amountJPY: amount,
+                includeInCost: includeInCost,
                 payee: payee,
                 paidDate: paidDate,
                 note: note
@@ -4117,6 +4149,15 @@
             saveData();
             closeModal('expenseModal');
             renderMain();
+        }
+
+        // 費用種別に応じてデフォルトのチェック状態を変更
+        function updateIncludeInCostDefault() {
+            const type = document.getElementById('expenseType').value;
+            const checkbox = document.getElementById('expenseIncludeInCost');
+            // 外注・工事系はデフォルトでOFF
+            const nonCostTypes = ['施工外注費', '設置工事費', '加工費'];
+            checkbox.checked = !nonCostTypes.includes(type);
         }
 
         function deleteExpense(projectId, expenseIndex) {
@@ -4143,6 +4184,8 @@
                 '施工外注費', '設置工事費', '加工費',
                 'その他'
             ];
+            // 既存データにincludeInCostがない場合はデフォルトtrue（後方互換）
+            const isIncludeInCost = expense.includeInCost !== false;
 
             const modal = document.createElement('div');
             modal.id = 'editExpenseModal';
@@ -4161,6 +4204,13 @@
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">金額（円） <span class="text-red-500">*</span></label>
                                 <input type="number" id="editExpenseAmount" value="${expense.amountJPY || ''}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" step="1">
+                            </div>
+                            <div class="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                                <input type="checkbox" id="editExpenseIncludeInCost" ${isIncludeInCost ? 'checked' : ''} class="w-5 h-5 rounded">
+                                <div>
+                                    <label for="editExpenseIncludeInCost" class="text-sm font-semibold dark:text-slate-300">製品原価に含む</label>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">在庫の取得金に反映されます</p>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">支払先</label>
@@ -4191,6 +4241,7 @@
 
             const type = document.getElementById('editExpenseType').value;
             const amount = parseFloat(document.getElementById('editExpenseAmount').value);
+            const includeInCost = document.getElementById('editExpenseIncludeInCost').checked;
             const payee = document.getElementById('editExpensePayee').value.trim();
             const paidDate = document.getElementById('editExpensePaidDate').value;
             const note = document.getElementById('editExpenseNote').value.trim();
@@ -4204,6 +4255,7 @@
                 ...project.expenses[expenseIndex],
                 type: type,
                 amountJPY: amount,
+                includeInCost: includeInCost,
                 payee: payee,
                 paidDate: paidDate,
                 note: note
