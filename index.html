@@ -1075,6 +1075,8 @@
                                             <button onclick="syncInvoices()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white rounded-t-lg font-semibold text-blue-600 dark:text-blue-400">📄 海外請求書を同期</button>
                                             <button onclick="syncImportPermits()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white font-semibold text-orange-600 dark:text-orange-400">🔄 輸入許可書を同期</button>
                                             <hr class="border-slate-200 dark:border-slate-700">
+                                            <button onclick="showAllocateExpenseModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white font-semibold text-purple-600 dark:text-purple-400">📊 費用を按分</button>
+                                            <hr class="border-slate-200 dark:border-slate-700">
                                             <button onclick="showSupplierSummary()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📊 サプライヤー別集計</button>
                                             <button onclick="showExchangeSimulator()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">💱 為替計算</button>
                                             <button onclick="exportCSV()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📥 CSV出力</button>
@@ -4264,6 +4266,348 @@
             saveData();
             closeModal('editExpenseModal');
             renderMain();
+        }
+
+        // ==================== 按分機能 ====================
+        
+        let allocateSelectedProjects = new Set();
+        let allocateMethod = 'amount'; // 'amount', 'quantity', 'manual'
+        let allocateManualValues = {}; // 手動按分の場合の値
+
+        function showAllocateExpenseModal() {
+            toggleToolsMenu();
+            allocateSelectedProjects.clear();
+            allocateMethod = 'amount';
+            allocateManualValues = {};
+
+            const expenseTypes = [
+                '国際送料', '国内配送料', '倉庫保管料',
+                '関税', '輸入消費税', '通関手数料',
+                '施工外注費', '設置工事費', '加工費',
+                'その他'
+            ];
+            
+            // 未完了の案件を取得（按分対象になりうるもの）
+            const activeProjects = projects.filter(p => !p.receivedComplete);
+
+            const modal = document.createElement('div');
+            modal.id = 'allocateExpenseModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 w-full max-w-2xl mx-2 sm:mx-4 max-h-[90vh] overflow-y-auto">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg sm:text-xl font-bold dark:text-white">📊 費用を按分</h3>
+                            <button onclick="closeModal('allocateExpenseModal')" class="text-slate-500 hover:text-slate-700 dark:hover:text-white text-2xl">&times;</button>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <!-- 費用情報 -->
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">費用種別</label>
+                                    <select id="allocateExpenseType" onchange="updateAllocateIncludeDefault()" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white text-sm">
+                                        ${expenseTypes.map(t => `<option value="${t}">${t}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">総額（円）</label>
+                                    <input type="number" id="allocateTotalAmount" oninput="updateAllocatePreview()" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white text-sm" placeholder="80000">
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">支払先</label>
+                                    <input type="text" id="allocatePayee" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white text-sm" placeholder="ABC物流">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">支払日</label>
+                                    <input type="date" id="allocatePaidDate" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white text-sm" value="${new Date().toISOString().split('T')[0]}">
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                                <input type="checkbox" id="allocateIncludeInCost" checked class="w-5 h-5 rounded">
+                                <div>
+                                    <label for="allocateIncludeInCost" class="text-sm font-semibold dark:text-slate-300">製品原価に含む</label>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">在庫の取得金に反映されます</p>
+                                </div>
+                            </div>
+                            
+                            <!-- 按分方法 -->
+                            <div class="bg-slate-50 dark:bg-slate-700 rounded-lg p-3">
+                                <label class="block text-sm font-semibold mb-2 dark:text-slate-300">按分方法</label>
+                                <div class="flex flex-wrap gap-2">
+                                    <label class="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-600 rounded-lg cursor-pointer border-2 ${allocateMethod === 'amount' ? 'border-purple-500' : 'border-transparent'}">
+                                        <input type="radio" name="allocateMethod" value="amount" checked onchange="changeAllocateMethod('amount')" class="hidden">
+                                        <span class="text-sm font-medium dark:text-white">💰 金額比</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-600 rounded-lg cursor-pointer border-2 ${allocateMethod === 'quantity' ? 'border-purple-500' : 'border-transparent'}">
+                                        <input type="radio" name="allocateMethod" value="quantity" onchange="changeAllocateMethod('quantity')" class="hidden">
+                                        <span class="text-sm font-medium dark:text-white">📦 数量比</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-600 rounded-lg cursor-pointer border-2 ${allocateMethod === 'manual' ? 'border-purple-500' : 'border-transparent'}">
+                                        <input type="radio" name="allocateMethod" value="manual" onchange="changeAllocateMethod('manual')" class="hidden">
+                                        <span class="text-sm font-medium dark:text-white">✏️ 手動</span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <!-- 対象案件選択 -->
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="text-sm font-semibold dark:text-slate-300">対象案件を選択</label>
+                                    <span class="text-xs text-slate-500 dark:text-slate-400">${allocateSelectedProjects.size}件選択中</span>
+                                </div>
+                                <div id="allocateProjectList" class="max-h-60 overflow-y-auto border dark:border-slate-600 rounded-lg divide-y dark:divide-slate-600">
+                                    ${activeProjects.length === 0 ? `
+                                        <div class="p-4 text-center text-slate-500 dark:text-slate-400 text-sm">按分対象の案件がありません</div>
+                                    ` : activeProjects.map(p => {
+                                        const projectNum = formatProjectNumber(p);
+                                        const supplier = suppliers.find(s => s.id === p.supplierId);
+                                        const totalJPY = p.depositSchedule.filter(d => d.paid).reduce((sum, d) => sum + (d.amountJPY || 0), 0);
+                                        return `
+                                        <div class="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer" onclick="toggleAllocateProject('${p.id}')">
+                                            <input type="checkbox" id="allocate_${p.id}" ${allocateSelectedProjects.has(p.id) ? 'checked' : ''} class="w-4 h-4 rounded pointer-events-none">
+                                            <div class="flex-1 min-w-0">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="font-semibold text-sm dark:text-white">${projectNum}</span>
+                                                    <span class="text-xs text-slate-500 dark:text-slate-400">${supplier ? supplier.name : ''}</span>
+                                                </div>
+                                                <div class="text-xs text-slate-500 dark:text-slate-400 truncate">${p.productName || ''}</div>
+                                            </div>
+                                            <div class="text-right text-sm">
+                                                <div class="dark:text-white">$${p.totalAmount.toLocaleString()}</div>
+                                                <div class="text-xs text-slate-500 dark:text-slate-400">x${p.quantity}</div>
+                                            </div>
+                                            <div id="allocatePreview_${p.id}" class="w-24 text-right font-bold text-purple-600 dark:text-purple-400 text-sm">
+                                                -
+                                            </div>
+                                        </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </div>
+                            
+                            <!-- プレビュー -->
+                            <div id="allocateSummary" class="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-3 hidden">
+                                <div class="flex justify-between items-center text-sm">
+                                    <span class="text-purple-700 dark:text-purple-300">按分合計</span>
+                                    <span id="allocateSummaryTotal" class="font-bold text-purple-700 dark:text-purple-300">¥0</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-3 mt-6">
+                            <button onclick="closeModal('allocateExpenseModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
+                            <button onclick="executeAllocateExpense()" class="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">按分して追加</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function toggleAllocateProject(projectId) {
+            if (allocateSelectedProjects.has(projectId)) {
+                allocateSelectedProjects.delete(projectId);
+            } else {
+                allocateSelectedProjects.add(projectId);
+            }
+            // チェックボックスの状態を更新
+            const checkbox = document.getElementById(`allocate_${projectId}`);
+            if (checkbox) checkbox.checked = allocateSelectedProjects.has(projectId);
+            
+            // 選択数を更新
+            updateAllocatePreview();
+        }
+
+        function changeAllocateMethod(method) {
+            allocateMethod = method;
+            // ラジオボタンのスタイルを更新
+            document.querySelectorAll('input[name="allocateMethod"]').forEach(radio => {
+                const label = radio.closest('label');
+                if (radio.value === method) {
+                    label.classList.add('border-purple-500');
+                    label.classList.remove('border-transparent');
+                } else {
+                    label.classList.remove('border-purple-500');
+                    label.classList.add('border-transparent');
+                }
+            });
+            updateAllocatePreview();
+        }
+
+        function updateAllocateIncludeDefault() {
+            const type = document.getElementById('allocateExpenseType').value;
+            const checkbox = document.getElementById('allocateIncludeInCost');
+            const nonCostTypes = ['施工外注費', '設置工事費', '加工費'];
+            checkbox.checked = !nonCostTypes.includes(type);
+        }
+
+        function updateAllocatePreview() {
+            const totalAmount = parseFloat(document.getElementById('allocateTotalAmount').value) || 0;
+            const selectedIds = Array.from(allocateSelectedProjects);
+            
+            if (selectedIds.length === 0 || totalAmount <= 0) {
+                document.getElementById('allocateSummary').classList.add('hidden');
+                // プレビューをクリア
+                selectedIds.forEach(id => {
+                    const el = document.getElementById(`allocatePreview_${id}`);
+                    if (el) el.textContent = '-';
+                });
+                return;
+            }
+
+            const selectedProjects = selectedIds.map(id => projects.find(p => String(p.id) === String(id))).filter(Boolean);
+            
+            let allocations = {};
+            
+            if (allocateMethod === 'amount') {
+                // 金額比で按分（支払済み円建て金額ベース）
+                const totals = selectedProjects.map(p => {
+                    const paidJPY = p.depositSchedule.filter(d => d.paid).reduce((sum, d) => sum + (d.amountJPY || 0), 0);
+                    return { id: p.id, value: paidJPY || (p.totalAmount * 150) }; // 未払いの場合は概算
+                });
+                const grandTotal = totals.reduce((sum, t) => sum + t.value, 0);
+                
+                if (grandTotal > 0) {
+                    totals.forEach(t => {
+                        allocations[t.id] = Math.round(totalAmount * t.value / grandTotal);
+                    });
+                }
+            } else if (allocateMethod === 'quantity') {
+                // 数量比で按分
+                const totalQty = selectedProjects.reduce((sum, p) => sum + (p.quantity || 1), 0);
+                selectedProjects.forEach(p => {
+                    allocations[p.id] = Math.round(totalAmount * (p.quantity || 1) / totalQty);
+                });
+            } else {
+                // 手動の場合はそのまま
+                allocations = { ...allocateManualValues };
+            }
+            
+            // 端数調整（最初の案件に寄せる）
+            const allocatedSum = Object.values(allocations).reduce((sum, v) => sum + (v || 0), 0);
+            if (allocatedSum !== totalAmount && selectedIds.length > 0 && allocateMethod !== 'manual') {
+                allocations[selectedIds[0]] = (allocations[selectedIds[0]] || 0) + (totalAmount - allocatedSum);
+            }
+
+            // プレビュー表示を更新
+            projects.forEach(p => {
+                const el = document.getElementById(`allocatePreview_${p.id}`);
+                if (el) {
+                    if (allocateSelectedProjects.has(p.id) && allocations[p.id]) {
+                        el.innerHTML = allocateMethod === 'manual' 
+                            ? `<input type="number" value="${allocations[p.id] || 0}" onchange="updateManualAllocation('${p.id}', this.value)" class="w-20 px-2 py-1 text-right border rounded dark:bg-slate-600 dark:border-slate-500 text-sm">`
+                            : formatJPY(allocations[p.id]);
+                    } else {
+                        el.textContent = '-';
+                    }
+                }
+            });
+
+            // サマリー表示
+            const summaryEl = document.getElementById('allocateSummary');
+            const summaryTotalEl = document.getElementById('allocateSummaryTotal');
+            summaryEl.classList.remove('hidden');
+            summaryTotalEl.textContent = formatJPY(Object.values(allocations).reduce((sum, v) => sum + (v || 0), 0));
+            
+            // 手動の場合は allocateManualValues に保存
+            if (allocateMethod !== 'manual') {
+                allocateManualValues = allocations;
+            }
+        }
+
+        function updateManualAllocation(projectId, value) {
+            allocateManualValues[projectId] = parseInt(value) || 0;
+            // サマリー更新
+            const summaryTotalEl = document.getElementById('allocateSummaryTotal');
+            if (summaryTotalEl) {
+                summaryTotalEl.textContent = formatJPY(Object.values(allocateManualValues).reduce((sum, v) => sum + (v || 0), 0));
+            }
+        }
+
+        async function executeAllocateExpense() {
+            const type = document.getElementById('allocateExpenseType').value;
+            const totalAmount = parseFloat(document.getElementById('allocateTotalAmount').value) || 0;
+            const includeInCost = document.getElementById('allocateIncludeInCost').checked;
+            const payee = document.getElementById('allocatePayee').value.trim();
+            const paidDate = document.getElementById('allocatePaidDate').value;
+            
+            if (totalAmount <= 0) {
+                alert('総額を入力してください');
+                return;
+            }
+            
+            if (allocateSelectedProjects.size === 0) {
+                alert('按分先の案件を選択してください');
+                return;
+            }
+
+            // 按分計算
+            const selectedIds = Array.from(allocateSelectedProjects);
+            const selectedProjects = selectedIds.map(id => projects.find(p => String(p.id) === String(id))).filter(Boolean);
+            
+            let allocations = {};
+            
+            if (allocateMethod === 'amount') {
+                const totals = selectedProjects.map(p => {
+                    const paidJPY = p.depositSchedule.filter(d => d.paid).reduce((sum, d) => sum + (d.amountJPY || 0), 0);
+                    return { id: p.id, value: paidJPY || (p.totalAmount * 150) };
+                });
+                const grandTotal = totals.reduce((sum, t) => sum + t.value, 0);
+                if (grandTotal > 0) {
+                    totals.forEach(t => {
+                        allocations[t.id] = Math.round(totalAmount * t.value / grandTotal);
+                    });
+                }
+            } else if (allocateMethod === 'quantity') {
+                const totalQty = selectedProjects.reduce((sum, p) => sum + (p.quantity || 1), 0);
+                selectedProjects.forEach(p => {
+                    allocations[p.id] = Math.round(totalAmount * (p.quantity || 1) / totalQty);
+                });
+            } else {
+                allocations = { ...allocateManualValues };
+            }
+            
+            // 端数調整
+            const allocatedSum = Object.values(allocations).reduce((sum, v) => sum + (v || 0), 0);
+            if (allocatedSum !== totalAmount && selectedIds.length > 0 && allocateMethod !== 'manual') {
+                allocations[selectedIds[0]] = (allocations[selectedIds[0]] || 0) + (totalAmount - allocatedSum);
+            }
+
+            // 確認
+            const confirmLines = selectedProjects.map(p => 
+                `${formatProjectNumber(p)}: ${formatJPY(allocations[p.id] || 0)}`
+            ).join('\n');
+            
+            if (!confirm(`以下の按分で諸費用を追加しますか？\n\n${type}: ${formatJPY(totalAmount)}\n\n${confirmLines}`)) {
+                return;
+            }
+
+            // 各案件に諸費用を追加
+            const allocateId = Date.now(); // 同一按分グループを識別するID
+            selectedProjects.forEach(p => {
+                if (!p.expenses) p.expenses = [];
+                p.expenses.push({
+                    id: Date.now() + Math.random(),
+                    type: type,
+                    amountJPY: allocations[p.id] || 0,
+                    includeInCost: includeInCost,
+                    payee: payee,
+                    paidDate: paidDate,
+                    note: `按分 (${formatJPY(totalAmount)}を${selectedProjects.length}件に分配)`,
+                    allocateGroupId: allocateId
+                });
+            });
+
+            await saveData();
+            closeModal('allocateExpenseModal');
+            renderMain();
+            
+            showStatus(`✅ ${selectedProjects.length}件に諸費用を按分しました`);
+            setTimeout(() => showStatus(''), 3000);
         }
 
         // 8. 海外請求書（インボイス）ドライブ同期
