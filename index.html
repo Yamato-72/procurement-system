@@ -305,11 +305,22 @@
                     range: 'サプライヤー!A2:C',
                 });
                 const supplierRows = supplierResponse.result.values || [];
-                suppliers = supplierRows.map(row => ({
-                    id: parseInt(row[0] || Date.now()),
-                    name: row[1] || '',
-                    paymentPatterns: JSON.parse(row[2] || '[{"name":"標準","rates":[50,50]}]')
-                }));
+                suppliers = supplierRows.map((row, idx) => {
+                    let paymentPatterns = [{"name":"標準","rates":[50,50]}]; // デフォルト
+                    try {
+                        if (row[2]) {
+                            paymentPatterns = JSON.parse(row[2]);
+                        }
+                    } catch (e) {
+                        console.error(`サプライヤー行${idx + 2}のpaymentPatternsが不正です:`, row[2], e);
+                        // デフォルト値を使用
+                    }
+                    return {
+                        id: parseInt(row[0] || Date.now()),
+                        name: row[1] || '',
+                        paymentPatterns: paymentPatterns
+                    };
+                });
 
                 const projectResponse = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: SPREADSHEET_ID,
