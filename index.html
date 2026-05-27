@@ -3974,36 +3974,91 @@
                 (p.depositSchedule || []).some(d => d.paid)
             );
             
-            let confirmMessage = `案件「${projectNumber}」を削除しますか？\n\n`;
-            confirmMessage += `製品数: ${groupProjects.length}件\n`;
-            confirmMessage += groupProjects.map(p => `・${p.productName}`).join('\n');
+            // 削除確認モーダルを表示
+            const modal = document.createElement('div');
+            modal.id = 'deleteProjectModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4">
+                        <h3 class="text-xl font-bold mb-4 text-red-600 dark:text-red-400">🗑️ 案件を削除</h3>
+                        
+                        <div class="bg-slate-50 dark:bg-slate-700 rounded-lg p-3 mb-4">
+                            <p class="font-semibold dark:text-white">${projectNumber}</p>
+                            <p class="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                                製品数: ${groupProjects.length}件
+                            </p>
+                            <ul class="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                                ${groupProjects.map(p => `<li>・${p.productName || '（製品名なし）'}</li>`).join('')}
+                            </ul>
+                        </div>
+                        
+                        ${hasPaidDeposits ? `
+                            <div class="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg p-3 mb-4">
+                                <p class="text-sm text-amber-700 dark:text-amber-400">
+                                    ⚠️ この案件には支払い済みの記録があります
+                                </p>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="space-y-3 mb-6">
+                            <p class="text-sm font-semibold dark:text-slate-300">在庫データの扱い</p>
+                            <label class="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg cursor-pointer border-2 border-transparent hover:border-slate-300 dark:hover:border-slate-500">
+                                <input type="radio" name="inventoryAction" value="keep" checked class="mt-1">
+                                <div>
+                                    <span class="font-medium dark:text-white">在庫は残す</span>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">支払い情報のみ削除。在庫データはそのまま残ります</p>
+                                </div>
+                            </label>
+                            <label class="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg cursor-pointer border-2 border-transparent hover:border-slate-300 dark:hover:border-slate-500">
+                                <input type="radio" name="inventoryAction" value="delete" class="mt-1">
+                                <div>
+                                    <span class="font-medium dark:text-white">在庫も削除する</span>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">この案件に紐づく在庫データも完全に削除されます</p>
+                                </div>
+                            </label>
+                        </div>
+                        
+                        <div class="flex gap-3">
+                            <button onclick="closeModal('deleteProjectModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">
+                                キャンセル
+                            </button>
+                            <button onclick="executeDeleteProject('${projectNumber}')" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                                削除する
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        async function executeDeleteProject(projectNumber) {
+            const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
+            if (groupProjects.length === 0) return;
             
-            if (hasPaidDeposits) {
-                confirmMessage += '\n\n⚠️ この案件には支払い済みの記録があります。';
+            const inventoryAction = document.querySelector('input[name="inventoryAction"]:checked').value;
+            
+            closeModal('deleteProjectModal');
+            
+            // 在庫も削除する場合のみ在庫を削除
+            if (inventoryAction === 'delete') {
+                try {
+                    await deleteInventoryByProject(groupProjects[0]);
+                } catch (e) {
+                    console.error('在庫削除エラー:', e);
+                }
             }
+            // 「在庫は残す」の場合は何もしない（在庫データはそのまま）
             
-            if (!confirm(confirmMessage)) return;
-            
-            // 二重確認（支払い済みがある場合）
-            if (hasPaidDeposits) {
-                if (!confirm('本当に削除してよろしいですか？\n支払い履歴も削除されます。')) return;
-            }
-            
-            // 在庫からも削除
-            try {
-                await deleteInventoryByProject(groupProjects[0]);
-            } catch (e) {
-                console.error('在庫削除エラー:', e);
-            }
-            
-            // プロジェクトから削除
+            // プロジェクトから削除（支払い情報のみ）
             const idsToDelete = groupProjects.map(p => String(p.id));
             projects = projects.filter(p => !idsToDelete.includes(String(p.id)));
             
             await saveData();
             renderMain();
             
-            alert(`案件「${projectNumber}」を削除しました`);
+            showStatus(`✅ 案件「${projectNumber}」を削除しました`);
+            setTimeout(() => showStatus(''), 3000);
         }
         
         // 在庫シートから該当案件のアイテムを削除
