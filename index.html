@@ -628,7 +628,7 @@
         }
 
         // 在庫シートに追加する関数
-        async function addToInventory(serial, category, productName, projectNumber, orderDate, quantity, supplierId = '') {
+        async function addToInventory(serial, category, productName, projectNumber, orderDate, quantity, supplierId = '', costPerUnit = '') {
             try {
                 // 案件番号を分解
                 const parsed = parseProjectNumberString(projectNumber);
@@ -683,7 +683,7 @@
                         '',                                // 出庫日
                         '',                                // 出庫接頭辞
                         '',                                // 出庫番号
-                        '',                                // 取得金
+                        costPerUnit,                       // 取得金（単価）
                         '',                                // 備考
                         '',                                // 棚番
                         '',                                // 保管場所
@@ -702,7 +702,7 @@
                     }
                 });
                 
-                console.log(`✅ 在庫シート追加完了: ${quantity}行 (${serial})`);
+                console.log(`✅ 在庫シート追加完了: ${quantity}行 (${serial})${costPerUnit ? ' 取得金: ¥' + costPerUnit : ''}`);
 
             } catch (err) {
                 console.error('在庫追加エラー:', err);
@@ -4790,14 +4790,11 @@
                         projectNumber,          // projectNumber
                         paidDate,              // orderDate（支払日を使用）
                         itemQuantity,          // quantity
-                        ''                     // supplierId（国内調達なので空）
+                        '',                    // supplierId（国内調達なので空）
+                        unitCost               // costPerUnit（取得金）
                     );
                     
-                    // 在庫の取得金を更新（単価を設定）
-                    // Note: addToInventoryで追加された在庫アイテムのcostJPYを更新
-                    // 実際には在庫データを再取得して更新する必要がある
-                    
-                    showStatus(`✅ 付帯品を追加し、在庫にも登録しました（${itemQuantity}点）`);
+                    showStatus(`✅ 付帯品を追加し、在庫にも登録しました（${itemQuantity}点 × ¥${unitCost.toLocaleString()}）`);
                 } catch (e) {
                     console.error('在庫登録エラー:', e);
                     showStatus('⚠️ 諸費用は追加しましたが、在庫登録に失敗しました');
