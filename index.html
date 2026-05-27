@@ -668,11 +668,15 @@
                 const newRows = [];
                 
                 for (let i = 1; i <= quantity; i++) {
-                    const itemSerial = quantity > 1 ? `${baseSerial}-${i}` : baseSerial;
+                    // Serial が空の場合は空のまま、ある場合のみ連番を振る
+                    let itemSerial = '';
+                    if (baseSerial) {
+                        itemSerial = quantity > 1 ? `${baseSerial}-${i}` : baseSerial;
+                    }
                     
                     newRows.push([
                         Date.now().toString() + '-' + i,  // ID
-                        itemSerial,                        // Serial
+                        itemSerial,                        // Serial（空なら空のまま）
                         category,                          // 種別
                         productName,                       // 製品名
                         parsed.prefix,                     // 発注接頭辞
@@ -777,12 +781,16 @@
                 rows.forEach((row, idx) => {
                     const rowPrefix = row[4] || '';
                     const rowNumber = String(row[5] || '').padStart(4, '0');
+                    const rowProductName = row[3] || '';
                     
                     const prefixMatch = rowPrefix.toUpperCase() === projectPrefix.toUpperCase();
                     const numberMatch = rowNumber === projectNumber;
                     
-                    // 案件番号のみで一致判定（製品名は上書きする）
-                    if (prefixMatch && numberMatch) {
+                    // 案件番号が一致 かつ （製品名が空 または メイン製品名と一致）の場合のみ更新
+                    // 付帯品（製品名が異なる）は除外
+                    const isMainProduct = !rowProductName || rowProductName === productName;
+                    
+                    if (prefixMatch && numberMatch && isMainProduct) {
                         const rowNum = idx + 2;
                         // 取得金（M列）と製品名（D列）を更新
                         updates.push({
@@ -3758,13 +3766,17 @@
                 });
                 const rows = response.result.values || [];
                 
-                // 該当案件のアイテムを検索して更新（案件番号のみで一致、製品名も上書き）
+                // 該当案件のアイテムを検索して更新（メイン製品のみ、付帯品は除外）
                 const updates = [];
                 rows.forEach((row, idx) => {
                     const rowPrefix = (row[4] || '').toUpperCase();
                     const rowNum = String(row[5] || '').padStart(4, '0');
+                    const rowProductName = row[3] || '';
                     
-                    if (rowPrefix === projectPrefix && rowNum === projectNum) {
+                    // 案件番号が一致 かつ （製品名が空 または メイン製品名と一致）の場合のみ更新
+                    const isMainProduct = !rowProductName || rowProductName === productName;
+                    
+                    if (rowPrefix === projectPrefix && rowNum === projectNum && isMainProduct) {
                         const rowIndex = idx + 2;
                         updates.push({
                             range: `在庫!D${rowIndex}`,
