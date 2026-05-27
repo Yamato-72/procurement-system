@@ -1642,6 +1642,7 @@
                                                         <span class="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full">${sp.items.length}品目</span>
                                                         ${sp.allocatedCount > 0 ? `<span class="px-2 py-0.5 text-xs bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300 rounded-full">引当${sp.allocatedCount}</span>` : ''}
                                                         ${sp.shippedCount > 0 ? `<span class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 rounded-full">出庫${sp.shippedCount}</span>` : ''}
+                                                        ${sp.archivedCount > 0 ? `<span class="px-2 py-0.5 text-xs bg-slate-200 text-slate-600 dark:bg-slate-600 dark:text-slate-300 rounded-full">完了${sp.archivedCount}</span>` : ''}
                                                     </div>
                                                 </div>
                                                 <div class="text-right">
@@ -1656,12 +1657,20 @@
                                                 <div class="mb-4">
                                                     <p class="text-xs sm:text-sm font-semibold text-purple-700 dark:text-purple-400 mb-2">📦 引当製品</p>
                                                     <div class="space-y-2">
-                                                        ${sp.items.map(item => `
-                                                            <div class="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-700 rounded ${item.status === '引当済' ? 'border-l-4 border-cyan-400' : 'border-l-4 border-blue-400'}">
+                                                        ${sp.items.map(item => {
+                                                            const statusClass = item.isArchived 
+                                                                ? 'border-l-4 border-slate-400' 
+                                                                : (item.status === '引当済' ? 'border-l-4 border-cyan-400' : 'border-l-4 border-blue-400');
+                                                            const badgeClass = item.isArchived 
+                                                                ? 'bg-slate-200 text-slate-600 dark:bg-slate-600 dark:text-slate-300'
+                                                                : (item.status === '引当済' ? 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300');
+                                                            const badgeText = item.isArchived ? '完了' : (item.status === '引当済' ? '引当' : '出庫');
+                                                            return `
+                                                            <div class="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-700 rounded ${statusClass}">
                                                                 <div class="flex-1 min-w-0">
                                                                     <div class="flex items-center gap-2">
                                                                         <span class="font-mono text-xs text-slate-500 dark:text-slate-400">${item.serial || '-'}</span>
-                                                                        <span class="px-1 py-0.5 text-xs rounded ${item.status === '引当済' ? 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'}">${item.status === '引当済' ? '引当' : '出庫'}</span>
+                                                                        <span class="px-1 py-0.5 text-xs rounded ${badgeClass}">${badgeText}</span>
                                                                     </div>
                                                                     <p class="text-sm font-semibold text-slate-900 dark:text-white truncate">${item.productName || ''}</p>
                                                                     <p class="text-xs text-slate-500 dark:text-slate-400">
@@ -1673,7 +1682,7 @@
                                                                     <span class="font-bold text-slate-900 dark:text-white">${formatJPY(item.costJPY || 0)}</span>
                                                                 </div>
                                                             </div>
-                                                        `).join('')}
+                                                        `}).join('')}
                                                     </div>
                                                     <div class="mt-2 pt-2 border-t dark:border-slate-600 text-right">
                                                         <span class="text-sm text-slate-600 dark:text-slate-400">製品原価計: </span>
@@ -1762,11 +1771,13 @@
         async function loadInventoryForSales() {
             try {
                 showStatus('在庫データを読み込み中...');
+                
+                // 在庫シートを読み込み
                 const response = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: SPREADSHEET_ID,
                     range: '在庫!A2:R',
                 });
-                inventoryData = (response.result.values || []).map(row => ({
+                const inventoryRows = (response.result.values || []).map(row => ({
                     id: row[0] || '',
                     serial: row[1] || '',
                     category: row[2] || '',
@@ -1783,8 +1794,44 @@
                     note: row[13] || '',
                     shelfNumber: row[14] || '',
                     location: row[15] || '',
-                    supplierId: row[16] || ''
+                    supplierId: row[16] || '',
+                    isArchived: false
                 }));
+                
+                // アーカイブシートも読み込み
+                let archiveRows = [];
+                try {
+                    const archiveResponse = await gapi.client.sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: '在庫アーカイブ!A2:R',
+                    });
+                    archiveRows = (archiveResponse.result.values || []).map(row => ({
+                        id: row[0] || '',
+                        serial: row[1] || '',
+                        category: row[2] || '',
+                        productName: row[3] || '',
+                        orderPrefix: row[4] || '',
+                        orderNumber: row[5] || '',
+                        orderDate: row[6] || '',
+                        receivedDate: row[7] || '',
+                        status: row[8] || '',
+                        shipDate: row[9] || '',
+                        shipPrefix: row[10] || '',
+                        shipNumber: row[11] || '',
+                        costJPY: parseFloat(row[12]) || 0,
+                        note: row[13] || '',
+                        shelfNumber: row[14] || '',
+                        location: row[15] || '',
+                        supplierId: row[16] || '',
+                        isArchived: true
+                    }));
+                } catch (e) {
+                    // アーカイブシートがない場合は空のまま
+                    console.log('アーカイブシートなし（またはエラー）:', e);
+                }
+                
+                // 在庫 + アーカイブを結合
+                inventoryData = [...inventoryRows, ...archiveRows];
                 
                 // 販売案件経費も読み込む
                 await loadSalesExpenses();
@@ -1857,10 +1904,10 @@
         }
         
         function getSalesProjects() {
-            // 出庫先が設定されている在庫をグループ化（引当済 + 出庫済）
+            // 出庫先が設定されている在庫をグループ化（引当済 + 出庫済 + アーカイブ済み）
             const allocated = inventoryData.filter(item => 
                 item.shipPrefix && item.shipNumber && 
-                (item.status === '出庫済' || item.status === '出庫済み' || item.status === '引当済')
+                (item.status === '出庫済' || item.status === '出庫済み' || item.status === '引当済' || item.isArchived)
             );
             
             const grouped = {};
@@ -1875,7 +1922,8 @@
                         expensesCost: 0,
                         totalCost: 0,
                         allocatedCount: 0,
-                        shippedCount: 0
+                        shippedCount: 0,
+                        archivedCount: 0
                     };
                 }
                 grouped[projectNumber].items.push({
@@ -1885,7 +1933,9 @@
                         : ''
                 });
                 grouped[projectNumber].itemsCost += item.costJPY || 0;
-                if (item.status === '引当済') {
+                if (item.isArchived) {
+                    grouped[projectNumber].archivedCount++;
+                } else if (item.status === '引当済') {
                     grouped[projectNumber].allocatedCount++;
                 } else {
                     grouped[projectNumber].shippedCount++;
