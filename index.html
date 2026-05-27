@@ -696,7 +696,7 @@
                 }
 
                 // 在庫シートに追加
-                await gapi.client.sheets.spreadsheets.values.append({
+                const appendResult = await gapi.client.sheets.spreadsheets.values.append({
                     spreadsheetId: SPREADSHEET_ID,
                     range: '在庫!A:Q',
                     valueInputOption: 'RAW',
@@ -707,7 +707,11 @@
                 });
                 
                 console.log(`✅ 在庫シート追加完了: ${quantity}行 (${serial})${costPerUnit ? ' 取得金: ¥' + costPerUnit : ''}`);
-
+                console.log('API応答:', appendResult);
+                
+                if (!appendResult || !appendResult.result) {
+                    console.error('⚠️ API応答が空です');
+                }
             } catch (err) {
                 console.error('在庫追加エラー:', err);
                 console.error('パラメータ:', { serial, category, productName, projectNumber, orderDate, quantity });
@@ -747,9 +751,11 @@
         
         // 在庫の取得金を更新
         async function updateInventoryCost(project) {
+            console.log('updateInventoryCost called:', project.productName);
             try {
                 // 製品代（デポジット合計）
                 const depositTotal = project.depositSchedule.reduce((sum, d) => sum + (d.amountJPY || 0), 0);
+                console.log('depositTotal:', depositTotal);
                 
                 // 諸費用（原価に含むもののみ）
                 const expensesTotal = (project.expenses || [])
@@ -2200,7 +2206,9 @@
         
         // グループ全体の在庫反映
         async function syncGroupToInventory(projectNumber) {
+            console.log('syncGroupToInventory called:', projectNumber);
             const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
+            console.log('groupProjects found:', groupProjects.length);
             
             if (groupProjects.length === 0) {
                 alert('案件が見つかりません');
@@ -2210,6 +2218,7 @@
             showStatus(`${groupProjects.length}製品の在庫を更新中...`);
             
             for (const p of groupProjects) {
+                console.log('Updating inventory for:', p.productName);
                 await updateInventoryCost(p);
             }
             
