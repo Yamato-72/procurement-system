@@ -56,6 +56,12 @@
         let isDarkMode = localStorage.getItem('darkMode') === 'true'; // ダークモード状態
         let processedPermitFiles = []; // 処理済み輸入許可書ファイルID
         
+        // タブ管理
+        let projectTab = 'purchase'; // 'purchase' or 'sales'
+        let expandedSalesProjects = {}; // 販売案件の展開状態
+        let salesProjectExpenses = {}; // 販売案件の経費（案件番号をキーに）
+        let inventoryData = []; // 在庫データキャッシュ
+        
         // 種別リスト
         const CATEGORIES = [
             'マルチディスプレイ',
@@ -1298,8 +1304,20 @@
                             `}
                         </div>
                         <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border dark:border-slate-700">
+                            <!-- タブUI -->
+                            <div class="flex border-b dark:border-slate-600 mb-4">
+                                <button onclick="switchProjectTab('purchase')" id="tabPurchase" class="px-4 py-2 text-sm font-semibold border-b-2 ${projectTab === 'purchase' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}">
+                                    📥 仕入案件
+                                </button>
+                                <button onclick="switchProjectTab('sales')" id="tabSales" class="px-4 py-2 text-sm font-semibold border-b-2 ${projectTab === 'sales' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}">
+                                    📤 販売案件
+                                </button>
+                            </div>
+                            
+                            ${projectTab === 'purchase' ? `
+                            <!-- 仕入案件タブ（既存） -->
                             <div class="flex flex-wrap justify-between items-center gap-2 mb-3 sm:mb-4">
-                                <h2 class="text-base sm:text-xl font-bold text-slate-900 dark:text-white">案件管理</h2>
+                                <h2 class="text-base sm:text-xl font-bold text-slate-900 dark:text-white">仕入案件管理</h2>
                                 <button onclick="showAddProjectForm()" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">+ 新規案件</button>
                             </div>
                             
@@ -1592,9 +1610,436 @@
                                     </div>`;
                                 }).join('')}
                             </div>
+                            ` : `
+                            <!-- 販売案件タブ -->
+                            <div class="flex flex-wrap justify-between items-center gap-2 mb-3 sm:mb-4">
+                                <h2 class="text-base sm:text-xl font-bold text-slate-900 dark:text-white">販売案件コスト</h2>
+                                <button onclick="refreshSalesProjects()" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-500 text-white text-sm rounded-lg hover:bg-slate-600">🔄 更新</button>
+                            </div>
+                            <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                                在庫ナビで出庫先に設定された案件の原価を集計しています
+                            </p>
+                            
+                            <div class="space-y-3 sm:space-y-4">
+                                ${getSalesProjects().length === 0 ? `
+                                    <div class="text-center py-8 text-slate-500 dark:text-slate-400">
+                                        <p class="mb-2">出庫済みの案件がありません</p>
+                                        <p class="text-xs">在庫ナビで出庫先案件を設定すると、ここに表示されます</p>
+                                    </div>
+                                ` : getSalesProjects().map(sp => `
+                                    <div class="border-2 rounded-lg border-purple-300 bg-purple-50 dark:bg-purple-900/30 dark:border-purple-600">
+                                        <div class="p-3 sm:p-5 cursor-pointer" onclick="toggleSalesProject('${sp.projectNumber}')">
+                                            <div class="flex justify-between items-start">
+                                                <div class="flex-1">
+                                                    <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                                        <span class="text-slate-400">${expandedSalesProjects[sp.projectNumber] ? '▼' : '▶'}</span>
+                                                        <h3 class="font-bold text-base sm:text-xl text-slate-900 dark:text-white">${sp.projectNumber}</h3>
+                                                        <span class="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full">${sp.items.length}品目</span>
+                                                    </div>
+                                                </div>
+                                                <div class="text-right">
+                                                    <p class="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">${formatJPY(sp.totalCost)}</p>
+                                                    <p class="text-xs text-slate-500 dark:text-slate-400">原価合計</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        ${expandedSalesProjects[sp.projectNumber] ? `
+                                            <div class="border-t dark:border-purple-700 p-3 sm:p-5 bg-white dark:bg-slate-800/50 rounded-b-lg">
+                                                <!-- 引当製品一覧 -->
+                                                <div class="mb-4">
+                                                    <p class="text-xs sm:text-sm font-semibold text-purple-700 dark:text-purple-400 mb-2">📦 引当製品</p>
+                                                    <div class="space-y-2">
+                                                        ${sp.items.map(item => `
+                                                            <div class="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-700 rounded">
+                                                                <div class="flex-1 min-w-0">
+                                                                    <span class="font-mono text-xs text-slate-500 dark:text-slate-400">${item.serial || '-'}</span>
+                                                                    <p class="text-sm font-semibold text-slate-900 dark:text-white truncate">${item.productName || ''}</p>
+                                                                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                                                                        ${item.category || ''} 
+                                                                        ${item.orderProject ? `← 仕入: ${item.orderProject}` : ''}
+                                                                    </p>
+                                                                </div>
+                                                                <div class="text-right">
+                                                                    <span class="font-bold text-slate-900 dark:text-white">${formatJPY(item.costJPY || 0)}</span>
+                                                                </div>
+                                                            </div>
+                                                        `).join('')}
+                                                    </div>
+                                                    <div class="mt-2 pt-2 border-t dark:border-slate-600 text-right">
+                                                        <span class="text-sm text-slate-600 dark:text-slate-400">製品原価計: </span>
+                                                        <span class="font-bold text-purple-600 dark:text-purple-400">${formatJPY(sp.itemsCost)}</span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- 経費 -->
+                                                <div class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 sm:p-4">
+                                                    <div class="flex justify-between items-center mb-2 sm:mb-3">
+                                                        <p class="text-xs sm:text-sm font-semibold text-orange-700 dark:text-orange-400">📦 経費</p>
+                                                        <button onclick="event.stopPropagation();showAddSalesExpenseModal('${sp.projectNumber}')" class="px-2 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700">+ 追加</button>
+                                                    </div>
+                                                    ${sp.expenses.length > 0 ? `
+                                                        <div class="space-y-2">
+                                                            ${sp.expenses.map((exp, idx) => `
+                                                                <div class="flex justify-between items-center p-2 bg-white dark:bg-slate-700 rounded border border-orange-200 dark:border-orange-700">
+                                                                    <div class="flex-1 min-w-0">
+                                                                        <span class="font-semibold text-sm text-slate-900 dark:text-white">${exp.type || '経費'}</span>
+                                                                        <span class="text-sm font-bold text-orange-600 dark:text-orange-400 ml-2">${formatJPY(exp.amountJPY || 0)}</span>
+                                                                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                                                            ${exp.payee ? `<span>${exp.payee}</span>` : ''}
+                                                                            ${exp.paidDate ? `<span class="ml-2">${exp.paidDate}</span>` : ''}
+                                                                        </div>
+                                                                    </div>
+                                                                    <button onclick="event.stopPropagation();deleteSalesExpense('${sp.projectNumber}', ${idx})" 
+                                                                        class="ml-2 p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400" title="削除">
+                                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                        </svg>
+                                                                    </button>
+                                                                </div>
+                                                            `).join('')}
+                                                        </div>
+                                                        <div class="mt-2 pt-2 border-t border-orange-200 dark:border-orange-700 text-right">
+                                                            <span class="text-sm text-slate-600 dark:text-slate-400">経費計: </span>
+                                                            <span class="font-bold text-orange-600 dark:text-orange-400">${formatJPY(sp.expensesCost)}</span>
+                                                        </div>
+                                                    ` : `
+                                                        <p class="text-xs text-slate-500 dark:text-slate-400 text-center py-2">経費の登録はありません</p>
+                                                    `}
+                                                </div>
+                                                
+                                                <!-- コストサマリー -->
+                                                <div class="bg-slate-100 dark:bg-slate-600 rounded-lg p-3 sm:p-4 mt-3">
+                                                    <p class="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">💰 コストサマリー</p>
+                                                    <div class="grid grid-cols-2 gap-2 text-sm">
+                                                        <div>
+                                                            <span class="text-slate-500 dark:text-slate-400">製品原価</span>
+                                                            <span class="font-bold ml-1">${formatJPY(sp.itemsCost)}</span>
+                                                        </div>
+                                                        <div>
+                                                            <span class="text-slate-500 dark:text-slate-400">経費</span>
+                                                            <span class="font-bold text-orange-600 ml-1">${formatJPY(sp.expensesCost)}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="mt-2 pt-2 border-t border-slate-300 dark:border-slate-500">
+                                                        <div class="flex justify-between items-center">
+                                                            <span class="text-sm text-slate-600 dark:text-slate-400">📦 案件総原価</span>
+                                                            <span class="text-lg font-bold text-purple-600 dark:text-purple-400">${formatJPY(sp.totalCost)}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                            `}
                         </div>
                     </main>
                 </div>`;
+        }
+
+        // ==================== 販売案件（タブ）関連 ====================
+        
+        function switchProjectTab(tab) {
+            projectTab = tab;
+            if (tab === 'sales') {
+                loadInventoryForSales();
+            } else {
+                renderMain();
+            }
+        }
+        
+        async function loadInventoryForSales() {
+            try {
+                showStatus('在庫データを読み込み中...');
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '在庫!A2:R',
+                });
+                inventoryData = (response.result.values || []).map(row => ({
+                    id: row[0] || '',
+                    serial: row[1] || '',
+                    category: row[2] || '',
+                    productName: row[3] || '',
+                    orderPrefix: row[4] || '',
+                    orderNumber: row[5] || '',
+                    orderDate: row[6] || '',
+                    receivedDate: row[7] || '',
+                    status: row[8] || '',
+                    shipDate: row[9] || '',
+                    shipPrefix: row[10] || '',
+                    shipNumber: row[11] || '',
+                    costJPY: parseFloat(row[12]) || 0,
+                    note: row[13] || '',
+                    shelfNumber: row[14] || '',
+                    location: row[15] || '',
+                    supplierId: row[16] || ''
+                }));
+                
+                // 販売案件経費も読み込む
+                await loadSalesExpenses();
+                
+                showStatus('');
+                renderMain();
+            } catch (e) {
+                console.error('在庫データ読み込みエラー:', e);
+                showStatus('在庫データの読み込みに失敗しました');
+            }
+        }
+        
+        async function loadSalesExpenses() {
+            try {
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '販売案件経費!A2:G',
+                });
+                const rows = response.result.values || [];
+                salesProjectExpenses = {};
+                rows.forEach(row => {
+                    const projectNumber = row[0] || '';
+                    if (!projectNumber) return;
+                    if (!salesProjectExpenses[projectNumber]) {
+                        salesProjectExpenses[projectNumber] = [];
+                    }
+                    salesProjectExpenses[projectNumber].push({
+                        id: row[1] || Date.now(),
+                        type: row[2] || '',
+                        amountJPY: parseFloat(row[3]) || 0,
+                        payee: row[4] || '',
+                        paidDate: row[5] || '',
+                        note: row[6] || ''
+                    });
+                });
+            } catch (e) {
+                // シートがない場合は作成
+                if (e.result?.error?.code === 400 || e.status === 400) {
+                    await createSalesExpensesSheet();
+                } else {
+                    console.error('販売案件経費読み込みエラー:', e);
+                }
+            }
+        }
+        
+        async function createSalesExpensesSheet() {
+            try {
+                await gapi.client.sheets.spreadsheets.batchUpdate({
+                    spreadsheetId: SPREADSHEET_ID,
+                    resource: {
+                        requests: [{
+                            addSheet: {
+                                properties: { title: '販売案件経費' }
+                            }
+                        }]
+                    }
+                });
+                await gapi.client.sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '販売案件経費!A1:G1',
+                    valueInputOption: 'RAW',
+                    resource: {
+                        values: [['案件番号', 'ID', '種別', '金額', '支払先', '支払日', '備考']]
+                    }
+                });
+                console.log('販売案件経費シートを作成しました');
+            } catch (e) {
+                console.error('販売案件経費シート作成エラー:', e);
+            }
+        }
+        
+        function getSalesProjects() {
+            // 出庫先が設定されている在庫をグループ化
+            const shipped = inventoryData.filter(item => 
+                item.shipPrefix && item.shipNumber && 
+                (item.status === '出庫済' || item.status === '出庫済み')
+            );
+            
+            const grouped = {};
+            shipped.forEach(item => {
+                const projectNumber = `${item.shipPrefix}-${String(item.shipNumber).padStart(4, '0')}`;
+                if (!grouped[projectNumber]) {
+                    grouped[projectNumber] = {
+                        projectNumber,
+                        items: [],
+                        expenses: salesProjectExpenses[projectNumber] || [],
+                        itemsCost: 0,
+                        expensesCost: 0,
+                        totalCost: 0
+                    };
+                }
+                grouped[projectNumber].items.push({
+                    ...item,
+                    orderProject: item.orderPrefix && item.orderNumber 
+                        ? `${item.orderPrefix}-${String(item.orderNumber).padStart(4, '0')}`
+                        : ''
+                });
+                grouped[projectNumber].itemsCost += item.costJPY || 0;
+            });
+            
+            // 経費を合計
+            Object.values(grouped).forEach(sp => {
+                sp.expensesCost = sp.expenses.reduce((sum, e) => sum + (e.amountJPY || 0), 0);
+                sp.totalCost = sp.itemsCost + sp.expensesCost;
+            });
+            
+            return Object.values(grouped).sort((a, b) => b.projectNumber.localeCompare(a.projectNumber));
+        }
+        
+        function toggleSalesProject(projectNumber) {
+            expandedSalesProjects[projectNumber] = !expandedSalesProjects[projectNumber];
+            renderMain();
+        }
+        
+        async function refreshSalesProjects() {
+            await loadInventoryForSales();
+        }
+        
+        // 販売案件経費の追加モーダル
+        function showAddSalesExpenseModal(projectNumber) {
+            const expenseTypes = [
+                '施工外注費', '設置工事費', '国内配送料', '加工費', 'その他'
+            ];
+            
+            const modal = document.createElement('div');
+            modal.id = 'salesExpenseModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4">
+                        <h3 class="text-xl font-bold mb-4 dark:text-white">📦 経費を追加</h3>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-4">販売案件: ${projectNumber}</p>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">費用種別 <span class="text-red-500">*</span></label>
+                                <select id="salesExpenseType" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                    ${expenseTypes.map(t => `<option value="${t}">${t}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">金額（円） <span class="text-red-500">*</span></label>
+                                <input type="number" id="salesExpenseAmount" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="50000">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">支払先</label>
+                                <input type="text" id="salesExpensePayee" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="共進、佐川急便など">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">支払日</label>
+                                <input type="date" id="salesExpensePaidDate" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${new Date().toISOString().split('T')[0]}">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">備考</label>
+                                <input type="text" id="salesExpenseNote" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="任意">
+                            </div>
+                        </div>
+                        <div class="flex gap-3 mt-6">
+                            <button onclick="closeModal('salesExpenseModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
+                            <button onclick="submitSalesExpense('${projectNumber}')" class="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">追加</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        async function submitSalesExpense(projectNumber) {
+            const type = document.getElementById('salesExpenseType').value;
+            const amount = parseFloat(document.getElementById('salesExpenseAmount').value);
+            const payee = document.getElementById('salesExpensePayee').value.trim();
+            const paidDate = document.getElementById('salesExpensePaidDate').value;
+            const note = document.getElementById('salesExpenseNote').value.trim();
+            
+            if (!amount || amount <= 0) {
+                alert('金額を入力してください');
+                return;
+            }
+            
+            const id = Date.now();
+            
+            try {
+                // スプレッドシートに追加
+                await gapi.client.sheets.spreadsheets.values.append({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '販売案件経費!A:G',
+                    valueInputOption: 'RAW',
+                    resource: {
+                        values: [[projectNumber, id, type, amount, payee, paidDate, note]]
+                    }
+                });
+                
+                // ローカルデータも更新
+                if (!salesProjectExpenses[projectNumber]) {
+                    salesProjectExpenses[projectNumber] = [];
+                }
+                salesProjectExpenses[projectNumber].push({
+                    id, type, amountJPY: amount, payee, paidDate, note
+                });
+                
+                closeModal('salesExpenseModal');
+                renderMain();
+                showStatus('✅ 経費を追加しました');
+                setTimeout(() => showStatus(''), 3000);
+            } catch (e) {
+                console.error('経費追加エラー:', e);
+                alert('経費の追加に失敗しました');
+            }
+        }
+        
+        async function deleteSalesExpense(projectNumber, expenseIndex) {
+            const expenses = salesProjectExpenses[projectNumber];
+            if (!expenses || !expenses[expenseIndex]) return;
+            
+            const expense = expenses[expenseIndex];
+            if (!confirm(`「${expense.type}」(${formatJPY(expense.amountJPY)}) を削除しますか？`)) return;
+            
+            try {
+                // スプレッドシートから該当行を探して削除
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '販売案件経費!A2:G',
+                });
+                const rows = response.result.values || [];
+                
+                let rowToDelete = -1;
+                rows.forEach((row, idx) => {
+                    if (row[0] === projectNumber && row[1] === String(expense.id)) {
+                        rowToDelete = idx + 2; // ヘッダー行を考慮
+                    }
+                });
+                
+                if (rowToDelete > 0) {
+                    const sheetMeta = await gapi.client.sheets.spreadsheets.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                    });
+                    const sheet = sheetMeta.result.sheets.find(s => s.properties.title === '販売案件経費');
+                    
+                    if (sheet) {
+                        await gapi.client.sheets.spreadsheets.batchUpdate({
+                            spreadsheetId: SPREADSHEET_ID,
+                            resource: {
+                                requests: [{
+                                    deleteDimension: {
+                                        range: {
+                                            sheetId: sheet.properties.sheetId,
+                                            dimension: 'ROWS',
+                                            startIndex: rowToDelete - 1,
+                                            endIndex: rowToDelete
+                                        }
+                                    }
+                                }]
+                            }
+                        });
+                    }
+                }
+                
+                // ローカルデータからも削除
+                expenses.splice(expenseIndex, 1);
+                
+                renderMain();
+                showStatus('✅ 経費を削除しました');
+                setTimeout(() => showStatus(''), 3000);
+            } catch (e) {
+                console.error('経費削除エラー:', e);
+                alert('経費の削除に失敗しました');
+            }
         }
 
         async function getExchangeRate(date) {
