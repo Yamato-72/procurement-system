@@ -1617,13 +1617,13 @@
                                 <button onclick="refreshSalesProjects()" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-500 text-white text-sm rounded-lg hover:bg-slate-600">🔄 更新</button>
                             </div>
                             <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
-                                在庫ナビで出庫先に設定された案件の原価を集計しています
+                                在庫ナビで引当・出庫先に設定された案件の原価を集計しています
                             </p>
                             
                             <div class="space-y-3 sm:space-y-4">
                                 ${getSalesProjects().length === 0 ? `
                                     <div class="text-center py-8 text-slate-500 dark:text-slate-400">
-                                        <p class="mb-2">出庫済みの案件がありません</p>
+                                        <p class="mb-2">引当・出庫済みの案件がありません</p>
                                         <p class="text-xs">在庫ナビで出庫先案件を設定すると、ここに表示されます</p>
                                     </div>
                                 ` : getSalesProjects().map(sp => `
@@ -1635,6 +1635,8 @@
                                                         <span class="text-slate-400">${expandedSalesProjects[sp.projectNumber] ? '▼' : '▶'}</span>
                                                         <h3 class="font-bold text-base sm:text-xl text-slate-900 dark:text-white">${sp.projectNumber}</h3>
                                                         <span class="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full">${sp.items.length}品目</span>
+                                                        ${sp.allocatedCount > 0 ? `<span class="px-2 py-0.5 text-xs bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300 rounded-full">引当${sp.allocatedCount}</span>` : ''}
+                                                        ${sp.shippedCount > 0 ? `<span class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 rounded-full">出庫${sp.shippedCount}</span>` : ''}
                                                     </div>
                                                 </div>
                                                 <div class="text-right">
@@ -1650,9 +1652,12 @@
                                                     <p class="text-xs sm:text-sm font-semibold text-purple-700 dark:text-purple-400 mb-2">📦 引当製品</p>
                                                     <div class="space-y-2">
                                                         ${sp.items.map(item => `
-                                                            <div class="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-700 rounded">
+                                                            <div class="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-700 rounded ${item.status === '引当済' ? 'border-l-4 border-cyan-400' : 'border-l-4 border-blue-400'}">
                                                                 <div class="flex-1 min-w-0">
-                                                                    <span class="font-mono text-xs text-slate-500 dark:text-slate-400">${item.serial || '-'}</span>
+                                                                    <div class="flex items-center gap-2">
+                                                                        <span class="font-mono text-xs text-slate-500 dark:text-slate-400">${item.serial || '-'}</span>
+                                                                        <span class="px-1 py-0.5 text-xs rounded ${item.status === '引当済' ? 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'}">${item.status === '引当済' ? '引当' : '出庫'}</span>
+                                                                    </div>
                                                                     <p class="text-sm font-semibold text-slate-900 dark:text-white truncate">${item.productName || ''}</p>
                                                                     <p class="text-xs text-slate-500 dark:text-slate-400">
                                                                         ${item.category || ''} 
@@ -1847,14 +1852,14 @@
         }
         
         function getSalesProjects() {
-            // 出庫先が設定されている在庫をグループ化
-            const shipped = inventoryData.filter(item => 
+            // 出庫先が設定されている在庫をグループ化（引当済 + 出庫済）
+            const allocated = inventoryData.filter(item => 
                 item.shipPrefix && item.shipNumber && 
-                (item.status === '出庫済' || item.status === '出庫済み')
+                (item.status === '出庫済' || item.status === '出庫済み' || item.status === '引当済')
             );
             
             const grouped = {};
-            shipped.forEach(item => {
+            allocated.forEach(item => {
                 const projectNumber = `${item.shipPrefix}-${String(item.shipNumber).padStart(4, '0')}`;
                 if (!grouped[projectNumber]) {
                     grouped[projectNumber] = {
@@ -1863,7 +1868,9 @@
                         expenses: salesProjectExpenses[projectNumber] || [],
                         itemsCost: 0,
                         expensesCost: 0,
-                        totalCost: 0
+                        totalCost: 0,
+                        allocatedCount: 0,
+                        shippedCount: 0
                     };
                 }
                 grouped[projectNumber].items.push({
@@ -1873,6 +1880,11 @@
                         : ''
                 });
                 grouped[projectNumber].itemsCost += item.costJPY || 0;
+                if (item.status === '引当済') {
+                    grouped[projectNumber].allocatedCount++;
+                } else {
+                    grouped[projectNumber].shippedCount++;
+                }
             });
             
             // 経費を合計

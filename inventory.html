@@ -125,6 +125,7 @@
                 case '入庫待ち': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300';
                 case '検品待ち': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300';
                 case '在庫中': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300';
+                case '引当済': return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300';
                 case '出庫済': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300';
                 case '社内使用': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300';
                 case '不良品': return 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300';
@@ -150,7 +151,7 @@
         ];
 
         // ステータスリスト
-        const STATUSES = ['入庫待ち', '検品待ち', '在庫中', '出庫済', '社内使用', '不良品', '廃棄'];
+        const STATUSES = ['入庫待ち', '検品待ち', '在庫中', '引当済', '出庫済', '社内使用', '不良品', '廃棄'];
 
         // 保管場所リスト
         const LOCATIONS = ['蓮田', '東京', '大阪'];
@@ -1331,16 +1332,20 @@
 
         function getSummary() {
             const inStockItems = inventory.filter(i => i.status === '在庫中');
+            const allocatedItems = inventory.filter(i => i.status === '引当済');
             const inStockValue = inStockItems.reduce((sum, i) => sum + (Number(i.costJPY) || 0), 0);
+            const allocatedValue = allocatedItems.reduce((sum, i) => sum + (Number(i.costJPY) || 0), 0);
             const noShelfCount = inStockItems.filter(i => !i.shelfNo).length;
-            const tokyoCount = inventory.filter(i => i.location === '東京' && i.status === '在庫中').length;
-            const osakaCount = inventory.filter(i => i.location === '大阪' && i.status === '在庫中').length;
+            const tokyoCount = inventory.filter(i => i.location === '東京' && (i.status === '在庫中' || i.status === '引当済')).length;
+            const osakaCount = inventory.filter(i => i.location === '大阪' && (i.status === '在庫中' || i.status === '引当済')).length;
             return {
                 total: inventory.length,
                 waiting: inventory.filter(i => i.status === '入庫待ち').length,
                 pendingInspection: inventory.filter(i => i.status === '検品待ち').length,
                 inStock: inStockItems.length,
                 inStockValue: inStockValue,
+                allocated: allocatedItems.length,
+                allocatedValue: allocatedValue,
                 shipped: inventory.filter(i => i.status === '出庫済').length,
                 defect: inventory.filter(i => i.status === '不良品').length,
                 noShelf: noShelfCount,
@@ -1354,6 +1359,7 @@
                 case '入庫待ち': return 'bg-amber-100 text-amber-700';
                 case '検品待ち': return 'bg-orange-100 text-orange-700';
                 case '在庫中': return 'bg-emerald-100 text-emerald-700';
+                case '引当済': return 'bg-cyan-100 text-cyan-700';
                 case '出庫済': return 'bg-blue-100 text-blue-700';
                 case '社内使用': return 'bg-purple-100 text-purple-700';
                 case '不良品': return 'bg-red-100 text-red-700';
@@ -1737,7 +1743,8 @@
                                                         <td class="px-3 py-2 text-center" onclick="event.stopPropagation()">
                                                             <div class="flex gap-1 justify-center">
                                                                 ${item.status === '入庫待ち' ? `<button onclick="showReceiveModal('${item.id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">入庫</button>` : ''}
-                                                                ${item.status === '在庫中' ? `<button onclick="showShipModal('${item.id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button><button onclick="showInternalUseModal('${item.id}')" class="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700">社内</button>` : ''}
+                                                                ${item.status === '在庫中' ? `<button onclick="showAllocateModal('${item.id}')" class="px-2 py-1 bg-cyan-600 text-white text-xs rounded hover:bg-cyan-700">引当</button><button onclick="showInternalUseModal('${item.id}')" class="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700">社内</button>` : ''}
+                                                                ${item.status === '引当済' ? `<button onclick="showShipFromAllocatedModal('${item.id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button>` : ''}
                                                                 ${item.status === '不良品' ? `<button onclick="showDisposeModal('${item.id}')" class="px-2 py-1 bg-slate-400 text-white text-xs rounded hover:bg-slate-500">廃棄</button>` : ''}
                                                                 <button onclick="editItem('${item.id}')" class="px-2 py-1 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-white text-xs rounded hover:bg-slate-300 dark:hover:bg-slate-500">編集</button>
                                                                 ${item.status === '出庫済' || item.status === '社内使用' || item.status === '廃棄' ? `<button onclick="archiveItem('${item.id}')" class="px-2 py-1 bg-slate-500 text-white text-xs rounded hover:bg-slate-600">保管</button>` : ''}
@@ -1757,6 +1764,7 @@
                                         const statusCounts = {
                                             waiting: items.filter(i => i.status === '入庫待ち').length,
                                             inStock: items.filter(i => i.status === '在庫中').length,
+                                            allocated: items.filter(i => i.status === '引当済').length,
                                             shipped: items.filter(i => i.status === '出庫済').length,
                                             internal: items.filter(i => i.status === '社内使用').length,
                                             issue: items.filter(i => i.status === '不良品').length,
@@ -1805,6 +1813,7 @@
                                                     <div class="flex gap-1 sm:gap-2 flex-shrink-0">
                                                         ${statusCounts.waiting > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">待${statusCounts.waiting}</span>` : ''}
                                                         ${statusCounts.inStock > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">庫${statusCounts.inStock}</span>` : ''}
+                                                        ${statusCounts.allocated > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-cyan-100 dark:bg-cyan-900/50 text-cyan-700 dark:text-cyan-300">引${statusCounts.allocated}</span>` : ''}
                                                         ${statusCounts.shipped > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">出${statusCounts.shipped}</span>` : ''}
                                                         ${statusCounts.internal > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">社${statusCounts.internal}</span>` : ''}
                                                         ${statusCounts.issue > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">不${statusCounts.issue}</span>` : ''}
@@ -1855,8 +1864,11 @@
                                                                                     <button onclick="showReceiveModal('${item.id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">入庫</button>
                                                                                 ` : ''}
                                                                                 ${item.status === '在庫中' ? `
-                                                                                    <button onclick="showShipModal('${item.id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button>
+                                                                                    <button onclick="showAllocateModal('${item.id}')" class="px-2 py-1 bg-cyan-600 text-white text-xs rounded hover:bg-cyan-700">引当</button>
                                                                                     <button onclick="showInternalUseModal('${item.id}')" class="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700">社内</button>
+                                                                                ` : ''}
+                                                                                ${item.status === '引当済' ? `
+                                                                                    <button onclick="showShipFromAllocatedModal('${item.id}')" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button>
                                                                                 ` : ''}
                                                                                 ${item.status === '不良品' ? `
                                                                                     <button onclick="showDisposeModal('${item.id}')" class="px-2 py-1 bg-slate-400 text-white text-xs rounded hover:bg-slate-500">廃棄</button>
@@ -1901,8 +1913,11 @@
                                                                         <button onclick="showReceiveModal('${item.id}')" class="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">入庫</button>
                                                                     ` : ''}
                                                                     ${item.status === '在庫中' ? `
-                                                                        <button onclick="showShipModal('${item.id}')" class="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button>
+                                                                        <button onclick="showAllocateModal('${item.id}')" class="flex-1 px-3 py-1.5 bg-cyan-600 text-white text-xs rounded hover:bg-cyan-700">引当</button>
                                                                         <button onclick="showInternalUseModal('${item.id}')" class="px-3 py-1.5 bg-purple-600 text-white text-xs rounded hover:bg-purple-700">社内</button>
+                                                                    ` : ''}
+                                                                    ${item.status === '引当済' ? `
+                                                                        <button onclick="showShipFromAllocatedModal('${item.id}')" class="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">出庫</button>
                                                                     ` : ''}
                                                                     ${item.status === '不良品' ? `
                                                                         <button onclick="showDisposeModal('${item.id}')" class="px-3 py-1.5 bg-slate-400 text-white text-xs rounded hover:bg-slate-500">廃棄</button>
@@ -3544,6 +3559,194 @@
                 </div>
             `;
             document.body.appendChild(modal);
+        }
+
+        // 引当モーダル（在庫中 → 引当済）
+        function showAllocateModal(id) {
+            const item = inventory.find(i => String(i.id) === String(id));
+            if (!item) return;
+
+            const modal = document.createElement('div');
+            modal.id = 'allocateModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4">
+                        <h3 class="text-xl font-bold mb-4 dark:text-white">📋 引当処理</h3>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-2">Serial: <span class="font-mono font-semibold">${item.serial || "-"}</span></p>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-4">${item.productName}</p>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">出庫先案件番号 <span class="text-red-500">*</span></label>
+                                <input type="text" id="allocateProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="AD-1700">
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">この製品を割り当てる販売案件を指定</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">備考</label>
+                                <input type="text" id="allocateNote" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${item.note || ''}" placeholder="任意">
+                            </div>
+                        </div>
+                        <div class="flex gap-3 mt-6">
+                            <button onclick="closeModal('allocateModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
+                            <button onclick="submitAllocate('${id}')" class="flex-1 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700">引当</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // 引当処理
+        function submitAllocate(id) {
+            const item = inventory.find(i => String(i.id) === String(id));
+            if (!item) return;
+
+            const projectInput = document.getElementById('allocateProject').value.trim();
+            const note = document.getElementById('allocateNote').value.trim();
+
+            if (!projectInput) {
+                alert('出庫先案件番号を入力してください');
+                return;
+            }
+
+            const parsed = parseProjectNumberString(projectInput);
+            if (!parsed) {
+                alert('案件番号の形式が正しくありません（例: AD-1700）');
+                return;
+            }
+
+            item.status = '引当済';
+            item.shipPrefix = parsed.prefix;
+            item.shipNumber = String(parsed.number);
+            item.note = note;
+
+            closeModal('allocateModal');
+            saveData();
+            renderMain();
+            showStatus(`✅ ${item.serial || item.productName} を ${projectInput} に引当しました`);
+            setTimeout(() => showStatus(''), 3000);
+        }
+
+        // 引当済から出庫モーダル（引当済 → 出庫済）
+        function showShipFromAllocatedModal(id) {
+            const item = inventory.find(i => String(i.id) === String(id));
+            if (!item) return;
+
+            const today = new Date().toISOString().split('T')[0];
+            const allocatedProject = formatProjectNumber(item.shipPrefix, item.shipNumber);
+
+            const modal = document.createElement('div');
+            modal.id = 'shipFromAllocatedModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+                        <h3 class="text-xl font-bold mb-4 dark:text-white">📦 出庫処理</h3>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-2">Serial: <span class="font-mono font-semibold">${item.serial || "-"}</span></p>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mb-2">${item.productName}</p>
+                        <p class="text-sm mb-4">
+                            <span class="px-2 py-1 bg-cyan-100 dark:bg-cyan-900/50 text-cyan-700 dark:text-cyan-300 rounded text-xs font-semibold">
+                                引当先: ${allocatedProject}
+                            </span>
+                        </p>
+                        
+                        <div class="space-y-4">
+                            <!-- 出庫方法 -->
+                            <div>
+                                <label class="block text-sm font-semibold mb-2 dark:text-slate-300">出庫方法</label>
+                                <div class="flex gap-4">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="shipAllocatedMethod" value="delivery" checked onchange="toggleShipAllocatedMethod()">
+                                        <span class="dark:text-white">📦 配送</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="shipAllocatedMethod" value="pickup" onchange="toggleShipAllocatedMethod()">
+                                        <span class="dark:text-white">🤝 引渡し</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 配送の場合 -->
+                            <div id="deliveryAllocatedFields">
+                                <div class="mb-3">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">配送業者</label>
+                                    <select id="shipAllocatedCarrier" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                        ${CARRIERS.map(c => `<option value="${c}">${c}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">送り状番号</label>
+                                    <input type="text" id="shipAllocatedTrackingNo" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="追跡番号を入力">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">届け先</label>
+                                    <input type="text" id="shipAllocatedDestination" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="会社名・担当者・住所など">
+                                </div>
+                            </div>
+
+                            <!-- 引渡しの場合 -->
+                            <div id="pickupAllocatedFields" class="hidden">
+                                <div class="mb-3">
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">引渡し先</label>
+                                    <input type="text" id="shipAllocatedPickupTo" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="施工業者名など">
+                                </div>
+                            </div>
+
+                            <!-- 出庫日 -->
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">出庫日</label>
+                                <input type="date" id="shipAllocatedDate" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${today}">
+                            </div>
+                        </div>
+                        <div class="flex gap-3 mt-6">
+                            <button onclick="closeModal('shipFromAllocatedModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
+                            <button onclick="submitShipFromAllocated('${id}')" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">出庫</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function toggleShipAllocatedMethod() {
+            const method = document.querySelector('input[name="shipAllocatedMethod"]:checked').value;
+            document.getElementById('deliveryAllocatedFields').classList.toggle('hidden', method !== 'delivery');
+            document.getElementById('pickupAllocatedFields').classList.toggle('hidden', method !== 'pickup');
+        }
+
+        // 引当済から出庫処理
+        function submitShipFromAllocated(id) {
+            const item = inventory.find(i => String(i.id) === String(id));
+            if (!item) return;
+
+            const method = document.querySelector('input[name="shipAllocatedMethod"]:checked').value;
+            const shipDate = document.getElementById('shipAllocatedDate').value;
+
+            // 備考に配送情報を追加
+            let shipNote = item.note || '';
+            if (method === 'delivery') {
+                const carrier = document.getElementById('shipAllocatedCarrier').value;
+                const trackingNo = document.getElementById('shipAllocatedTrackingNo').value.trim();
+                const destination = document.getElementById('shipAllocatedDestination').value.trim();
+                if (carrier || trackingNo || destination) {
+                    shipNote = `[出庫] ${carrier}${trackingNo ? ' ' + trackingNo : ''}${destination ? ' → ' + destination : ''} ${shipNote}`.trim();
+                }
+            } else {
+                const pickupTo = document.getElementById('shipAllocatedPickupTo').value.trim();
+                if (pickupTo) {
+                    shipNote = `[引渡] ${pickupTo} ${shipNote}`.trim();
+                }
+            }
+
+            item.status = '出庫済';
+            item.shipDate = shipDate;
+            item.note = shipNote;
+            // shipPrefix, shipNumber は引当時にすでに設定済み
+
+            closeModal('shipFromAllocatedModal');
+            saveData();
+            renderMain();
+            showStatus(`✅ ${item.serial || item.productName} を出庫しました`);
+            setTimeout(() => showStatus(''), 3000);
         }
 
         // 社内使用モーダル
