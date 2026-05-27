@@ -819,8 +819,37 @@
                     showStatus(msg);
                     setTimeout(() => showStatus(''), 3000);
                 } else {
-                    showStatus(`⚠️ 該当する在庫が見つかりません（${projectPrefix}-${projectNumber}）`, 'warning');
-                    setTimeout(() => showStatus(''), 3000);
+                    // 在庫が見つからない場合は新規追加を提案
+                    const confirmAdd = confirm(`在庫が見つかりません（${projectPrefix}-${projectNumber}）\n\n新規追加しますか？\n\n製品名: ${productName}\n数量: ${quantity}台\n取得金: ¥${costPerUnit.toLocaleString()}/台`);
+                    
+                    if (confirmAdd) {
+                        try {
+                            const serial = project.serial || '';
+                            const category = project.category || 'その他';
+                            const orderDate = project.registeredDate || new Date().toISOString().split('T')[0];
+                            const supplierId = project.supplierId || '';
+                            
+                            await addToInventory(
+                                serial,
+                                category,
+                                productName,
+                                `${projectPrefix}-${projectNumber}`,
+                                orderDate,
+                                quantity,
+                                supplierId,
+                                costPerUnit
+                            );
+                            
+                            showStatus(`✅ 在庫に新規追加しました（${quantity}台 × ¥${costPerUnit.toLocaleString()}）`);
+                            setTimeout(() => showStatus(''), 3000);
+                        } catch (addErr) {
+                            console.error('在庫追加エラー:', addErr);
+                            showStatus('❌ 在庫の追加に失敗しました', 'error');
+                        }
+                    } else {
+                        showStatus('キャンセルしました');
+                        setTimeout(() => showStatus(''), 2000);
+                    }
                 }
             } catch (e) {
                 console.error('在庫取得金の更新に失敗しました:', e);
