@@ -777,15 +777,18 @@
                 rows.forEach((row, idx) => {
                     const rowPrefix = row[4] || '';
                     const rowNumber = String(row[5] || '').padStart(4, '0');
-                    const rowProductName = row[3] || '';
                     
                     const prefixMatch = rowPrefix.toUpperCase() === projectPrefix.toUpperCase();
                     const numberMatch = rowNumber === projectNumber;
-                    const productMatch = rowProductName === productName;
                     
-                    // 案件番号 + 製品名 で一致判定
-                    if (prefixMatch && numberMatch && productMatch) {
+                    // 案件番号のみで一致判定（製品名は上書きする）
+                    if (prefixMatch && numberMatch) {
                         const rowNum = idx + 2;
+                        // 取得金（M列）と製品名（D列）を更新
+                        updates.push({
+                            range: `在庫!D${rowNum}`,
+                            values: [[productName]]
+                        });
                         updates.push({
                             range: `在庫!M${rowNum}`,
                             values: [[costPerUnit]]
@@ -801,17 +804,19 @@
                             data: updates
                         }
                     });
+                    const itemCount = updates.length / 2; // 製品名と取得金で2つずつ
                     const msg = expensesTotal > 0 
-                        ? `✅ 在庫の取得金を更新: ¥${costPerUnit.toLocaleString()}/台 × ${updates.length}台（諸費用¥${expensesTotal.toLocaleString()}含む）`
-                        : `✅ 在庫の取得金を更新: ¥${costPerUnit.toLocaleString()}/台 × ${updates.length}台`;
+                        ? `✅ 在庫の取得金を更新: ¥${costPerUnit.toLocaleString()}/台 × ${itemCount}台（諸費用¥${expensesTotal.toLocaleString()}含む）`
+                        : `✅ 在庫の取得金を更新: ¥${costPerUnit.toLocaleString()}/台 × ${itemCount}台`;
                     showStatus(msg);
                     setTimeout(() => showStatus(''), 3000);
                 } else {
-                    showStatus(`⚠️ 該当する在庫が見つかりません`, 'warning');
+                    showStatus(`⚠️ 該当する在庫が見つかりません（${projectPrefix}-${projectNumber}）`, 'warning');
                     setTimeout(() => showStatus(''), 3000);
                 }
             } catch (e) {
                 console.error('在庫取得金の更新に失敗しました:', e);
+                showStatus('❌ 在庫取得金の更新に失敗しました', 'error');
             }
         }
         
@@ -3693,6 +3698,8 @@
                 const projectNumber = formatProjectNumber(project);
                 const parsed = parseProjectNumberString(projectNumber);
                 const productName = project.productName || '';
+                const projectPrefix = parsed.prefix.toUpperCase();
+                const projectNum = String(parsed.number).padStart(4, '0');
                 
                 // 在庫シートを読み込み
                 const response = await gapi.client.sheets.spreadsheets.values.get({
@@ -3701,14 +3708,20 @@
                 });
                 const rows = response.result.values || [];
                 
-                // 該当案件のアイテムを検索して更新（案件番号 + 製品名で一致）
+                // 該当案件のアイテムを検索して更新（案件番号のみで一致、製品名も上書き）
                 const updates = [];
                 rows.forEach((row, idx) => {
-                    if (row[4] === parsed.prefix && 
-                        row[5] === String(parsed.number) &&
-                        row[3] === productName) {
+                    const rowPrefix = (row[4] || '').toUpperCase();
+                    const rowNum = String(row[5] || '').padStart(4, '0');
+                    
+                    if (rowPrefix === projectPrefix && rowNum === projectNum) {
+                        const rowIndex = idx + 2;
                         updates.push({
-                            range: `在庫!M${idx + 2}`,
+                            range: `在庫!D${rowIndex}`,
+                            values: [[productName]]
+                        });
+                        updates.push({
+                            range: `在庫!M${rowIndex}`,
                             values: [[costPerItem]]
                         });
                     }
@@ -3722,14 +3735,19 @@
                             data: updates
                         }
                     });
+                    const itemCount = updates.length / 2;
                     const msg = expenseTotal > 0 
-                        ? `✅ 在庫の取得金を更新（¥${costPerItem.toLocaleString()}/台 × ${updates.length}台、諸費用¥${expenseTotal.toLocaleString()}含む）`
-                        : `✅ 在庫の取得金を更新（¥${costPerItem.toLocaleString()}/台 × ${updates.length}台）`;
+                        ? `✅ 在庫の取得金を更新（¥${costPerItem.toLocaleString()}/台 × ${itemCount}台、諸費用¥${expenseTotal.toLocaleString()}含む）`
+                        : `✅ 在庫の取得金を更新（¥${costPerItem.toLocaleString()}/台 × ${itemCount}台）`;
                     showStatus(msg);
+                    setTimeout(() => showStatus(''), 3000);
+                } else {
+                    showStatus(`⚠️ 該当する在庫が見つかりません（${projectPrefix}-${projectNum}）`, 'warning');
                     setTimeout(() => showStatus(''), 3000);
                 }
             } catch (err) {
                 console.error('在庫取得金更新エラー:', err);
+                showStatus('❌ 在庫取得金の更新に失敗しました', 'error');
             }
         }
         
