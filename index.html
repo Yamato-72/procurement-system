@@ -751,15 +751,13 @@
         
         // 在庫の取得金を更新
         async function updateInventoryCost(project) {
-            console.log('updateInventoryCost called:', project.productName);
             try {
                 // 製品代（デポジット合計）
                 const depositTotal = project.depositSchedule.reduce((sum, d) => sum + (d.amountJPY || 0), 0);
-                console.log('depositTotal:', depositTotal);
                 
                 // 諸費用（原価に含むもののみ）
                 const expensesTotal = (project.expenses || [])
-                    .filter(e => e.includeInCost !== false)
+                    .filter(e => e.includeInCost !== false && !e.isInventoryItem)  // 付帯品は除外
                     .reduce((sum, e) => sum + (e.amountJPY || 0), 0);
                 
                 // 取得金合計 = 製品代 + 諸費用（原価）
@@ -787,16 +785,12 @@
                 rows.forEach((row, idx) => {
                     const rowPrefix = row[4] || '';
                     const rowNumber = String(row[5] || '').padStart(4, '0');
-                    const rowProductName = row[3] || '';
                     
                     const prefixMatch = rowPrefix.toUpperCase() === projectPrefix.toUpperCase();
                     const numberMatch = rowNumber === projectNumber;
                     
-                    // 案件番号が一致 かつ （製品名が空 または メイン製品名と一致）の場合のみ更新
-                    // 付帯品（製品名が異なる）は除外
-                    const isMainProduct = !rowProductName || rowProductName === productName;
-                    
-                    if (prefixMatch && numberMatch && isMainProduct) {
+                    // 案件番号のみで一致判定（製品名は上書きする）
+                    if (prefixMatch && numberMatch) {
                         const rowNum = idx + 2;
                         // 取得金（M列）と製品名（D列）を更新
                         updates.push({
@@ -2206,9 +2200,7 @@
         
         // グループ全体の在庫反映
         async function syncGroupToInventory(projectNumber) {
-            console.log('syncGroupToInventory called:', projectNumber);
             const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
-            console.log('groupProjects found:', groupProjects.length);
             
             if (groupProjects.length === 0) {
                 alert('案件が見つかりません');
@@ -2217,12 +2209,15 @@
             
             showStatus(`${groupProjects.length}製品の在庫を更新中...`);
             
-            for (const p of groupProjects) {
-                console.log('Updating inventory for:', p.productName);
-                await updateInventoryCost(p);
+            try {
+                for (const p of groupProjects) {
+                    await updateInventoryCost(p);
+                }
+                showStatus(`✅ ${groupProjects.length}製品の在庫を更新しました`);
+            } catch (err) {
+                console.error('在庫更新エラー:', err);
+                showStatus('❌ 在庫更新に失敗しました');
             }
-            
-            showStatus(`✅ ${groupProjects.length}製品の在庫を更新しました`);
             setTimeout(() => showStatus(''), 3000);
         }
         
@@ -3751,9 +3746,9 @@
                 // 製品代（デポジット合計）
                 const totalJPY = (project.depositSchedule || []).reduce((sum, d) => sum + (d.amountJPY || 0), 0);
                 
-                // 諸費用（原価に含むもののみ）
+                // 諸費用（原価に含むもののみ、付帯品は除外）
                 const expenseTotal = (project.expenses || [])
-                    .filter(e => e.includeInCost !== false)
+                    .filter(e => e.includeInCost !== false && !e.isInventoryItem)
                     .reduce((sum, e) => sum + (parseFloat(e.amountJPY) || 0), 0);
                 
                 const grandTotal = totalJPY + expenseTotal;
@@ -3775,17 +3770,13 @@
                 });
                 const rows = response.result.values || [];
                 
-                // 該当案件のアイテムを検索して更新（メイン製品のみ、付帯品は除外）
+                // 該当案件のアイテムを検索して更新（案件番号のみで一致）
                 const updates = [];
                 rows.forEach((row, idx) => {
                     const rowPrefix = (row[4] || '').toUpperCase();
                     const rowNum = String(row[5] || '').padStart(4, '0');
-                    const rowProductName = row[3] || '';
                     
-                    // 案件番号が一致 かつ （製品名が空 または メイン製品名と一致）の場合のみ更新
-                    const isMainProduct = !rowProductName || rowProductName === productName;
-                    
-                    if (rowPrefix === projectPrefix && rowNum === projectNum && isMainProduct) {
+                    if (rowPrefix === projectPrefix && rowNum === projectNum) {
                         const rowIndex = idx + 2;
                         updates.push({
                             range: `在庫!D${rowIndex}`,
