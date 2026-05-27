@@ -738,12 +738,20 @@
         // 在庫の取得金を更新
         async function updateInventoryCost(project) {
             try {
-                // 製品代（デポジット合計）のみ。諸費用は含めない
+                // 製品代（デポジット合計）
                 const depositTotal = project.depositSchedule.reduce((sum, d) => sum + (d.amountJPY || 0), 0);
+                
+                // 諸費用（原価に含むもののみ）
+                const expensesTotal = (project.expenses || [])
+                    .filter(e => e.includeInCost !== false)
+                    .reduce((sum, e) => sum + (e.amountJPY || 0), 0);
+                
+                // 取得金合計 = 製品代 + 諸費用（原価）
+                const totalCost = depositTotal + expensesTotal;
                 
                 // 1台あたりの取得金
                 const quantity = project.quantity || 1;
-                const costPerUnit = Math.round(depositTotal / quantity);
+                const costPerUnit = Math.round(totalCost / quantity);
                 
                 if (costPerUnit <= 0) return;
                 
@@ -787,7 +795,10 @@
                             data: updates
                         }
                     });
-                    showStatus(`✅ 在庫の取得金を更新: ¥${costPerUnit.toLocaleString()}/台 × ${updates.length}台`);
+                    const msg = expensesTotal > 0 
+                        ? `✅ 在庫の取得金を更新: ¥${costPerUnit.toLocaleString()}/台 × ${updates.length}台（諸費用¥${expensesTotal.toLocaleString()}含む）`
+                        : `✅ 在庫の取得金を更新: ¥${costPerUnit.toLocaleString()}/台 × ${updates.length}台`;
+                    showStatus(msg);
                     setTimeout(() => showStatus(''), 3000);
                 } else {
                     showStatus(`⚠️ 該当する在庫が見つかりません`, 'warning');
@@ -3208,8 +3219,14 @@
         // 支払い完了時に在庫の取得金を更新（編集画面からの保存時）
         async function updateInventoryCostFromProject(project) {
             try {
+                // 製品代（デポジット合計）
                 const totalJPY = (project.depositSchedule || []).reduce((sum, d) => sum + (d.amountJPY || 0), 0);
-                const expenseTotal = (project.expenses || []).reduce((sum, e) => sum + (parseFloat(e.amountJPY) || 0), 0);
+                
+                // 諸費用（原価に含むもののみ）
+                const expenseTotal = (project.expenses || [])
+                    .filter(e => e.includeInCost !== false)
+                    .reduce((sum, e) => sum + (parseFloat(e.amountJPY) || 0), 0);
+                
                 const grandTotal = totalJPY + expenseTotal;
                 const quantity = project.quantity || 1;
                 const costPerItem = Math.round(grandTotal / quantity);
@@ -3248,7 +3265,10 @@
                             data: updates
                         }
                     });
-                    showStatus(`✅ 在庫の取得金を更新（¥${costPerItem.toLocaleString()}/台 × ${updates.length}台）`);
+                    const msg = expenseTotal > 0 
+                        ? `✅ 在庫の取得金を更新（¥${costPerItem.toLocaleString()}/台 × ${updates.length}台、諸費用¥${expenseTotal.toLocaleString()}含む）`
+                        : `✅ 在庫の取得金を更新（¥${costPerItem.toLocaleString()}/台 × ${updates.length}台）`;
+                    showStatus(msg);
                     setTimeout(() => showStatus(''), 3000);
                 }
             } catch (err) {
