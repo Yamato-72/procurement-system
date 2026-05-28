@@ -4775,6 +4775,7 @@
                             <table class="w-full">
                                 <thead class="bg-slate-100 dark:bg-slate-700">
                                     <tr>
+                                        <th class="px-2 py-2 text-center"><input type="checkbox" id="archiveSelectAll" onchange="toggleArchiveSelectAll()" class="rounded"></th>
                                         <th class="px-2 sm:px-3 py-2 text-left text-xs sm:text-sm">Serial</th>
                                         <th class="px-2 sm:px-3 py-2 text-left text-xs sm:text-sm hidden sm:table-cell">種別</th>
                                         <th class="px-2 sm:px-3 py-2 text-left text-xs sm:text-sm">製品名</th>
@@ -4786,11 +4787,12 @@
                                 </thead>
                                 <tbody class="divide-y dark:divide-slate-600">
                                     ${filtered.length === 0 ? `
-                                        <tr><td colspan="7" class="px-3 py-8 text-center text-slate-500">
+                                        <tr><td colspan="8" class="px-3 py-8 text-center text-slate-500">
                                             ${archivedInventory.length === 0 ? 'アーカイブはありません' : '検索条件に一致するアイテムがありません'}
                                         </td></tr>
                                     ` : filtered.slice(0, 100).map(item => `
                                         <tr class="hover:bg-slate-50 dark:hover:bg-slate-700">
+                                            <td class="px-2 py-2 text-center"><input type="checkbox" class="archive-checkbox rounded" data-id="${item.id}"></td>
                                             <td class="px-2 sm:px-3 py-2 font-mono text-xs sm:text-sm">${escapeHtml(item.serial || '-')}</td>
                                             <td class="px-2 sm:px-3 py-2 text-xs sm:text-sm hidden sm:table-cell">${escapeHtml(item.category || '')}</td>
                                             <td class="px-2 sm:px-3 py-2 text-xs sm:text-sm">${escapeHtml(item.productName || '')}</td>
@@ -4808,7 +4810,7 @@
                                         </tr>
                                     `).join('')}
                                     ${filtered.length > 100 ? `
-                                        <tr><td colspan="7" class="px-3 py-4 text-center text-slate-500 text-sm">
+                                        <tr><td colspan="8" class="px-3 py-4 text-center text-slate-500 text-sm">
                                             ※ 表示は100件まで。検索で絞り込んでください（全${filtered.length}件）
                                         </td></tr>
                                     ` : ''}
@@ -4816,8 +4818,15 @@
                             </table>
                         </div>
                         
-                        <div class="mt-4 text-xs text-slate-500 dark:text-slate-400">
-                            💡 ヒント: 返品・交換や追加出庫の際は「復帰」から在庫に戻せます
+                        <div class="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div class="text-xs text-slate-500 dark:text-slate-400">
+                                💡 ヒント: 返品・交換や追加出庫の際は「復帰」から在庫に戻せます。<br>
+                                チェックを入れて「選択を在庫に戻す」を押すと、<strong>元のステータスを保持したまま</strong>一括で戻せます（過去分の原価入力用）。
+                            </div>
+                            <button onclick="executeBulkRestore()" 
+                                class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 whitespace-nowrap">
+                                📥 選択を在庫に戻す（ステータス保持）
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -4949,6 +4958,52 @@
             renderMain();
             
             showStatus(`✅ ${restoredItem.serial || restoredItem.productName} を復帰しました`);
+            setTimeout(() => showStatus(''), 3000);
+        }
+
+        // アーカイブ一覧の全選択トグル
+        function toggleArchiveSelectAll() {
+            const selectAll = document.getElementById('archiveSelectAll');
+            if (!selectAll) return;
+            document.querySelectorAll('.archive-checkbox').forEach(cb => {
+                cb.checked = selectAll.checked;
+            });
+        }
+
+        // 一括復帰（元のステータスを保持したまま在庫に戻す）
+        async function executeBulkRestore() {
+            const checked = Array.from(document.querySelectorAll('.archive-checkbox:checked'));
+            if (checked.length === 0) {
+                alert('在庫に戻すアイテムを選択してください');
+                return;
+            }
+
+            const ids = checked.map(cb => cb.getAttribute('data-id'));
+
+            if (!confirm(`${ids.length}件を在庫に戻します。\n\nステータス（出庫済など）はそのまま保持されます。\nよろしいですか？`)) {
+                return;
+            }
+
+            // 対象アイテムをアーカイブから在庫へ移動（ステータスはそのまま）
+            const restored = [];
+            ids.forEach(id => {
+                const item = archivedInventory.find(i => String(i.id) === String(id));
+                if (item) {
+                    inventory.push({ ...item });
+                    restored.push(id);
+                }
+            });
+
+            // アーカイブから取り除く
+            archivedInventory = archivedInventory.filter(i => !restored.includes(String(i.id)) && !restored.includes(i.id));
+
+            showStatus('在庫に戻しています...');
+            await saveData();
+
+            renderArchiveModal();
+            renderMain();
+
+            showStatus(`✅ ${restored.length}件を在庫に戻しました（ステータス保持）`);
             setTimeout(() => showStatus(''), 3000);
         }
 
