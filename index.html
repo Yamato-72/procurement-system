@@ -2361,7 +2361,7 @@
             }
             
             supplier.name = name;
-            
+
             saveData();
             renderMain();
         }
@@ -6382,6 +6382,28 @@
             if (typeof gapi !== 'undefined') gapiLoaded();
             if (typeof google !== 'undefined') gisLoaded();
         };
+    </script>
+
+    <!-- トップへ戻るボタン -->
+    <button id="scrollTopBtn" onclick="window.scrollTo({top:0,behavior:'smooth'})"
+            class="fixed bottom-6 right-6 z-40 w-11 h-11 bg-slate-700 dark:bg-slate-600 text-white rounded-full shadow-lg flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300 hover:bg-slate-800"
+            title="トップへ戻る" aria-label="トップへ戻る">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
+    </button>
+    <script>
+        (function() {
+            const btn = document.getElementById('scrollTopBtn');
+            if (!btn) return;
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 300) {
+                    btn.classList.remove('opacity-0', 'pointer-events-none');
+                    btn.classList.add('opacity-100');
+                } else {
+                    btn.classList.add('opacity-0', 'pointer-events-none');
+                    btn.classList.remove('opacity-100');
+                }
+            }, { passive: true });
+        })();
     </script>
 </body>
 </html>
