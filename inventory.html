@@ -2416,15 +2416,23 @@
 
         // 一括出庫モーダル
         function showBulkShipModal() {
-            const inStockItems = Array.from(selectedItems).filter(id => {
+            // 在庫中・引当済の両方を出庫対象に
+            const shippableItems = Array.from(selectedItems).filter(id => {
                 const item = inventory.find(i => String(i.id) === String(id));
-                return item && item.status === '在庫中';
+                return item && (item.status === '在庫中' || item.status === '引当済');
             });
             
-            if (inStockItems.length === 0) {
-                alert('在庫中のアイテムがありません');
+            if (shippableItems.length === 0) {
+                alert('出庫可能なアイテム（在庫中・引当済）がありません');
                 return;
             }
+            
+            // 内訳をカウント
+            const inStockCount = shippableItems.filter(id => {
+                const item = inventory.find(i => String(i.id) === String(id));
+                return item && item.status === '在庫中';
+            }).length;
+            const allocatedCount = shippableItems.length - inStockCount;
             
             const today = new Date().toISOString().split('T')[0];
             const modal = document.createElement('div');
@@ -2432,7 +2440,8 @@
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
-                        <h3 class="text-lg font-bold mb-4 dark:text-white">一括出庫（${inStockItems.length}件）</h3>
+                        <h3 class="text-lg font-bold mb-4 dark:text-white">一括出庫（${shippableItems.length}件）</h3>
+                        ${allocatedCount > 0 ? `<p class="text-xs text-cyan-700 dark:text-cyan-300 mb-3">📌 引当済 ${allocatedCount}件 / 在庫中 ${inStockCount}件 — 引当済アイテムは引当時の出庫先案件を維持します</p>` : ''}
                         
                         <div class="space-y-4">
                             <!-- 出庫方法 -->
@@ -2478,7 +2487,7 @@
 
                             <!-- 共通 -->
                             <div>
-                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">出庫先案件番号 <span class="text-red-500">*</span></label>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">出庫先案件番号 ${inStockCount > 0 ? '<span class="text-red-500">*</span>' : '<span class="text-xs text-slate-500">(在庫中アイテム用、引当済のみなら空欄でOK)</span>'}</label>
                                 <input type="text" id="bulkShipProject" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="AD-1700">
                             </div>
                             <div>
@@ -2508,41 +2517,61 @@
             const shipDate = document.getElementById('bulkShipDate').value;
             const method = document.querySelector('input[name="bulkShipMethod"]:checked').value;
             
-            if (!shipProjectInput) {
-                alert('出庫先案件番号を入力してください');
-                return;
-            }
+            // 対象アイテムを取得（在庫中・引当済）
+            const shippableItems = Array.from(selectedItems).filter(id => {
+                const item = inventory.find(i => String(i.id) === String(id));
+                return item && (item.status === '在庫中' || item.status === '引当済');
+            });
             
-            const parsedShip = parseProjectNumberString(shipProjectInput);
-            
-            const inStockItems = Array.from(selectedItems).filter(id => {
+            // 在庫中アイテムが含まれているなら出庫先案件番号は必須
+            const hasInStock = shippableItems.some(id => {
                 const item = inventory.find(i => String(i.id) === String(id));
                 return item && item.status === '在庫中';
             });
             
-            inStockItems.forEach(id => {
+            if (hasInStock && !shipProjectInput) {
+                alert('在庫中のアイテムが含まれているため、出庫先案件番号を入力してください');
+                return;
+            }
+            
+            const parsedShip = shipProjectInput ? parseProjectNumberString(shipProjectInput) : null;
+            
+            // 配送・引渡し情報を一度だけ取得（全件共通）
+            const shipCarrier = method === 'delivery' ? document.getElementById('bulkShipCarrier').value : '';
+            const shipTrackingNo = method === 'delivery' ? document.getElementById('bulkShipTrackingNo').value.trim() : '';
+            const shipDestination = method === 'delivery' ? document.getElementById('bulkShipDestination').value.trim() : '';
+            const shipPickupTo = method === 'pickup' ? document.getElementById('bulkShipPickupTo').value.trim() : '';
+            
+            shippableItems.forEach(id => {
                 const item = inventory.find(i => String(i.id) === String(id));
-                if (item) {
+                if (!item) return;
+                
+                // 在庫中の場合のみ、出庫先案件番号をセット
+                // 引当済の場合は既存の shipPrefix/shipNumber をそのまま使う
+                if (item.status === '在庫中' && parsedShip) {
                     item.shipPrefix = parsedShip.prefix;
                     item.shipNumber = parsedShip.number;
-                    item.shipDate = shipDate;
-                    item.shipMethod = method;
-
-                    if (method === 'delivery') {
-                        item.shipCarrier = document.getElementById('bulkShipCarrier').value;
-                        item.shipTrackingNo = document.getElementById('bulkShipTrackingNo').value.trim();
-                        item.shipDestination = document.getElementById('bulkShipDestination').value.trim();
-                        item.status = '出庫済';
-                    } else {
-                        item.shipPickupTo = document.getElementById('bulkShipPickupTo').value.trim();
-                        item.status = '出庫済';
-                    }
                 }
+                
+                item.shipDate = shipDate;
+                item.shipMethod = method;
+                
+                if (method === 'delivery') {
+                    item.shipCarrier = shipCarrier;
+                    item.shipTrackingNo = shipTrackingNo;
+                    item.shipDestination = shipDestination;
+                } else {
+                    item.shipPickupTo = shipPickupTo;
+                }
+                
+                item.status = '出庫済';
             });
             
             saveData();
             closeModal('bulkShipModal');
             cancelBulkSelect();
+            showStatus(`✅ ${shippableItems.length}件を出庫しました`);
+            setTimeout(() => showStatus(''), 3000);
         }
 
         function applyFilters() {
