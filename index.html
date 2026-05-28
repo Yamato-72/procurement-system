@@ -4949,6 +4949,12 @@
             closeModal('expenseModal');
             renderMain();
             
+            // 諸費用（原価に含むもの）を確定したら、本体製品の在庫原価を再反映
+            // 付帯品は本体原価に影響しない（在庫には別途1行登録済み）のでスキップ
+            if (type !== '付帯品' && includeInCost) {
+                await updateInventoryCost(project);
+            }
+            
             if (type !== '付帯品') {
                 showStatus('✅ 諸費用を追加しました');
             }
@@ -4964,16 +4970,24 @@
             checkbox.checked = !nonCostTypes.includes(type);
         }
 
-        function deleteExpense(projectId, expenseIndex) {
+        async function deleteExpense(projectId, expenseIndex) {
             const project = projects.find(p => String(p.id) === String(projectId));
             if (!project || !project.expenses) return;
 
             const expense = project.expenses[expenseIndex];
             if (!confirm(`「${expense.type}」(${formatJPY(expense.amountJPY)}) を削除しますか？`)) return;
 
+            // 削除前に「原価に含まれる諸費用だったか」を記録
+            const wasInCost = expense.includeInCost !== false && !expense.isInventoryItem;
+
             project.expenses.splice(expenseIndex, 1);
-            saveData();
+            await saveData();
             renderMain();
+
+            // 原価に含まれていた諸費用を削除したら、本体製品の在庫原価を再反映
+            if (wasInCost) {
+                await updateInventoryCost(project);
+            }
         }
 
         // 諸費用の編集モーダル
@@ -5039,9 +5053,13 @@
             document.body.appendChild(modal);
         }
 
-        function submitEditExpense(projectId, expenseIndex) {
+        async function submitEditExpense(projectId, expenseIndex) {
             const project = projects.find(p => String(p.id) === String(projectId));
             if (!project || !project.expenses || !project.expenses[expenseIndex]) return;
+
+            // 編集前に「原価に含まれていたか」を記録
+            const before = project.expenses[expenseIndex];
+            const wasInCost = before.includeInCost !== false && !before.isInventoryItem;
 
             const type = document.getElementById('editExpenseType').value;
             const amount = parseFloat(document.getElementById('editExpenseAmount').value);
@@ -5065,9 +5083,17 @@
                 note: note
             };
 
-            saveData();
+            // 編集後に「原価に含まれるか」を判定
+            const isInCost = includeInCost && !project.expenses[expenseIndex].isInventoryItem;
+
+            await saveData();
             closeModal('editExpenseModal');
             renderMain();
+
+            // 編集前後どちらかで原価に関わっていたら、本体製品の在庫原価を再反映
+            if (wasInCost || isInCost) {
+                await updateInventoryCost(project);
+            }
         }
 
         // ==================== 按分機能 ====================
