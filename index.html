@@ -4782,7 +4782,12 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">支払先</label>
-                                <input type="text" id="expensePayee" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="Amazon、モノタロウなど">
+                                <select id="expensePayeeSelect" onchange="updateExpensePayeeUI()" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white mb-2">
+                                    <option value="">-- 選択してください --</option>
+                                    ${suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                                    <option value="__other__">その他（手動入力）</option>
+                                </select>
+                                <input type="text" id="expensePayee" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white hidden" placeholder="Amazon、モノタロウなど">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">支払日</label>
@@ -4829,6 +4834,20 @@
             }
         }
 
+        // 支払先プルダウンの選択に応じてテキスト入力欄を表示/非表示
+        function updateExpensePayeeUI() {
+            const select = document.getElementById('expensePayeeSelect');
+            const textInput = document.getElementById('expensePayee');
+            if (select.value === '__other__') {
+                textInput.classList.remove('hidden');
+                textInput.value = '';
+                textInput.focus();
+            } else {
+                textInput.classList.add('hidden');
+                textInput.value = '';
+            }
+        }
+
         async function submitExpense(projectId) {
             const project = projects.find(p => String(p.id) === String(projectId));
             if (!project) return;
@@ -4836,7 +4855,23 @@
             const type = document.getElementById('expenseType').value;
             const amount = parseFloat(document.getElementById('expenseAmount').value);
             const includeInCost = document.getElementById('expenseIncludeInCost').checked;
-            const payee = document.getElementById('expensePayee').value.trim();
+            
+            // 支払先：ドロップダウンの選択値から payee と supplierId を決定
+            const payeeSelectValue = document.getElementById('expensePayeeSelect').value;
+            let payee = '';
+            let selectedSupplierId = '';
+            if (payeeSelectValue === '__other__') {
+                // 手動入力
+                payee = document.getElementById('expensePayee').value.trim();
+            } else if (payeeSelectValue) {
+                // 既存suppliersから選択
+                const selectedSupplier = suppliers.find(s => String(s.id) === String(payeeSelectValue));
+                if (selectedSupplier) {
+                    payee = selectedSupplier.name;
+                    selectedSupplierId = selectedSupplier.id;
+                }
+            }
+            
             const paidDate = document.getElementById('expensePaidDate').value;
             const note = document.getElementById('expenseNote').value.trim();
 
@@ -4899,7 +4934,7 @@
                         projectNumber,          // projectNumber
                         paidDate,              // orderDate（支払日を使用）
                         itemQuantity,          // quantity
-                        '',                    // supplierId（国内調達なので空）
+                        selectedSupplierId,    // supplierId（既存suppliersから選んだ場合のみセット）
                         unitCost               // costPerUnit（取得金）
                     );
                     
