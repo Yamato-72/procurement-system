@@ -3198,7 +3198,12 @@
         function getMissingProjects() {
             // 案件番号 × 製品名 でグループ化
             const inventoryProjects = {};
-            inventory.forEach(item => {
+
+            // 在庫シート + アーカイブシートの両方を対象にする
+            // （4台中3台が出荷済→アーカイブ済のようなケースで、台数・Serial・取得金を正しく合算するため）
+            const allItems = [...inventory, ...archivedInventory];
+
+            allItems.forEach(item => {
                 if (!item.orderPrefix || !item.orderNumber) return;
                 const key = `${item.orderPrefix}-${item.orderNumber}|${item.productName}`;
                 if (!inventoryProjects[key]) {
