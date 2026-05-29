@@ -313,6 +313,53 @@
             
             tokenClient.requestAccessToken({ prompt: '' });
         }
+
+        // === 認証トークン自動リトライ（B: 事後リカバリ）===
+        // 401が出たらトークンを取り直してから処理をリトライする。
+        // 使い方: await withAuthRetry(() => gapi.client.sheets.spreadsheets.values.get({...}))
+        async function withAuthRetry(operation, maxRetries = 1) {
+            let lastError;
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                try {
+                    return await operation();
+                } catch (err) {
+                    lastError = err;
+                    const status = err && (err.status || (err.result && err.result.error && err.result.error.code));
+                    if (status !== 401 || attempt >= maxRetries) {
+                        throw err;
+                    }
+                    console.warn('[認証] 401検出、トークンを再取得してリトライします');
+                    await refreshTokenSilentlyPromise();
+                }
+            }
+            throw lastError;
+        }
+
+        // silentTokenRefreshをPromise化（withAuthRetryから呼ぶ用）
+        function refreshTokenSilentlyPromise() {
+            return new Promise((resolve, reject) => {
+                if (!tokenClient) {
+                    reject(new Error('tokenClient未初期化'));
+                    return;
+                }
+                tokenClient.callback = (resp) => {
+                    if (resp.error) {
+                        reject(new Error(resp.error));
+                        return;
+                    }
+                    accessToken = resp.access_token;
+                    sessionStorage.setItem('googleAccessToken', accessToken);
+                    gapi.client.setToken({ access_token: accessToken });
+                    const expiresIn = resp.expires_in || 3600;
+                    tokenExpiresAt = Date.now() + (expiresIn * 1000);
+                    sessionStorage.setItem('tokenExpiresAt', tokenExpiresAt.toString());
+                    startTokenRefreshTimer();
+                    console.log('[認証] リトライ用トークン取得 成功');
+                    resolve();
+                };
+                tokenClient.requestAccessToken({ prompt: '' });
+            });
+        }
         
         // 接続状態表示
         function showConnectionStatus(status) {
