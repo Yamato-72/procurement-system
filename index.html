@@ -781,28 +781,55 @@
                 const projectNumber = String(project.projectNumber).padStart(4, '0');
                 const productName = project.productName || '';
                 const updates = [];
-                
+
+                // デバッグ：探している条件を出力
+                console.log('[updateInventoryCost] 探している条件:', {
+                    projectPrefix, projectNumber, productName,
+                    quantity, costPerUnit, depositTotal, expensesTotal
+                });
+
+                // デバッグ：案件番号は一致したが製品名でハジかれた行を記録
+                const productNameMismatches = [];
+
                 rows.forEach((row, idx) => {
                     const rowPrefix = row[4] || '';
                     const rowNumber = String(row[5] || '').padStart(4, '0');
+                    const rowProductName = row[3] || '';
                     
                     const prefixMatch = rowPrefix.toUpperCase() === projectPrefix.toUpperCase();
                     const numberMatch = rowNumber === projectNumber;
+                    // 製品名も一致条件に加える（グループ案件で複数製品が同じ案件番号を持つため）
+                    const productMatch = rowProductName === productName;
                     
-                    // 案件番号のみで一致判定（製品名は上書きする）
-                    if (prefixMatch && numberMatch) {
+                    // 案件番号 + 製品名で一致判定
+                    if (prefixMatch && numberMatch && productMatch) {
                         const rowNum = idx + 2;
-                        // 取得金（M列）と製品名（D列）を更新
-                        updates.push({
-                            range: `在庫!D${rowNum}`,
-                            values: [[productName]]
-                        });
+                        // 取得金（M列）のみ更新（製品名は一致条件なので上書き不要）
                         updates.push({
                             range: `在庫!M${rowNum}`,
                             values: [[costPerUnit]]
                         });
+                    } else if (prefixMatch && numberMatch && !productMatch) {
+                        // 案件番号は合ったが製品名でハジかれた
+                        productNameMismatches.push({
+                            row: idx + 2,
+                            inventoryProductName: rowProductName,
+                            expectedProductName: productName
+                        });
                     }
                 });
+
+                // デバッグ：結果を出力
+                console.log('[updateInventoryCost] マッチ結果:', {
+                    matched: updates.length,
+                    productNameMismatches: productNameMismatches
+                });
+                if (productNameMismatches.length > 0) {
+                    console.warn('[updateInventoryCost] 案件番号は一致したが製品名が違うため除外された行があります:');
+                    productNameMismatches.forEach(m => {
+                        console.warn(`  在庫行${m.row}: 在庫="${m.inventoryProductName}" / 期待="${m.expectedProductName}"`);
+                    });
+                }
                 
                 if (updates.length > 0) {
                     await gapi.client.sheets.spreadsheets.values.batchUpdate({
@@ -812,7 +839,7 @@
                             data: updates
                         }
                     });
-                    const itemCount = updates.length / 2; // 製品名と取得金で2つずつ
+                    const itemCount = updates.length; // 取得金のみなので1つ＝1台
                     const msg = expensesTotal > 0 
                         ? `✅ 在庫の取得金を更新: ¥${costPerUnit.toLocaleString()}/台 × ${itemCount}台（諸費用¥${expensesTotal.toLocaleString()}含む）`
                         : `✅ 在庫の取得金を更新: ¥${costPerUnit.toLocaleString()}/台 × ${itemCount}台`;
