@@ -1,0 +1,350 @@
+/**
+ * YS調達システム - 共通スタイル
+ * 全ページで使用される共通のスタイル定義
+ */
+
+/* Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;900&display=swap');
+
+/* CSS Variables - Light Mode */
+:root {
+    --text: #37352f;
+    --text-sub: rgba(55,53,47,0.65);
+    --bg: #fff;
+    --bg-hover: rgba(55,53,47,0.04);
+    --bg-card: #f7f6f3;
+    --border: rgba(55,53,47,0.09);
+    --blue: #2383e2;
+    --blue-bg: #e8f0fe;
+    --green: #0f7b6c;
+    --green-bg: #dbeddb;
+    --orange: #d9730d;
+    --orange-bg: #faebdd;
+    --red: #e03e3e;
+    --red-bg: #fbe4e4;
+    --purple: #6940a5;
+    --purple-bg: #eae4f2;
+    --yellow: #dfab01;
+    --yellow-bg: #fbf3db;
+    --gray: #787774;
+    --gray-bg: #ebeaea;
+}
+
+/* CSS Variables - Dark Mode */
+.dark {
+    --text: rgba(255,255,255,0.9);
+    --text-sub: rgba(255,255,255,0.5);
+    --bg: #191919;
+    --bg-hover: rgba(255,255,255,0.03);
+    --bg-card: #252525;
+    --border: rgba(255,255,255,0.08);
+    --blue-bg: #1c3a5e;
+    --green-bg: #1e3a32;
+    --orange-bg: #3d2e1e;
+    --red-bg: #3d2828;
+    --purple-bg: #2e2540;
+    --yellow-bg: #3d3526;
+    --gray-bg: #2f2f2f;
+}
+
+/* Base Styles */
+* {
+    font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+}
+
+/* Utility Classes */
+.t-sub {
+    color: var(--text-sub);
+}
+
+.bg-card {
+    background: var(--bg-card);
+}
+
+.border-def {
+    border-color: var(--border);
+}
+
+/* Hover Background */
+.hover-bg {
+    transition: background 80ms;
+    border-radius: 4px;
+}
+
+.hover-bg:hover {
+    background: var(--bg-hover);
+}
+
+/* Buttons */
+.btn {
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    border: none;
+    transition: opacity 80ms;
+}
+
+.btn:hover {
+    opacity: 0.85;
+}
+
+.btn-primary {
+    background: var(--blue);
+    color: #fff;
+}
+
+/* Mode Buttons */
+.mode-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+    border-radius: 4px;
+    color: var(--text-sub);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    transition: all 80ms;
+}
+
+.mode-btn:hover {
+    background: var(--bg-hover);
+}
+
+.mode-btn.active {
+    background: var(--blue-bg);
+    color: var(--blue);
+}
+
+/* Form Inputs */
+input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
+input:focus {
+    outline: none;
+    border-color: var(--blue);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+/* Tags */
+.tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+.tag-red {
+    background: var(--red-bg);
+    color: var(--red);
+}
+
+.tag-yellow {
+    background: var(--yellow-bg);
+    color: var(--yellow);
+}
+
+.tag-green {
+    background: var(--green-bg);
+    color: var(--green);
+}
+
+.tag-blue {
+    background: var(--blue-bg);
+    color: var(--blue);
+}
+
+.tag-gray {
+    background: var(--gray-bg);
+    color: var(--gray);
+}
+
+/* Tables */
+.mini-table {
+    font-size: 11px;
+    width: 100%;
+}
+
+.mini-table th {
+    text-align: left;
+    font-weight: 500;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-sub);
+}
+
+.mini-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.mini-table tr:hover {
+    background: var(--bg-hover);
+}
+
+/* Tooltip */
+.tooltip-container {
+    position: relative;
+}
+
+.tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text);
+    color: var(--bg);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 150ms;
+    z-index: 100;
+    margin-bottom: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--text);
+}
+
+.tooltip-container:hover .tooltip {
+    opacity: 1;
+}
+
+/* Popover */
+.popover {
+    position: fixed;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    min-width: 280px;
+    max-width: 360px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    z-index: 200;
+    font-size: 12px;
+    display: none;
+}
+
+.popover.show {
+    display: block;
+}
+
+.popover-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.popover-content {
+    color: var(--text-sub);
+    line-height: 1.5;
+}
+
+.popover-content .insight {
+    background: var(--blue-bg);
+    color: var(--blue);
+    padding: 6px 8px;
+    border-radius: 4px;
+    margin-top: 8px;
+}
+
+.popover-content .action {
+    background: var(--green-bg);
+    color: var(--green);
+    padding: 6px 8px;
+    border-radius: 4px;
+    margin-top: 6px;
+    cursor: pointer;
+}
+
+.popover-content .warning {
+    background: var(--red-bg);
+    color: var(--red);
+    padding: 6px 8px;
+    border-radius: 4px;
+    margin-top: 6px;
+}
+
+/* Loading Spinner */
+.spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Modal Overlay */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.modal-overlay.hidden {
+    display: none;
+}
+
+/* Card */
+.card {
+    background: var(--bg);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .hide-mobile {
+        display: none !important;
+    }
+}
+
+@media (min-width: 769px) {
+    .hide-desktop {
+        display: none !important;
+    }
+}

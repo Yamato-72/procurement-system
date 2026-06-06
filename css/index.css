@@ -1,0 +1,228 @@
+/**
+ * YS支払ナビ - 支払いページ固有スタイル
+ */
+
+/* Loading Animation */
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Project Card */
+.project-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: box-shadow 200ms;
+}
+
+.dark .project-card {
+    background: rgb(30 41 59);
+}
+
+.project-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Status Badge */
+.status-badge {
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Deposit Progress Bar */
+.deposit-progress {
+    height: 8px;
+    background: rgb(226 232 240);
+    border-radius: 9999px;
+    overflow: hidden;
+}
+
+.dark .deposit-progress {
+    background: rgb(51 65 85);
+}
+
+.deposit-progress-bar {
+    height: 100%;
+    background: #2383e2;
+    transition: width 300ms ease;
+}
+
+/* Supplier Section */
+.supplier-card {
+    background: rgb(248 250 252);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.dark .supplier-card {
+    background: rgb(51 65 85);
+}
+
+/* Form Inputs */
+.form-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid rgb(226 232 240);
+    border-radius: 8px;
+    font-size: 14px;
+    background: white;
+}
+
+.dark .form-input {
+    background: rgb(30 41 59);
+    border-color: rgb(71 85 105);
+    color: white;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #2383e2;
+    box-shadow: 0 0 0 3px rgba(35, 131, 226, 0.1);
+}
+
+/* Quick Action Button */
+.quick-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgb(248 250 252);
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: background 150ms;
+    font-size: 13px;
+}
+
+.dark .quick-action-btn {
+    background: rgb(51 65 85);
+    color: white;
+}
+
+.quick-action-btn:hover {
+    background: rgb(241 245 249);
+}
+
+.dark .quick-action-btn:hover {
+    background: rgb(71 85 105);
+}
+
+/* Collapsible Section */
+.collapsible-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.collapsible-header:hover {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.dark .collapsible-header:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.collapsible-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 300ms ease;
+}
+
+.collapsible-content.expanded {
+    max-height: 2000px;
+}
+
+/* Payment Timeline */
+.payment-timeline {
+    position: relative;
+    padding-left: 24px;
+}
+
+.payment-timeline::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgb(226 232 240);
+}
+
+.dark .payment-timeline::before {
+    background: rgb(51 65 85);
+}
+
+.payment-timeline-item {
+    position: relative;
+    padding-bottom: 16px;
+}
+
+.payment-timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -20px;
+    top: 4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: rgb(226 232 240);
+    border: 2px solid white;
+}
+
+.dark .payment-timeline-item::before {
+    background: rgb(51 65 85);
+    border-color: rgb(30 41 59);
+}
+
+.payment-timeline-item.paid::before {
+    background: #16a34a;
+}
+
+.payment-timeline-item.pending::before {
+    background: #d9730d;
+}
+
+/* Filter Bar */
+.filter-bar {
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgb(248 250 252);
+    border-radius: 8px;
+    flex-wrap: wrap;
+}
+
+.dark .filter-bar {
+    background: rgb(30 41 59);
+}
+
+.filter-btn {
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 13px;
+    border: none;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-sub);
+    transition: all 150ms;
+}
+
+.filter-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.filter-btn.active {
+    background: #2383e2;
+    color: white;
+}
