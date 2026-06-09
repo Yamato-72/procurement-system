@@ -4772,23 +4772,6 @@
             const existing = document.getElementById('archiveModal');
             if (existing) existing.remove();
 
-            // フィルタ適用
-            let filtered = archivedInventory;
-            if (archiveSearchQuery) {
-                const q = archiveSearchQuery.toLowerCase();
-                filtered = filtered.filter(item => 
-                    (item.serial || '').toLowerCase().includes(q) ||
-                    (item.productName || '').toLowerCase().includes(q) ||
-                    (item.category || '').toLowerCase().includes(q) ||
-                    formatProjectNumber(item.orderPrefix, item.orderNumber).toLowerCase().includes(q) ||
-                    formatProjectNumber(item.shipPrefix, item.shipNumber).toLowerCase().includes(q) ||
-                    (item.note || '').toLowerCase().includes(q)
-                );
-            }
-            if (archiveFilterStatus) {
-                filtered = filtered.filter(item => item.status === archiveFilterStatus);
-            }
-
             // ステータス別の件数を集計
             const statusCounts = {};
             archivedInventory.forEach(item => {
@@ -4796,22 +4779,13 @@
                 statusCounts[st] = (statusCounts[st] || 0) + 1;
             });
 
-            // ページネーション計算
-            const totalPages = Math.max(1, Math.ceil(filtered.length / ARCHIVE_PAGE_SIZE));
-            if (archiveCurrentPage > totalPages) archiveCurrentPage = totalPages;
-            if (archiveCurrentPage < 1) archiveCurrentPage = 1;
-            const startIdx = (archiveCurrentPage - 1) * ARCHIVE_PAGE_SIZE;
-            const endIdx = Math.min(startIdx + ARCHIVE_PAGE_SIZE, filtered.length);
-            const pageItems = filtered.slice(startIdx, endIdx);
-            const rangeLabel = filtered.length === 0 ? '0件' : `${startIdx + 1}-${endIdx} / 全${filtered.length}件`;
-
             const modal = document.createElement('div');
             modal.id = 'archiveModal';
             modal.innerHTML = `
                 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div class="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 w-full max-w-5xl mx-2 sm:mx-4 max-h-[90vh] overflow-y-auto">
                         <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-lg sm:text-xl font-bold">📦 アーカイブ一覧（${rangeLabel}）</h3>
+                            <h3 id="archiveTitle" class="text-lg sm:text-xl font-bold"></h3>
                             <button onclick="closeModal('archiveModal')" class="text-slate-500 hover:text-slate-700 dark:hover:text-white text-2xl">&times;</button>
                         </div>
                         
@@ -4844,48 +4818,12 @@
                                         <th class="px-2 sm:px-3 py-2 text-center text-xs sm:text-sm">操作</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y dark:divide-slate-600">
-                                    ${filtered.length === 0 ? `
-                                        <tr><td colspan="8" class="px-3 py-8 text-center text-slate-500">
-                                            ${archivedInventory.length === 0 ? 'アーカイブはありません' : '検索条件に一致するアイテムがありません'}
-                                        </td></tr>
-                                    ` : pageItems.map(item => `
-                                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700">
-                                            <td class="px-2 py-2 text-center"><input type="checkbox" class="archive-checkbox rounded" data-id="${item.id}"></td>
-                                            <td class="px-2 sm:px-3 py-2 font-mono text-xs sm:text-sm">${escapeHtml(item.serial || '-')}</td>
-                                            <td class="px-2 sm:px-3 py-2 text-xs sm:text-sm hidden sm:table-cell">${escapeHtml(item.category || '')}</td>
-                                            <td class="px-2 sm:px-3 py-2 text-xs sm:text-sm">${escapeHtml(item.productName || '')}</td>
-                                            <td class="px-2 sm:px-3 py-2 text-xs sm:text-sm hidden md:table-cell">${formatProjectNumber(item.orderPrefix, item.orderNumber)}</td>
-                                            <td class="px-2 sm:px-3 py-2 text-xs sm:text-sm">${formatProjectNumber(item.shipPrefix, item.shipNumber) || '-'}</td>
-                                            <td class="px-2 sm:px-3 py-2 text-xs sm:text-sm hidden sm:table-cell">
-                                                <span class="px-2 py-0.5 rounded text-xs ${getStatusColor(item.status)}">${item.status || '-'}</span>
-                                            </td>
-                                            <td class="px-2 sm:px-3 py-2 text-center">
-                                                <button onclick="showRestoreModal('${item.id}')" 
-                                                    class="px-2 sm:px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600">
-                                                    復帰
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
+                                <tbody id="archiveTableBody" class="divide-y dark:divide-slate-600"></tbody>
                             </table>
                         </div>
 
-                        <!-- ページ送り -->
-                        ${totalPages > 1 ? `
-                            <div class="mt-3 flex items-center justify-center gap-2 text-sm">
-                                <button onclick="changeArchivePage(-1)" ${archiveCurrentPage <= 1 ? 'disabled' : ''}
-                                    class="px-3 py-1.5 border rounded ${archiveCurrentPage <= 1 ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'hover:bg-slate-100 dark:hover:bg-slate-700 dark:border-slate-600 dark:text-white'}">
-                                    ← 前の100件
-                                </button>
-                                <span class="px-3 text-slate-600 dark:text-slate-300">${archiveCurrentPage} / ${totalPages} ページ</span>
-                                <button onclick="changeArchivePage(1)" ${archiveCurrentPage >= totalPages ? 'disabled' : ''}
-                                    class="px-3 py-1.5 border rounded ${archiveCurrentPage >= totalPages ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'hover:bg-slate-100 dark:hover:bg-slate-700 dark:border-slate-600 dark:text-white'}">
-                                    次の100件 →
-                                </button>
-                            </div>
-                        ` : ''}
+                        <!-- ページ送り（中身は updateArchiveTable で差し込む） -->
+                        <div id="archivePagination"></div>
                         
                         <div class="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                             <div class="text-xs text-slate-500 dark:text-slate-400">
@@ -4901,16 +4839,98 @@
                 </div>
             `;
             document.body.appendChild(modal);
+
+            // 内容を初期描画
+            updateArchiveTable();
+        }
+
+        // テーブル・タイトル・ページ送りだけを更新（検索ボックスは触らない＝フォーカス維持）
+        function updateArchiveTable() {
+            // フィルタ適用
+            let filtered = archivedInventory;
+            if (archiveSearchQuery) {
+                const q = archiveSearchQuery.toLowerCase();
+                filtered = filtered.filter(item => 
+                    (item.serial || '').toLowerCase().includes(q) ||
+                    (item.productName || '').toLowerCase().includes(q) ||
+                    (item.category || '').toLowerCase().includes(q) ||
+                    formatProjectNumber(item.orderPrefix, item.orderNumber).toLowerCase().includes(q) ||
+                    formatProjectNumber(item.shipPrefix, item.shipNumber).toLowerCase().includes(q) ||
+                    (item.note || '').toLowerCase().includes(q)
+                );
+            }
+            if (archiveFilterStatus) {
+                filtered = filtered.filter(item => item.status === archiveFilterStatus);
+            }
+
+            // ページネーション計算
+            const totalPages = Math.max(1, Math.ceil(filtered.length / ARCHIVE_PAGE_SIZE));
+            if (archiveCurrentPage > totalPages) archiveCurrentPage = totalPages;
+            if (archiveCurrentPage < 1) archiveCurrentPage = 1;
+            const startIdx = (archiveCurrentPage - 1) * ARCHIVE_PAGE_SIZE;
+            const endIdx = Math.min(startIdx + ARCHIVE_PAGE_SIZE, filtered.length);
+            const pageItems = filtered.slice(startIdx, endIdx);
+            const rangeLabel = filtered.length === 0 ? '0件' : `${startIdx + 1}-${endIdx} / 全${filtered.length}件`;
+
+            // タイトル更新
+            const titleEl = document.getElementById('archiveTitle');
+            if (titleEl) titleEl.textContent = `📦 アーカイブ一覧（${rangeLabel}）`;
+
+            // テーブル本体更新
+            const tbodyEl = document.getElementById('archiveTableBody');
+            if (tbodyEl) {
+                tbodyEl.innerHTML = filtered.length === 0 ? `
+                    <tr><td colspan="8" class="px-3 py-8 text-center text-slate-500">
+                        ${archivedInventory.length === 0 ? 'アーカイブはありません' : '検索条件に一致するアイテムがありません'}
+                    </td></tr>
+                ` : pageItems.map(item => `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-700">
+                        <td class="px-2 py-2 text-center"><input type="checkbox" class="archive-checkbox rounded" data-id="${item.id}"></td>
+                        <td class="px-2 sm:px-3 py-2 font-mono text-xs sm:text-sm">${escapeHtml(item.serial || '-')}</td>
+                        <td class="px-2 sm:px-3 py-2 text-xs sm:text-sm hidden sm:table-cell">${escapeHtml(item.category || '')}</td>
+                        <td class="px-2 sm:px-3 py-2 text-xs sm:text-sm">${escapeHtml(item.productName || '')}</td>
+                        <td class="px-2 sm:px-3 py-2 text-xs sm:text-sm hidden md:table-cell">${formatProjectNumber(item.orderPrefix, item.orderNumber)}</td>
+                        <td class="px-2 sm:px-3 py-2 text-xs sm:text-sm">${formatProjectNumber(item.shipPrefix, item.shipNumber) || '-'}</td>
+                        <td class="px-2 sm:px-3 py-2 text-xs sm:text-sm hidden sm:table-cell">
+                            <span class="px-2 py-0.5 rounded text-xs ${getStatusColor(item.status)}">${item.status || '-'}</span>
+                        </td>
+                        <td class="px-2 sm:px-3 py-2 text-center">
+                            <button onclick="showRestoreModal('${item.id}')" 
+                                class="px-2 sm:px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600">
+                                復帰
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            // ページ送り更新
+            const pagEl = document.getElementById('archivePagination');
+            if (pagEl) {
+                pagEl.innerHTML = totalPages > 1 ? `
+                    <div class="mt-3 flex items-center justify-center gap-2 text-sm">
+                        <button onclick="changeArchivePage(-1)" ${archiveCurrentPage <= 1 ? 'disabled' : ''}
+                            class="px-3 py-1.5 border rounded ${archiveCurrentPage <= 1 ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'hover:bg-slate-100 dark:hover:bg-slate-700 dark:border-slate-600 dark:text-white'}">
+                            ← 前の100件
+                        </button>
+                        <span class="px-3 text-slate-600 dark:text-slate-300">${archiveCurrentPage} / ${totalPages} ページ</span>
+                        <button onclick="changeArchivePage(1)" ${archiveCurrentPage >= totalPages ? 'disabled' : ''}
+                            class="px-3 py-1.5 border rounded ${archiveCurrentPage >= totalPages ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'hover:bg-slate-100 dark:hover:bg-slate-700 dark:border-slate-600 dark:text-white'}">
+                            次の100件 →
+                        </button>
+                    </div>
+                ` : '';
+            }
         }
 
         // アーカイブ検索更新
         function updateArchiveSearch(query) {
             archiveSearchQuery = query;
             archiveCurrentPage = 1;  // 検索すると1ページ目に戻る
-            // デバウンス処理
+            // デバウンス処理（テーブルだけ差し替え、検索ボックスのフォーカスは維持される）
             clearTimeout(window.archiveSearchTimeout);
             window.archiveSearchTimeout = setTimeout(() => {
-                renderArchiveModal();
+                updateArchiveTable();
             }, 300);
         }
 
@@ -4918,14 +4938,14 @@
         function updateArchiveStatusFilter(status) {
             archiveFilterStatus = status;
             archiveCurrentPage = 1;  // フィルタ変更で1ページ目に戻る
-            renderArchiveModal();
+            updateArchiveTable();
         }
 
         // ページ送り
         function changeArchivePage(delta) {
             archiveCurrentPage += delta;
             if (archiveCurrentPage < 1) archiveCurrentPage = 1;
-            renderArchiveModal();
+            updateArchiveTable();
             // モーダルを上部にスクロール
             const modalBox = document.querySelector('#archiveModal > div > div');
             if (modalBox) modalBox.scrollTop = 0;
