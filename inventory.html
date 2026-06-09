@@ -4326,8 +4326,14 @@
             
             const orderProjectInput = document.getElementById('detailEditOrderProject').value.trim();
             const parsedOrder = parseProjectNumberString(orderProjectInput);
-            item.orderPrefix = parsedOrder.prefix;
-            item.orderNumber = parsedOrder.number;
+            // パース失敗時は元の値を維持
+            if (parsedOrder.prefix || parsedOrder.number) {
+                item.orderPrefix = parsedOrder.prefix;
+                item.orderNumber = parsedOrder.number;
+            } else if (orderProjectInput === '') {
+                item.orderPrefix = '';
+                item.orderNumber = '';
+            }
             
             item.orderDate = document.getElementById('detailEditOrderDate').value;
             item.supplierId = document.getElementById('detailEditSupplierId').value;
@@ -4337,8 +4343,13 @@
             
             const shipProjectInput = document.getElementById('detailEditShipProject').value.trim();
             const parsedShip = parseProjectNumberString(shipProjectInput);
-            item.shipPrefix = parsedShip.prefix;
-            item.shipNumber = parsedShip.number;
+            if (parsedShip.prefix || parsedShip.number) {
+                item.shipPrefix = parsedShip.prefix;
+                item.shipNumber = parsedShip.number;
+            } else if (shipProjectInput === '') {
+                item.shipPrefix = '';
+                item.shipNumber = '';
+            }
             
             item.note = document.getElementById('detailEditNote').value.trim();
 
@@ -4628,8 +4639,17 @@
             
             const orderProjectInput = document.getElementById('editOrderProject').value.trim();
             const parsedOrder = parseProjectNumberString(orderProjectInput);
-            item.orderPrefix = parsedOrder.prefix;
-            item.orderNumber = parsedOrder.number;
+            // パース失敗（空を返した）ときは元の値を維持する。
+            // 例: ユーザーが入力欄を触っていないが、形式違いやスペース混入でパースが失敗するケースを防ぐ
+            if (parsedOrder.prefix || parsedOrder.number) {
+                item.orderPrefix = parsedOrder.prefix;
+                item.orderNumber = parsedOrder.number;
+            } else if (orderProjectInput === '') {
+                // 明示的に空欄にした場合のみクリア
+                item.orderPrefix = '';
+                item.orderNumber = '';
+            }
+            // それ以外（パース失敗）は何もしない＝元の値を維持
             
             item.orderDate = document.getElementById('editOrderDate').value;
             item.supplierId = document.getElementById('editSupplierId').value;
@@ -4640,8 +4660,14 @@
             
             const shipProjectInput = document.getElementById('editShipProject').value.trim();
             const parsedShip = parseProjectNumberString(shipProjectInput);
-            item.shipPrefix = parsedShip.prefix;
-            item.shipNumber = parsedShip.number;
+            // 出庫先も同じガード
+            if (parsedShip.prefix || parsedShip.number) {
+                item.shipPrefix = parsedShip.prefix;
+                item.shipNumber = parsedShip.number;
+            } else if (shipProjectInput === '') {
+                item.shipPrefix = '';
+                item.shipNumber = '';
+            }
             
             item.note = document.getElementById('editNote').value.trim();
 
