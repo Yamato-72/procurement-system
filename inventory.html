@@ -1768,7 +1768,7 @@
                                             </thead>
                                             <tbody class="divide-y dark:divide-slate-700">
                                                 ${filtered.map(item => `
-                                                    <tr onclick="showDetailModal('${item.id}')" class="hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer ${selectedItems.has(item.id) ? 'bg-amber-50 dark:bg-amber-900/30' : ''}">
+                                                    <tr onclick="showDetailModal('${item.id}')" class="hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer ${selectedItems.has(item.id) ? 'bg-amber-50 dark:bg-amber-900/30' : (item.status === '引当済' ? 'bg-cyan-50 dark:bg-cyan-900/20' : '')}">
                                                         ${bulkSelectMode ? `<td class="px-2 py-2 text-center" onclick="event.stopPropagation()"><input type="checkbox" ${selectedItems.has(item.id) ? 'checked' : ''} onclick="toggleSelectItem('${item.id}')" class="w-4 h-4 rounded"></td>` : ''}
                                                         <td class="px-3 py-2 font-mono font-semibold text-sm text-slate-900 dark:text-white">${item.serial || "-"}</td>
                                                         <td class="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">${getSupplierName(item.supplierId)}</td>
@@ -1889,7 +1889,7 @@
                                                             </thead>
                                                             <tbody class="divide-y dark:divide-slate-700 bg-white dark:bg-slate-800">
                                                                 ${items.map(item => `
-                                                                    <tr onclick="showDetailModal('${item.id}')" class="hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer ${selectedItems.has(item.id) ? 'bg-amber-50 dark:bg-amber-900/30' : ''}">
+                                                                    <tr onclick="showDetailModal('${item.id}')" class="hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer ${selectedItems.has(item.id) ? 'bg-amber-50 dark:bg-amber-900/30' : (item.status === '引当済' ? 'bg-cyan-50 dark:bg-cyan-900/20' : '')}">
                                                                         ${bulkSelectMode ? `<td class="px-2 py-2 text-center" onclick="event.stopPropagation()"><input type="checkbox" ${selectedItems.has(item.id) ? 'checked' : ''} onclick="toggleSelectItem('${item.id}')" class="w-4 h-4 rounded"></td>` : ''}
                                                                         <td class="px-3 py-2 font-mono font-semibold text-sm text-slate-900 dark:text-white">${item.serial || "-"}</td>
                                                                         <td class="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">${getSupplierName(item.supplierId)}</td>
@@ -1934,7 +1934,7 @@
                                                     <!-- スマホ: カード表示 -->
                                                     <div class="md:hidden bg-slate-50 dark:bg-slate-700/30">
                                                         ${items.map(item => `
-                                                            <div onclick="showDetailModal('${item.id}')" class="p-3 border-t border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 ${selectedItems.has(item.id) ? 'bg-amber-50 dark:bg-amber-900/30' : ''}">
+                                                            <div onclick="showDetailModal('${item.id}')" class="p-3 border-t border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 ${selectedItems.has(item.id) ? 'bg-amber-50 dark:bg-amber-900/30' : (item.status === '引当済' ? 'bg-cyan-50 dark:bg-cyan-900/20' : '')}">
                                                                 <div class="flex justify-between items-start mb-2">
                                                                     <div class="flex items-center gap-2">
                                                                         ${bulkSelectMode ? `<input type="checkbox" ${selectedItems.has(item.id) ? 'checked' : ''} onclick="event.stopPropagation();toggleSelectItem('${item.id}')" class="w-4 h-4 rounded">` : ''}
