@@ -52,6 +52,7 @@
         let selectedItems = new Set(); // 選択されたアイテムID
         let productMaster = []; // 製品マスタデータ
         let suppliers = []; // サプライヤーマスタ
+        let resellPools = []; // 販売可能在庫プール（RS案件、引当種類シートから）
         let projects = []; // 案件データ（重複チェック用）
         let viewMode = 'group'; // 表示モード: 'group'（グループ表示） or 'flat'（フラット表示）
         let groupMode = 'order'; // グループ化基準: 'order'（発注案件） or 'ship'（出庫先）
@@ -712,6 +713,24 @@
                 } catch (e) {
                     console.log('サプライヤーシートの読み込みに失敗しました', e);
                     suppliers = [];
+                }
+
+                // 引当種類シート（販売可能在庫プール: RS-XXXX）を読み込み
+                try {
+                    const poolResponse = await gapi.client.sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: '引当種類!A2:C',
+                    });
+                    const poolRows = poolResponse.result.values || [];
+                    resellPools = poolRows.map(row => ({
+                        category: row[0] || '',         // 種別（屋内、屋外、LED、…）
+                        prefix: row[1] || 'RS',          // 接頭辞
+                        number: String(row[2] || '').padStart(4, '0')  // 番号（0001、0002、…）
+                    })).filter(p => p.category && p.number);
+                    console.log(`販売可能在庫プール読み込み完了: ${resellPools.length}件`);
+                } catch (e) {
+                    console.log('引当種類シートの読み込みに失敗しました', e);
+                    resellPools = [];
                 }
 
                 // 案件シートを読み込み（重複チェック用）
@@ -1655,6 +1674,16 @@
                                         <option value="serial-asc" ${currentFilters.sort === 'serial-asc' ? 'selected' : ''}>Serial順</option>
                                     </select>
                                 </div>
+                                ${resellPools.length > 0 ? `
+                                <div class="w-full sm:w-auto">
+                                    <label class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 block mb-1">📋 販売可能在庫</label>
+                                    <select id="filterResellPool" onchange="applyResellPoolFilter(this.value)" class="w-full sm:w-auto px-2 sm:px-3 py-1.5 sm:py-2 text-sm border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg">
+                                        <option value="">-- 種別を選択 --</option>
+                                        <option value="__all__">すべて（RS全件）</option>
+                                        ${resellPools.map(p => `<option value="${p.prefix}-${p.number}">${p.category}（${p.prefix}-${p.number}）</option>`).join('')}
+                                    </select>
+                                </div>
+                                ` : ''}
                                 <button onclick="clearFilters()" class="px-3 py-1.5 sm:py-2 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-white text-sm rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500">クリア</button>
                             </div>
                             <div class="flex gap-2 mt-2">
@@ -2733,6 +2762,22 @@
             if (receiveDateToEl) currentFilters.receiveDateTo = receiveDateToEl.value;
             if (shipProjectEl) currentFilters.shipProject = shipProjectEl.value;
             if (costRangeEl) currentFilters.costRange = costRangeEl.value;
+            renderMain();
+        }
+
+        // 販売可能在庫プール（RS）プルダウンの選択ハンドラ
+        // 内部的には既存のshipProjectフィルタ（部分一致）にRS-XXXXまたはRS-を流し込むだけ
+        function applyResellPoolFilter(value) {
+            if (value === '__all__') {
+                // すべてのRS案件を見る（RS- の部分一致で全件マッチ）
+                currentFilters.shipProject = 'RS-';
+            } else if (value) {
+                // 特定の種別（RS-0002など）
+                currentFilters.shipProject = value;
+            } else {
+                // 未選択に戻したらフィルタ解除
+                currentFilters.shipProject = '';
+            }
             renderMain();
         }
 
