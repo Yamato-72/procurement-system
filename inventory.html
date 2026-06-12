@@ -4721,10 +4721,10 @@
             renderMain();
         }
 
-        function deleteItem(id) {
+        async function deleteItem(id) {
             if (!confirm('この在庫を削除しますか？')) return;
-            inventory = inventory.filter(i => i.id !== id);
-            saveData();
+            inventory = inventory.filter(i => String(i.id) !== String(id));
+            await saveData();
             closeModal('editModal');
             renderMain();
         }
@@ -4762,23 +4762,50 @@
         }
 
         // アーカイブ処理
-        function archiveItem(id) {
+        async function archiveItem(id) {
             if (!confirm('この在庫をアーカイブしますか？')) return;
             
             const item = inventory.find(i => String(i.id) === String(id));
-            if (!item) return;
+            if (!item) {
+                alert('対象アイテムが見つかりません');
+                return;
+            }
+
+            // archiveLoadedが false だとsaveDataでアーカイブ書き出しがスキップされてデータが消える
+            if (!archiveLoaded) {
+                alert('アーカイブシートの読み込みが完了していません。ページを再読み込みしてからもう一度お試しください。');
+                return;
+            }
 
             archivedInventory.push(item);
-            inventory = inventory.filter(i => i.id !== id);
+            // 削除時もidを文字列比較に統一（型不一致で削除漏れを防ぐ）
+            inventory = inventory.filter(i => String(i.id) !== String(id));
             
-            saveData();
-            renderMain();
+            try {
+                await saveData();
+                renderMain();
+                showStatus('✅ アーカイブしました');
+                setTimeout(() => showStatus(''), 2000);
+            } catch (e) {
+                console.error('アーカイブ保存に失敗:', e);
+                alert('保存に失敗しました。もう一度お試しください。');
+                // 失敗したらメモリ上の変更を戻す
+                inventory.push(item);
+                archivedInventory = archivedInventory.filter(i => String(i.id) !== String(id));
+                renderMain();
+            }
         }
 
         // 一括保管（アーカイブ）
         async function bulkArchive() {
             const count = selectedItems.size;
             if (count === 0) return;
+
+            // archiveLoadedが false だとsaveDataでアーカイブ書き出しがスキップされてデータが消える
+            if (!archiveLoaded) {
+                alert('アーカイブシートの読み込みが完了していません。ページを再読み込みしてからもう一度お試しください。');
+                return;
+            }
             
             // 選択されたアイテムの情報を取得
             const selectedList = Array.from(selectedItems).map(id => {
