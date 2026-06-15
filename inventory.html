@@ -1438,6 +1438,9 @@
             const allocatedItems = inventory.filter(i => i.status === '引当済');
             const inStockValue = inStockItems.reduce((sum, i) => sum + (Number(i.costJPY) || 0), 0);
             const allocatedValue = allocatedItems.reduce((sum, i) => sum + (Number(i.costJPY) || 0), 0);
+            // 棚卸資産は会計上「物理的に倉庫にある在庫」なので 在庫中+引当済 を合算
+            const stocktakeCount = inStockItems.length + allocatedItems.length;
+            const stocktakeValue = inStockValue + allocatedValue;
             const noShelfCount = inStockItems.filter(i => !i.shelfNo).length;
             const tokyoCount = inventory.filter(i => i.location === '東京' && (i.status === '在庫中' || i.status === '引当済')).length;
             const osakaCount = inventory.filter(i => i.location === '大阪' && (i.status === '在庫中' || i.status === '引当済')).length;
@@ -1449,6 +1452,8 @@
                 inStockValue: inStockValue,
                 allocated: allocatedItems.length,
                 allocatedValue: allocatedValue,
+                stocktakeCount: stocktakeCount,
+                stocktakeValue: stocktakeValue,
                 shipped: inventory.filter(i => i.status === '出庫済').length,
                 defect: inventory.filter(i => i.status === '不良品').length,
                 noShelf: noShelfCount,
@@ -1771,9 +1776,10 @@
                                     <div class="mt-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg p-3 border border-blue-200 dark:border-blue-700 flex justify-between items-center">
                                         <div>
                                             <p class="text-blue-700 dark:text-blue-300 text-xs sm:text-sm">在庫総額（棚卸し用）</p>
-                                            <p class="text-lg sm:text-xl font-bold text-blue-700 dark:text-blue-300">¥${summary.inStockValue.toLocaleString()}</p>
+                                            <p class="text-lg sm:text-xl font-bold text-blue-700 dark:text-blue-300">¥${summary.stocktakeValue.toLocaleString()}</p>
+                                            <p class="text-xs text-blue-600 dark:text-blue-400 mt-1">在庫中 ¥${summary.inStockValue.toLocaleString()} / 引当済 ¥${summary.allocatedValue.toLocaleString()}</p>
                                         </div>
-                                        <p class="text-xs sm:text-sm text-blue-600 dark:text-blue-400">${summary.inStock}件</p>
+                                        <p class="text-xs sm:text-sm text-blue-600 dark:text-blue-400">${summary.stocktakeCount}件</p>
                                     </div>
                                 ` : ''}
                             </div>
@@ -5313,9 +5319,11 @@
 
         // 棚卸しリスト印刷
         function printInventoryList() {
-            const inStockItems = inventory.filter(i => i.status === '在庫中' || i.status === '入庫待ち');
+            // 棚卸対象：物理的に倉庫にあるもの = 在庫中 + 引当済
+            // 入庫待ちは未着なので物理棚卸からは除外
+            const inStockItems = inventory.filter(i => i.status === '在庫中' || i.status === '引当済');
             if (inStockItems.length === 0) {
-                alert('在庫中・入庫待ちのアイテムがありません');
+                alert('在庫中・引当済のアイテムがありません');
                 return;
             }
 
@@ -5468,8 +5476,8 @@
                                     <p class="text-xs text-slate-600 dark:text-slate-400">出庫済</p>
                                 </div>
                                 <div class="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-3 text-center">
-                                    <p class="text-2xl font-bold text-purple-600">¥${summary.inStockValue.toLocaleString()}</p>
-                                    <p class="text-xs text-slate-600 dark:text-slate-400">在庫総額</p>
+                                    <p class="text-2xl font-bold text-purple-600">¥${summary.stocktakeValue.toLocaleString()}</p>
+                                    <p class="text-xs text-slate-600 dark:text-slate-400">在庫総額（棚卸資産）</p>
                                 </div>
                             </div>
                         </div>
