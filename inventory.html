@@ -62,6 +62,7 @@
         let autoReloadEnabled = true;
         const AUTO_RELOAD_SECONDS = 60; // 60秒間隔
         let lastDataHash = ''; // データ変更検知用
+        let lastArchiveHash = ''; // アーカイブシート変更検知用
         let lastSaveTime = 0; // 最後に保存した時刻
         
         // トークン自動リフレッシュ
@@ -759,6 +760,7 @@
                         range: '在庫アーカイブ!A2:Q',
                     });
                     const archiveRows = archiveResponse.result.values || [];
+                    lastArchiveHash = JSON.stringify(archiveRows); // 競合検知用ハッシュを記録
                     archivedInventory = archiveRows.map((row, idx) => {
                         const itemId = row[0] || `archive-${Date.now()}-${idx}`;
                         
@@ -874,6 +876,14 @@
             // 保存直後5秒間はスキップ
             if (Date.now() - lastSaveTime < 5000) {
                 console.log('保存直後のため自動同期スキップ');
+                return;
+            }
+
+            // モーダルが開いてる間は同期スキップ（編集中のデータが上書きされるのを防ぐ）
+            // モーダルは id 末尾が "Modal" で、body直下のz-50オーバーレイとして存在
+            const openModal = document.querySelector('[id$="Modal"]');
+            if (openModal) {
+                console.log('モーダル表示中のため自動同期スキップ:', openModal.id);
                 return;
             }
             
@@ -1213,6 +1223,30 @@
 
                 // アーカイブの保存（読み込み完了している場合のみ）
                 if (archiveLoaded) {
+                    // アーカイブシートの競合チェック（在庫シートと同じロジック）
+                    try {
+                        const archiveCheckResponse = await gapi.client.sheets.spreadsheets.values.get({
+                            spreadsheetId: SPREADSHEET_ID,
+                            range: '在庫アーカイブ!A2:Q',
+                        });
+                        const currentArchiveRows = archiveCheckResponse.result.values || [];
+                        const currentArchiveHash = JSON.stringify(currentArchiveRows);
+
+                        if (lastArchiveHash && currentArchiveHash !== lastArchiveHash) {
+                            const confirmOverwrite = confirm(
+                                '他のユーザーによってアーカイブが更新されています。\n\n' +
+                                'このまま上書きすると、相手の変更が消える可能性があります。\n\n' +
+                                '上書きしますか？\n（キャンセルで最新データを取得して再読み込みします）'
+                            );
+                            if (!confirmOverwrite) {
+                                await loadData();
+                                return;
+                            }
+                        }
+                    } catch (e) {
+                        console.log('アーカイブ競合チェックスキップ:', e);
+                    }
+
                     const archiveData = [
                         ['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税別)', '備考', '棚番', '保管場所', 'サプライヤーID'],
                         ...archivedInventory.map(item => [
@@ -1247,6 +1281,9 @@
                         valueInputOption: 'RAW',
                         resource: { values: archiveData }
                     });
+
+                    // 書き込み後にアーカイブハッシュも更新（書き出した内容のハッシュ）
+                    lastArchiveHash = JSON.stringify(archiveData.slice(1));
                 } else {
                     console.log('アーカイブ未読み込みのため保存をスキップ');
                 }

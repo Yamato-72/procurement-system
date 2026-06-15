@@ -226,6 +226,7 @@
                     }
                     accessToken = resp.access_token;
                     sessionStorage.setItem('googleAccessToken', accessToken);
+                    scheduleTokenRefresh();
                     loadData();
                     renderMain();
                 },
@@ -234,12 +235,108 @@
             maybeEnableButtons();
         }
 
+        // === 認証トークン自動更新（A: 予防型）===
+        // Googleアクセストークンは通常1時間で失効する。50分ごとに静かに更新して切れないようにする。
+        let tokenRefreshTimer = null;
+        let tokenAcquiredAt = 0; // トークン取得時刻（ミリ秒）
+
+        function scheduleTokenRefresh() {
+            tokenAcquiredAt = Date.now();
+            if (tokenRefreshTimer) clearTimeout(tokenRefreshTimer);
+            tokenRefreshTimer = setTimeout(() => {
+                if (!tokenClient) return;
+                console.log('[認証] トークンを自動更新します');
+                // 静かに更新（ポップアップなし、既存の認可があれば再認証なしで新しいトークンが取れる）
+                tokenClient.callback = (resp) => {
+                    if (resp.error) {
+                        console.warn('[認証] 自動更新失敗:', resp.error);
+                        // 失敗してもアプリは止めない。次回の操作で401が出たらリトライで救う
+                        return;
+                    }
+                    accessToken = resp.access_token;
+                    sessionStorage.setItem('googleAccessToken', accessToken);
+                    gapi.client.setToken({ access_token: accessToken });
+                    tokenAcquiredAt = Date.now();
+                    console.log('[認証] トークン自動更新 成功');
+                    scheduleTokenRefresh(); // 次の更新を予約
+                };
+                tokenClient.requestAccessToken({ prompt: '' });
+            }, 50 * 60 * 1000); // 50分
+        }
+
+        // トークンが古くなりすぎてないか確認、必要なら更新（タブ非アクティブで setTimeout が遅延する対策）
+        async function ensureFreshToken() {
+            // 55分以上経ってたら、操作前に更新を試みる
+            if (tokenAcquiredAt > 0 && Date.now() - tokenAcquiredAt > 55 * 60 * 1000) {
+                console.log('[認証] トークン期限間近のため事前に更新します');
+                try {
+                    await refreshTokenSilently();
+                } catch (e) {
+                    console.warn('[認証] 事前更新失敗、リトライに任せます:', e);
+                }
+            }
+        }
+
+        // === 認証トークン自動リトライ（B: 事後リカバリ）===
+        // 401が出たらトークンを取り直してから処理をリトライする。
+        // 使い方: await withAuthRetry(() => gapi.client.sheets.spreadsheets.values.get({...}))
+        async function withAuthRetry(operation, maxRetries = 1) {
+            let lastError;
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                try {
+                    return await operation();
+                } catch (err) {
+                    lastError = err;
+                    // 401（認証切れ）の判定をゆるく（Google APIのエラー構造が複数あるため）
+                    const errStr = JSON.stringify(err || {});
+                    const isAuthError = 
+                        (err && err.status === 401) ||
+                        (err && err.result && err.result.error && err.result.error.code === 401) ||
+                        (err && err.result && err.result.error && err.result.error.status === 'UNAUTHENTICATED') ||
+                        errStr.includes('"code":401') ||
+                        errStr.includes('UNAUTHENTICATED');
+                    
+                    if (!isAuthError || attempt >= maxRetries) {
+                        console.error('[認証] リトライ対象外のエラー、または最大リトライ回数到達:', err);
+                        throw err;
+                    }
+                    console.warn('[認証] 401検出、トークンを再取得してリトライします', err);
+                    await refreshTokenSilently();
+                }
+            }
+            throw lastError;
+        }
+
+        // トークンを静かに取り直す（Promise化）
+        function refreshTokenSilently() {
+            return new Promise((resolve, reject) => {
+                if (!tokenClient) {
+                    reject(new Error('tokenClient未初期化'));
+                    return;
+                }
+                tokenClient.callback = (resp) => {
+                    if (resp.error) {
+                        reject(new Error(resp.error));
+                        return;
+                    }
+                    accessToken = resp.access_token;
+                    sessionStorage.setItem('googleAccessToken', accessToken);
+                    gapi.client.setToken({ access_token: accessToken });
+                    scheduleTokenRefresh();
+                    console.log('[認証] リトライ用トークン取得 成功');
+                    resolve();
+                };
+                tokenClient.requestAccessToken({ prompt: '' });
+            });
+        }
+
         function maybeEnableButtons() {
             if (gapiInited && gisInited) {
                 const savedToken = sessionStorage.getItem('googleAccessToken');
                 if (savedToken) {
                     accessToken = savedToken;
                     gapi.client.setToken({ access_token: accessToken });
+                    scheduleTokenRefresh();
                     loadData();
                     renderMain();
                 } else {
@@ -255,6 +352,7 @@
                 }
                 accessToken = resp.access_token;
                 sessionStorage.setItem('googleAccessToken', accessToken);
+                scheduleTokenRefresh();
                 await loadData();
                 renderMain();
             };
@@ -752,6 +850,9 @@
         // 在庫の取得金を更新
         async function updateInventoryCost(project) {
             try {
+                // 認証トークンが古くなりすぎてないかチェックして、必要なら事前に更新
+                await ensureFreshToken();
+
                 // 製品代（デポジット合計）
                 const depositTotal = project.depositSchedule.reduce((sum, d) => sum + (d.amountJPY || 0), 0);
                 
@@ -769,11 +870,11 @@
                 
                 if (costPerUnit <= 0) return;
                 
-                // 在庫シートから該当アイテムを取得
-                const response = await gapi.client.sheets.spreadsheets.values.get({
+                // 在庫シートから該当アイテムを取得（401自動リトライ対応）
+                const response = await withAuthRetry(() => gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: SPREADSHEET_ID,
                     range: '在庫!A2:Q',
-                });
+                }));
                 const rows = response.result.values || [];
                 
                 // 案件番号が一致する行を探す
@@ -832,13 +933,13 @@
                 }
                 
                 if (updates.length > 0) {
-                    await gapi.client.sheets.spreadsheets.values.batchUpdate({
+                    await withAuthRetry(() => gapi.client.sheets.spreadsheets.values.batchUpdate({
                         spreadsheetId: SPREADSHEET_ID,
                         resource: {
                             valueInputOption: 'RAW',
                             data: updates
                         }
-                    });
+                    }));
                     const itemCount = updates.length; // 取得金のみなので1つ＝1台
                     const msg = expensesTotal > 0 
                         ? `✅ 在庫の取得金を更新: ¥${costPerUnit.toLocaleString()}/台 × ${itemCount}台（諸費用¥${expensesTotal.toLocaleString()}含む）`
