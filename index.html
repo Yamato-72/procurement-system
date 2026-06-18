@@ -2718,6 +2718,7 @@
                                         <select id="modalProjectPrefix" style="width:70px;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:14px;">
                                             <option value="AD">AD</option>
                                             <option value="SP">SP</option>
+                                            <option value="TS">TS</option>
                                         </select>
                                         <input type="text" id="modalProjectNumber" placeholder="0001" style="width:80px;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:14px;">
                                     </div>
@@ -3740,6 +3741,7 @@
                                 <select id="editProjectPrefix" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                                     <option value="AD" ${(project.projectPrefix || 'AD') === 'AD' ? 'selected' : ''}>AD</option>
                                     <option value="SP" ${project.projectPrefix === 'SP' ? 'selected' : ''}>SP</option>
+                                    <option value="TS" ${project.projectPrefix === 'TS' ? 'selected' : ''}>TS</option>
                                 </select>
                             </div>
                             <div>
@@ -4270,6 +4272,7 @@
                                     <select id="templateProjectPrefix" class="w-20 px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                                         <option value="AD" ${(project.projectPrefix || 'AD') === 'AD' ? 'selected' : ''}>AD</option>
                                         <option value="SP" ${project.projectPrefix === 'SP' ? 'selected' : ''}>SP</option>
+                                        <option value="TS" ${project.projectPrefix === 'TS' ? 'selected' : ''}>TS</option>
                                     </select>
                                     <input type="text" id="templateProjectNumber" class="flex-1 px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="0001">
                                 </div>
