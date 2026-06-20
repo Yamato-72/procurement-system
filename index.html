@@ -1243,6 +1243,30 @@
                 });
             });
 
+            // === ペース進捗（線形換算）===
+            // 今期の経過月数（今月含む）
+            const monthsElapsed = (now.getFullYear() - currentFY.startYear) * 12 + (now.getMonth() - 6) + 1;
+            const monthsElapsedClamped = Math.max(1, Math.min(12, monthsElapsed));
+            // 年間予測（月割平均 × 12）
+            const annualForecastJPY = monthsElapsedClamped > 0 ? Math.round(totalJPY / monthsElapsedClamped * 12) : 0;
+
+            // === 為替関連 ===
+            // 今期の加重平均レート（合計JPY ÷ 合計USD）
+            let fiscalPaidUSD = 0;
+            let fiscalPaidJPY = 0;
+            fiscalPayments.forEach(dep => {
+                if (dep.amountUSD && dep.amountJPY) {
+                    fiscalPaidUSD += dep.amountUSD;
+                    fiscalPaidJPY += dep.amountJPY;
+                }
+            });
+            const avgRateThisFY = fiscalPaidUSD > 0 ? fiscalPaidJPY / fiscalPaidUSD : null;
+            // 未払い分の為替リスク：もし今期平均レートで換算したらいくらか
+            // 既存のunpaidTotalJPYは案件登録時の想定レート、avgRateThisFYは今期の実勢
+            // 差額がリスク（プラスなら円安進行で追加コスト、マイナスなら円高で利得）
+            const unpaidAtAvgRate = avgRateThisFY ? Math.round(unpaidTotalUSD * avgRateThisFY) : null;
+            const fxRisk = unpaidAtAvgRate !== null ? unpaidAtAvgRate - unpaidTotalJPY : null;
+
             const lastUpdatedText = lastUpdated ? lastUpdated.toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'}) : '-';
             
             // アラート計算
@@ -1459,7 +1483,36 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border dark:border-slate-700 mb-4 sm:mb-8">
+
+                        <!-- 3段目：ペース予測 & 為替関連 -->
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
+                            <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-indigo-500">
+                                <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">📈 ${currentPeriodLabel} ペース予測</p>
+                                <p class="text-sm sm:text-xl font-bold text-slate-900 dark:text-white truncate">${formatJPY(annualForecastJPY)}</p>
+                                <p class="text-xs text-slate-400">${monthsElapsedClamped}ヶ月経過/年換算</p>
+                            </div>
+                            <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-cyan-500">
+                                <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">💱 今期平均レート</p>
+                                <p class="text-sm sm:text-xl font-bold text-slate-900 dark:text-white truncate">${avgRateThisFY ? '¥' + avgRateThisFY.toFixed(2) : '-'}</p>
+                                <p class="text-xs text-slate-400">加重平均 / USD</p>
+                            </div>
+                            <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-violet-500 col-span-2">
+                                <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">⚠️ 未払い分の為替リスク</p>
+                                ${fxRisk !== null ? `
+                                    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                                        <span class="text-sm sm:text-lg font-bold ${fxRisk >= 0 ? 'text-red-500' : 'text-emerald-500'}">
+                                            ${fxRisk >= 0 ? '+' : ''}${formatJPY(fxRisk)}
+                                        </span>
+                                        <span class="text-xs text-slate-400">
+                                            想定¥${(unpaidTotalUSD > 0 ? unpaidTotalJPY / unpaidTotalUSD : 0).toFixed(2)} → 平均¥${avgRateThisFY ? avgRateThisFY.toFixed(2) : '-'}
+                                        </span>
+                                    </div>
+                                    <p class="text-xs text-slate-400 mt-0.5">未払い$${unpaidTotalUSD.toLocaleString()} を今期平均で再評価した差額</p>
+                                ` : `
+                                    <p class="text-sm text-slate-400">今期の支払い実績がまだありません</p>
+                                `}
+                            </div>
+                        </div>
                             <button onclick="toggleSupplierSection()" class="w-full flex justify-between items-center text-left">
                                 <h2 class="text-base sm:text-xl font-bold text-slate-900 dark:text-white">サプライヤー管理</h2>
                                 <span class="text-slate-400">${showSupplierSection ? '▼' : '▶'}</span>
