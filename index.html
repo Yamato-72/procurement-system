@@ -4520,8 +4520,8 @@
                     return false;
                 }
                 
-                // 完了非表示
-                if (projectFilter.hideArchived && status === '入庫完了') {
+                // 完了非表示（支払い完了済の案件を非表示にする）
+                if (projectFilter.hideArchived && (status === '支払済' || status === '入庫完了')) {
                     return false;
                 }
                 
