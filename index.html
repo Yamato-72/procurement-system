@@ -1134,8 +1134,28 @@
         }
 
         function renderMain() {
-            const fiscalStart = new Date('2025-07-01');
-            const fiscalEnd = new Date('2026-06-30');
+            // 会計年度ヘルパー：第1期 = 2019/7〜2020/6
+            // 7月始まり〜翌6月末
+            const FY1_START_YEAR = 2019;
+            function getFiscalYearInfo(date) {
+                const y = date.getFullYear();
+                const m = date.getMonth(); // 0=1月, 6=7月
+                const startYear = m >= 6 ? y : y - 1; // 7月以降は当年、6月以前は前年
+                const periodNumber = startYear - FY1_START_YEAR + 1;
+                return {
+                    startYear,
+                    periodNumber,
+                    start: new Date(startYear, 6, 1),       // 7/1
+                    end: new Date(startYear + 1, 5, 30, 23, 59, 59) // 翌6/30
+                };
+            }
+
+            const now = new Date();
+            const currentFY = getFiscalYearInfo(now);
+            const prevFY = getFiscalYearInfo(new Date(currentFY.startYear - 1, 11, 1)); // 前期判定用
+
+            const fiscalStart = currentFY.start;
+            const fiscalEnd = currentFY.end;
             const fiscalPayments = projects.flatMap(p => 
                 (p.depositSchedule || []).filter(dep => {
                     if (!dep.paid || !dep.paidDate) return false;
@@ -1145,9 +1165,9 @@
             );
             const totalJPY = fiscalPayments.reduce((sum, p) => sum + (p.amountJPY || 0), 0);
 
-            // 前期の計算
-            const prevFiscalStart = new Date('2024-07-01');
-            const prevFiscalEnd = new Date('2025-06-30');
+            // 前期の計算（自動）
+            const prevFiscalStart = prevFY.start;
+            const prevFiscalEnd = prevFY.end;
             const prevFiscalPayments = projects.flatMap(p => 
                 (p.depositSchedule || []).filter(dep => {
                     if (!dep.paid || !dep.paidDate) return false;
@@ -1157,8 +1177,11 @@
             );
             const prevTotalJPY = prevFiscalPayments.reduce((sum, p) => sum + (p.amountJPY || 0), 0);
 
-            // 今月・前月・前年同月の計算
-            const now = new Date();
+            // 期のラベル
+            const currentPeriodLabel = `第${currentFY.periodNumber}期`;
+            const prevPeriodLabel = `第${prevFY.periodNumber}期`;
+
+            // 今月・前月・前年同月の計算（nowは上で宣言済み）
             const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
             const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
             const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -1386,12 +1409,12 @@
                             <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-slate-500">
                                 <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">今期支払</p>
                                 <p class="text-sm sm:text-xl font-bold text-slate-900 dark:text-white truncate">${formatJPY(totalJPY)}</p>
-                                <p class="text-xs text-slate-400 hidden sm:block">FY2025</p>
+                                <p class="text-xs text-slate-400 hidden sm:block">${currentPeriodLabel}</p>
                             </div>
                             <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-slate-400">
                                 <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">前期支払</p>
                                 <p class="text-sm sm:text-xl font-bold text-slate-900 dark:text-white truncate">${formatJPY(prevTotalJPY)}</p>
-                                <p class="text-xs text-slate-400 hidden sm:block">FY2024</p>
+                                <p class="text-xs text-slate-400 hidden sm:block">${prevPeriodLabel}</p>
                             </div>
                             <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-blue-500">
                                 <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">案件数</p>
