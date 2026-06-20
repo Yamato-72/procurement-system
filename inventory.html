@@ -1646,7 +1646,7 @@
                         <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-4 mb-4 sm:mb-6">
                             <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border-l-4 border-emerald-500">
                                 <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">在庫中</p>
-                                <p class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">${summary.inStock}</p>
+                                <p class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">${summary.inStock + summary.allocated}</p>
                             </div>
                             <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border-l-4 border-amber-500">
                                 <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">入庫待</p>
@@ -5464,7 +5464,7 @@
                             <h4 class="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2">現在の在庫状況</h4>
                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                 <div class="bg-emerald-50 dark:bg-emerald-900/30 rounded-lg p-3 text-center">
-                                    <p class="text-2xl font-bold text-emerald-600">${summary.inStock}</p>
+                                    <p class="text-2xl font-bold text-emerald-600">${summary.inStock + summary.allocated}</p>
                                     <p class="text-xs text-slate-600 dark:text-slate-400">在庫中</p>
                                 </div>
                                 <div class="bg-amber-50 dark:bg-amber-900/30 rounded-lg p-3 text-center">
