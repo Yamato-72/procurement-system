@@ -1369,9 +1369,31 @@
                         valB = b.orderDate || '9999';
                         return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
                     case 'serial':
-                        valA = a.serial || '';
-                        valB = b.serial || '';
-                        return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                        // Serial構造（例: YS0518, YS0518-1, YS0518-10）を「プレフィックス + 数字 + 枝番」に分解して比較
+                        // 単純な文字列比較だと YS052 と YS0518 で桁数が違うため誤った順序になる
+                        const parseSerial = (s) => {
+                            const str = s || '';
+                            // 例: "YS0518-10" → ["YS0518-10", "YS", "0518", "10"]
+                            //     "YS0518"    → ["YS0518",    "YS", "0518", undefined]
+                            const m = str.match(/^([A-Z]*)(\d+)(?:-(\d+))?/i);
+                            if (!m) return { prefix: str, main: 0, sub: 0 };
+                            return {
+                                prefix: (m[1] || '').toUpperCase(),
+                                main: parseInt(m[2], 10) || 0,
+                                sub: m[3] ? parseInt(m[3], 10) : 0
+                            };
+                        };
+                        const sA = parseSerial(a.serial);
+                        const sB = parseSerial(b.serial);
+                        let serialCompare = 0;
+                        if (sA.prefix !== sB.prefix) {
+                            serialCompare = sA.prefix.localeCompare(sB.prefix);
+                        } else if (sA.main !== sB.main) {
+                            serialCompare = sA.main - sB.main;
+                        } else {
+                            serialCompare = sA.sub - sB.sub;
+                        }
+                        return sortOrder === 'asc' ? serialCompare : -serialCompare;
                     case 'project':
                         // AD優先、次にSP、番号は数値順
                         const prefixA = (a.orderPrefix || 'AD').toUpperCase();
