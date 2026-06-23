@@ -3103,8 +3103,11 @@
             
             console.log('filtered count:', filtered.length);
             
-            // 最大50件
-            filtered = filtered.slice(0, 50);
+            // フィルタ後の件数を保持（表示制限の前に）
+            const filteredTotalCount = filtered.length;
+            
+            // 最大200件まで表示（以前は50件だったが、屋外などで67件以上あるケースのため拡大）
+            filtered = filtered.slice(0, 200);
             
             select.innerHTML = '<option value="">-- 型式を選択 --</option>' + 
                 filtered.map(p => 
@@ -3116,8 +3119,12 @@
             if (countEl) {
                 if (productMaster.length === 0) {
                     countEl.textContent = '製品マスタを読み込み中...';
+                } else if (filteredTotalCount > filtered.length) {
+                    // 200件超過時のみ「表示N / 該当M / 全L」を表示
+                    countEl.textContent = `${filtered.length}件表示（該当${filteredTotalCount}件 / 全${productMaster.length}件）`;
                 } else {
-                    countEl.textContent = `${filtered.length}件表示（全${productMaster.length}件）`;
+                    // 通常は「該当N件 / 全M件」を表示
+                    countEl.textContent = `${filtered.length}件（全${productMaster.length}件中）`;
                 }
             }
         }

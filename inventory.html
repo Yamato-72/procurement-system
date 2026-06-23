@@ -985,9 +985,12 @@
                     headers.forEach((h, i) => colIndex[h] = i);
                     
                     dataRows.forEach(row => {
-                        // is_active チェック（旧形式・新形式両対応）
-                        const isActive = row[colIndex['is_active']] || '';
-                        if (isActive !== 'TRUE') return;
+                        // is_active チェック（Boolean true / 文字列 'TRUE'/'true' / 1 など、真偽表現の揺れを広く許容）
+                        const isActive = row[colIndex['is_active']];
+                        const isActiveOk = (isActive === true) ||
+                                           (typeof isActive === 'string' && isActive.toUpperCase() === 'TRUE') ||
+                                           (isActive === 1 || isActive === '1');
+                        if (!isActiveOk) return;
                         
                         // type から category を決定（旧形式対応）
                         const type = row[colIndex['type']] || '';
