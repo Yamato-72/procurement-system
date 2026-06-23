@@ -153,15 +153,69 @@
         }
 
         // Serial番号を生成
-        function generateSerial(quantity) {
-            const serialNum = nextSerial;
-            nextSerial++;
-            const serialStr = 'YS' + String(serialNum).padStart(4, '0');
-            
-            if (quantity <= 1) {
-                return serialStr;
+        // projectPrefix/projectNumber が指定された場合、その案件で既に使われている YS 番号と枝番を見て、
+        // 同じYS番号の枝番を続ける（例：YS0518-5まで使われてたら YS0518-6 から発行）
+        // 案件番号が未指定 or 既存YSが無い場合は、nextSerial から新規発行
+        function generateSerial(quantity, projectPrefix, projectNumber) {
+            // 既存案件の Serial を調査（projects + 在庫データはここでは projects から）
+            let baseSerialNum = null;  // YS番号（例: 518）
+            let maxSub = 0;            // その案件で使われた最大枝番
+
+            if (projectPrefix && projectNumber) {
+                const normalizedNum = String(projectNumber).replace(/^0+/, ''); // "0518" → "518"
+                projects.forEach(p => {
+                    if (!p.serial) return;
+                    const pNum = String(p.projectNumber || '').replace(/^0+/, '');
+                    if ((p.projectPrefix || '').toUpperCase() !== projectPrefix.toUpperCase()) return;
+                    if (pNum !== normalizedNum) return;
+                    // 該当案件のSerialから YS番号と枝番を抽出
+                    // 形式: YS0518, YS0518-5, YS0518(1-5) など
+                    const m = p.serial.match(/YS(\d+)(?:-(\d+))?(?:\((\d+)-(\d+)\))?/);
+                    if (!m) return;
+                    const ysNum = parseInt(m[1], 10);
+                    if (baseSerialNum === null) baseSerialNum = ysNum;
+                    // 同じ案件で違うYS番号が混じってたら一番大きい方を使う
+                    if (ysNum > baseSerialNum) {
+                        baseSerialNum = ysNum;
+                        maxSub = 0; // YS番号変わったらリセット（保守的）
+                    }
+                    if (ysNum !== baseSerialNum) return;
+                    // 枝番の取得：m[2]=単一枝番、m[4]=(1-N)形式の最大値
+                    if (m[2]) {
+                        const sub = parseInt(m[2], 10);
+                        if (sub > maxSub) maxSub = sub;
+                    } else if (m[4]) {
+                        const sub = parseInt(m[4], 10);
+                        if (sub > maxSub) maxSub = sub;
+                    } else {
+                        // YS0518 のみ（枝番なし）→ 暗黙の最大は1扱い
+                        if (1 > maxSub) maxSub = 1;
+                    }
+                });
+            }
+
+            let serialStr;
+            if (baseSerialNum !== null) {
+                // 既存案件の続き番号として発行
+                serialStr = 'YS' + String(baseSerialNum).padStart(4, '0');
+                // maxSub+1 から quantity 個を採番（呼び出し側は serial を baseSerialName として扱い、addToInventoryで枝番展開する）
+                // ここでは「枝番の起点」を埋め込んだ表記で返す
+                const startSub = maxSub + 1;
+                if (quantity <= 1) {
+                    return `${serialStr}-${startSub}`;
+                } else {
+                    return `${serialStr}(${startSub}-${startSub + quantity - 1})`;
+                }
             } else {
-                return `${serialStr}(1-${quantity})`;
+                // 新規案件 or 既存YSが見つからない → nextSerialから発行
+                const serialNum = nextSerial;
+                nextSerial++;
+                serialStr = 'YS' + String(serialNum).padStart(4, '0');
+                if (quantity <= 1) {
+                    return serialStr;
+                } else {
+                    return `${serialStr}(1-${quantity})`;
+                }
             }
         }
 
@@ -688,7 +742,7 @@
                 amountJPY: null
             }));
             
-            const serial = generateSerial(quantity);
+            const serial = generateSerial(quantity, parsed.prefix, parsed.number);
             
             // 案件登録日から集荷予定日を計算
             const today = new Date();
@@ -762,18 +816,46 @@
                 }
 
                 // 追加するデータを作成（新形式17列）
-                const baseSerial = serial.replace(/\(.*\)/, ''); // YS0554(1-4) → YS0554
+                // serial 形式の例:
+                //   "YS0518"        → 単品（baseSerial=YS0518, startSub なし）
+                //   "YS0518-6"      → 単品で枝番指定（baseSerial=YS0518, startSub=6, quantity=1）
+                //   "YS0518(1-5)"   → 複数で起点=1（baseSerial=YS0518, startSub=1, endSub=5）
+                //   "YS0518(6-10)"  → 既存案件への追加、枝番起点が6
+                let baseSerial = '';
+                let startSub = null;
+                if (serial) {
+                    const rangeMatch = serial.match(/^(YS\d+)\((\d+)-(\d+)\)$/);
+                    const subMatch = serial.match(/^(YS\d+)-(\d+)$/);
+                    if (rangeMatch) {
+                        baseSerial = rangeMatch[1];
+                        startSub = parseInt(rangeMatch[2], 10);
+                    } else if (subMatch) {
+                        baseSerial = subMatch[1];
+                        startSub = parseInt(subMatch[2], 10);
+                    } else {
+                        baseSerial = serial.replace(/\(.*\)/, ''); // YS0554 そのまま
+                    }
+                }
                 const newRows = [];
                 
-                for (let i = 1; i <= quantity; i++) {
-                    // Serial が空の場合は空のまま、ある場合のみ連番を振る
+                for (let i = 0; i < quantity; i++) {
+                    // Serial が空の場合は空のまま
                     let itemSerial = '';
                     if (baseSerial) {
-                        itemSerial = quantity > 1 ? `${baseSerial}-${i}` : baseSerial;
+                        if (startSub !== null) {
+                            // 起点付き：startSub, startSub+1, ...
+                            itemSerial = `${baseSerial}-${startSub + i}`;
+                        } else if (quantity > 1) {
+                            // 起点なし複数：1, 2, ...（後方互換）
+                            itemSerial = `${baseSerial}-${i + 1}`;
+                        } else {
+                            // 単品で起点なし
+                            itemSerial = baseSerial;
+                        }
                     }
                     
                     newRows.push([
-                        Date.now().toString() + '-' + i,  // ID
+                        Date.now().toString() + '-' + (i + 1),  // ID
                         itemSerial,                        // Serial（空なら空のまま）
                         category,                          // 種別
                         productName,                       // 製品名
@@ -3545,7 +3627,8 @@
                 const nameInput = document.getElementById(`editProductName_${idx}`);
                 
                 const quantity = qtyInput ? parseInt(qtyInput.value) || 1 : (p.quantity || 1);
-                const serial = serialInput ? serialInput.value.trim() : (p.serial || generateSerial(quantity));
+                const grpParsed = parseProjectNumberString(projectNumber);
+                const serial = serialInput ? serialInput.value.trim() : (p.serial || generateSerial(quantity, grpParsed.prefix, grpParsed.number));
                 const productName = nameInput ? nameInput.value.trim() : p.productName;
                 const category = detectCategory(productName) || 'その他';
                 
@@ -5886,7 +5969,7 @@
                     
                     // Serial生成
                     const quantity = invoiceData.quantity || 1;
-                    const serial = generateSerial(quantity);
+                    const serial = generateSerial(quantity, parsed.prefix, parsed.number);
                     
                     // 案件登録（新形式：projectPrefix + projectNumber）
                     const projectNumberFull = `${parsed.prefix}-${parsed.number}`;
