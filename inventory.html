@@ -5339,7 +5339,17 @@
         }
 
         // 棚卸しリスト印刷
-        function printInventoryList() {
+        async function printInventoryList() {
+            // 最新データを取り直してから印刷（誤差を防ぐ）
+            showStatus('🔄 最新データを取得中...');
+            try {
+                await loadData();
+            } catch (e) {
+                showStatus('❌ データ取得失敗、メモリ上のデータで印刷します');
+                setTimeout(() => showStatus(''), 3000);
+            }
+            showStatus('');
+
             // 棚卸対象：物理的に倉庫にあるもの = 在庫中 + 引当済
             // 入庫待ちは未着なので物理棚卸からは除外
             const inStockItems = inventory.filter(i => i.status === '在庫中' || i.status === '引当済');
