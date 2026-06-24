@@ -2263,15 +2263,34 @@
             document.body.appendChild(modal);
         }
 
-        function submitBulkShelf() {
+        async function submitBulkShelf() {
             const shelfNo = document.getElementById('bulkShelfNo').value;
+            // ロールバック用にバックアップ
+            const backup = [];
             selectedItems.forEach(id => {
                 const item = inventory.find(i => String(i.id) === String(id));
-                if (item) item.shelfNo = shelfNo;
+                if (item) {
+                    backup.push({ id: item.id, shelfNo: item.shelfNo });
+                    item.shelfNo = shelfNo;
+                }
             });
-            saveData();
-            closeModal('bulkShelfModal');
-            cancelBulkSelect();
+            try {
+                await saveData();
+                closeModal('bulkShelfModal');
+                cancelBulkSelect();
+                renderMain();
+                showStatus(`✅ ${backup.length}件の棚番を更新しました`);
+                setTimeout(() => showStatus(''), 2000);
+            } catch (e) {
+                console.error('棚番一括更新に失敗:', e);
+                // ロールバック
+                backup.forEach(b => {
+                    const item = inventory.find(i => String(i.id) === String(b.id));
+                    if (item) item.shelfNo = b.shelfNo;
+                });
+                alert('保存に失敗しました');
+                renderMain();
+            }
         }
 
         // 一括サプライヤー変更モーダル
@@ -2336,15 +2355,32 @@
             document.body.appendChild(modal);
         }
 
-        function submitBulkLocation() {
+        async function submitBulkLocation() {
             const location = document.getElementById('bulkLocation').value;
+            const backup = [];
             selectedItems.forEach(id => {
                 const item = inventory.find(i => String(i.id) === String(id));
-                if (item) item.location = location;
+                if (item) {
+                    backup.push({ id: item.id, location: item.location });
+                    item.location = location;
+                }
             });
-            saveData();
-            closeModal('bulkLocationModal');
-            cancelBulkSelect();
+            try {
+                await saveData();
+                closeModal('bulkLocationModal');
+                cancelBulkSelect();
+                renderMain();
+                showStatus(`✅ ${backup.length}件の保管場所を更新しました`);
+                setTimeout(() => showStatus(''), 2000);
+            } catch (e) {
+                console.error('保管場所一括更新に失敗:', e);
+                backup.forEach(b => {
+                    const item = inventory.find(i => String(i.id) === String(b.id));
+                    if (item) item.location = b.location;
+                });
+                alert('保存に失敗しました');
+                renderMain();
+            }
         }
 
         // 一括編集モーダル
