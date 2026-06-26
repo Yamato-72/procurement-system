@@ -2268,11 +2268,12 @@
             // ロールバック用にバックアップ
             const backup = [];
             selectedItems.forEach(id => {
-                const item = inventory.find(i => String(i.id) === String(id));
-                if (item) {
-                    backup.push({ id: item.id, shelfNo: item.shelfNo });
+                // IDが重複してる可能性に備えて find ではなく filter で全件取得
+                const items = inventory.filter(i => String(i.id) === String(id));
+                items.forEach(item => {
+                    backup.push({ ref: item, shelfNo: item.shelfNo });
                     item.shelfNo = shelfNo;
-                }
+                });
             });
             try {
                 await saveData();
@@ -2283,10 +2284,9 @@
                 setTimeout(() => showStatus(''), 2000);
             } catch (e) {
                 console.error('棚番一括更新に失敗:', e);
-                // ロールバック
+                // ロールバック（オブジェクト参照で元に戻す）
                 backup.forEach(b => {
-                    const item = inventory.find(i => String(i.id) === String(b.id));
-                    if (item) item.shelfNo = b.shelfNo;
+                    b.ref.shelfNo = b.shelfNo;
                 });
                 alert('保存に失敗しました');
                 renderMain();
@@ -2359,11 +2359,11 @@
             const location = document.getElementById('bulkLocation').value;
             const backup = [];
             selectedItems.forEach(id => {
-                const item = inventory.find(i => String(i.id) === String(id));
-                if (item) {
-                    backup.push({ id: item.id, location: item.location });
+                const items = inventory.filter(i => String(i.id) === String(id));
+                items.forEach(item => {
+                    backup.push({ ref: item, location: item.location });
                     item.location = location;
-                }
+                });
             });
             try {
                 await saveData();
@@ -2375,8 +2375,7 @@
             } catch (e) {
                 console.error('保管場所一括更新に失敗:', e);
                 backup.forEach(b => {
-                    const item = inventory.find(i => String(i.id) === String(b.id));
-                    if (item) item.location = b.location;
+                    b.ref.location = b.location;
                 });
                 alert('保存に失敗しました');
                 renderMain();
@@ -5449,6 +5448,7 @@
                                     <th class="serial">Serial</th>
                                     <th>種別</th>
                                     <th>製品名</th>
+                                    <th>サプライヤー</th>
                                     <th class="status">状態</th>
                                     <th class="cost">取得金</th>
                                 </tr>
@@ -5461,6 +5461,7 @@
                                         <td class="serial">${item.serial || "-"}</td>
                                         <td>${item.category}</td>
                                         <td>${item.productName}</td>
+                                        <td>${getSupplierName(item.supplierId)}</td>
                                         <td class="status">${item.status}</td>
                                         <td class="cost">${item.costJPY ? '¥' + Number(item.costJPY).toLocaleString() : '-'}</td>
                                     </tr>
