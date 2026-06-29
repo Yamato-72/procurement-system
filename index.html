@@ -1165,11 +1165,11 @@
             link.click();
         }
 
-        // 販売案件 外注費まとめCSV（明細・1行=1費目）
-        // 在庫アイテム（仕入原価）と販売案件経費（外注費ほか）を縦に並べる。
-        // 在庫行はあるのに経費行が無い案件＝外注費の入力漏れ候補としてピボットで拾える。
-        async function exportSalesExpenseCSV() {
-            // 最新の在庫＋販売案件経費を読み直す（どのタブからでも動くように）
+        // 販売案件 損益CSV（明細・1行=1費目／1売上、案件ロールアップ列付き）
+        // 在庫(仕入原価)・経費(外注費ほか)・売上を縦に並べ、各行に案件単位の総原価/売上/粗利/粗利率も持たせる。
+        // 在庫行はあるのに経費行が無い案件＝外注費の入力漏れ、売上が空の案件＝売上未入力として拾える。
+        async function exportSalesPnlCSV() {
+            // 最新の在庫＋経費＋売上を読み直す（どのタブからでも動くように）
             showStatus('🔄 最新データを取得中...');
             try {
                 await loadInventoryForSales();
@@ -1187,24 +1187,33 @@
             // CSVエスケープ（内部の " を "" に、全体を " で囲む）
             const esc = (v) => '"' + ((v === null || v === undefined) ? '' : String(v)).replace(/"/g, '""') + '"';
 
-            const headers = ['案件番号', '行種別', '費目', '金額(JPY)', 'Serial', '製品名', '仕入案件', 'ステータス', '支払先', '支払日', 'メモ'];
+            const headers = [
+                '案件番号', '区分', '費目', '金額(JPY)', '種別', '製品名', 'Serial', '仕入案件', 'ステータス', '支払先', '支払日', 'メモ',
+                '案件_総原価', '案件_売上', '案件_粗利', '案件_粗利率(%)'
+            ];
 
             // 案件番号順
             const sorted = [...salesProjects].sort((a, b) => a.projectNumber.localeCompare(b.projectNumber));
 
             const rows = [];
             sorted.forEach(sp => {
+                // 案件単位のロールアップ（全行に同じ値が入る。集計はSUMでなくMAX/先頭で取ること）
+                const roll = [
+                    sp.totalCost,
+                    sp.revenue > 0 ? sp.revenue : '',
+                    sp.revenue > 0 ? sp.grossProfit : '',
+                    sp.grossMargin != null ? (sp.grossMargin * 100).toFixed(1) : ''
+                ];
+
                 // 在庫アイテム（仕入原価）— 1台1行
                 (sp.items || []).forEach(it => {
                     const status = it.isArchived ? '完了' : (it.status || '');
                     rows.push([
                         sp.projectNumber, '在庫', '仕入原価',
                         (it.costJPY != null) ? it.costJPY : '',
-                        it.serial || '',
-                        it.productName || '',
-                        it.orderProject || '',
-                        status,
-                        '', '', it.note || ''
+                        it.category || '', it.productName || '', it.serial || '', it.orderProject || '', status,
+                        '', '', it.note || '',
+                        ...roll
                     ]);
                 });
 
@@ -1213,19 +1222,28 @@
                     rows.push([
                         sp.projectNumber, '経費', exp.type || '',
                         (exp.amountJPY != null) ? exp.amountJPY : '',
-                        '', '', '', '',
-                        exp.payee || '',
-                        exp.paidDate || '',
-                        exp.note || ''
+                        '', '', '', '', '',
+                        exp.payee || '', exp.paidDate || '', exp.note || '',
+                        ...roll
                     ]);
                 });
+
+                // 売上 — 1案件1行（未入力なら金額空欄。空欄＝売上未入力として拾える）
+                const updatedDate = (salesProjectRevenue[sp.projectNumber] || {}).updatedDate || '';
+                rows.push([
+                    sp.projectNumber, '売上', '売上',
+                    (sp.revenue > 0) ? sp.revenue : '',
+                    '', '', '', '', '',
+                    '', '', updatedDate ? `更新:${updatedDate}` : '',
+                    ...roll
+                ]);
             });
 
             const csv = [headers.map(esc).join(','), ...rows.map(r => r.map(esc).join(','))].join('\n');
             const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `sales_expenses_${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = `sales_pnl_${new Date().toISOString().split('T')[0]}.csv`;
             link.click();
         }
 
@@ -1991,14 +2009,43 @@
                             <div class="flex flex-wrap justify-between items-center gap-2 mb-3 sm:mb-4">
                                 <h2 class="text-base sm:text-xl font-bold text-slate-900 dark:text-white">販売案件コスト</h2>
                                 <div class="flex items-center gap-2">
-                                    <button onclick="exportSalesExpenseCSV()" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700">📥 外注費CSV</button>
+                                    <button onclick="exportSalesPnlCSV()" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700">📥 損益CSV</button>
                                     <button onclick="refreshSalesProjects()" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-500 text-white text-sm rounded-lg hover:bg-slate-600">🔄 更新</button>
                                 </div>
                             </div>
                             <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
                                 在庫ナビで引当・出庫先に設定された案件の原価を集計しています
                             </p>
-                            
+
+                            ${(() => {
+                                const sm = getSalesSummary();
+                                if (sm.totalProjects === 0) return '';
+                                const gpColor = sm.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
+                                return `
+                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-3">
+                                    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
+                                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-0.5">合計売上（税抜）</p>
+                                        <p class="text-base sm:text-lg font-bold text-slate-900 dark:text-white">${formatJPY(sm.sumRevenue)}</p>
+                                    </div>
+                                    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
+                                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-0.5">合計原価（売上計上分）</p>
+                                        <p class="text-base sm:text-lg font-bold text-purple-600 dark:text-purple-400">${formatJPY(sm.sumCostRev)}</p>
+                                    </div>
+                                    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
+                                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-0.5">合計粗利</p>
+                                        <p class="text-base sm:text-lg font-bold ${gpColor}">${formatJPY(sm.grossProfit)}</p>
+                                    </div>
+                                    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
+                                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-0.5">粗利率</p>
+                                        <p class="text-base sm:text-lg font-bold ${gpColor}">${sm.grossMargin != null ? (sm.grossMargin * 100).toFixed(1) + '%' : '-'}</p>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-slate-400 dark:text-slate-500 mb-4">
+                                    売上入力済 ${sm.revenueProjects}件 / 全${sm.totalProjects}件${sm.missingRevenue > 0 ? `（未入力 ${sm.missingRevenue}件）` : ''}。粗利・粗利率は売上入力済の案件のみで集計しています。
+                                </p>
+                                `;
+                            })()}
+
                             <div class="space-y-3 sm:space-y-4">
                                 ${getSalesProjects().length === 0 ? `
                                     <div class="text-center py-8 text-slate-500 dark:text-slate-400">
@@ -2475,6 +2522,26 @@
             });
             
             return Object.values(grouped).sort((a, b) => b.projectNumber.localeCompare(a.projectNumber));
+        }
+
+        // 販売案件の全体集計（トップカード用）
+        // 粗利・粗利率は「売上が入力済みの案件のみ」で集計する（売上ゼロの案件で歪まないように）
+        function getSalesSummary() {
+            const sps = getSalesProjects();
+            const withRev = sps.filter(sp => sp.revenue > 0);
+            const sumRevenue = withRev.reduce((s, sp) => s + sp.revenue, 0);
+            const sumCostRev = withRev.reduce((s, sp) => s + sp.totalCost, 0);
+            const grossProfit = sumRevenue - sumCostRev;
+            return {
+                totalProjects: sps.length,
+                revenueProjects: withRev.length,
+                missingRevenue: sps.length - withRev.length,
+                sumRevenue: sumRevenue,
+                sumCostRev: sumCostRev,
+                grossProfit: grossProfit,
+                grossMargin: sumRevenue > 0 ? (grossProfit / sumRevenue) : null,
+                sumCostAll: sps.reduce((s, sp) => s + sp.totalCost, 0)
+            };
         }
         
         function toggleSalesProject(projectNumber) {
