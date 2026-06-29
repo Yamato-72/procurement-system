@@ -2639,7 +2639,7 @@
         // 販売案件経費の追加モーダル
         function showAddSalesExpenseModal(projectNumber) {
             const expenseTypes = [
-                '施工外注費', '設置工事費', '国内配送料', '加工費', 'その他'
+                '施工外注費', '設置工事費', '国内配送料', '加工費', '周辺機器', 'その他'
             ];
             
             const modal = document.createElement('div');
@@ -5389,6 +5389,9 @@
                                         <option value="設置工事費">設置工事費</option>
                                         <option value="加工費">加工費</option>
                                     </optgroup>
+                                    <optgroup label="物品">
+                                        <option value="周辺機器">周辺機器</option>
+                                    </optgroup>
                                     <optgroup label="付帯品（国内調達）">
                                         <option value="付帯品">付帯品（Amazon等）</option>
                                     </optgroup>
@@ -5650,6 +5653,7 @@
                 '国際送料', '国内配送料', '倉庫保管料',
                 '関税', '輸入消費税', '通関手数料',
                 '施工外注費', '設置工事費', '加工費',
+                '周辺機器',
                 'その他'
             ];
             // 既存データにincludeInCostがない場合はデフォルトtrue（後方互換）
@@ -5762,6 +5766,7 @@
                 '国際送料', '国内配送料', '倉庫保管料',
                 '関税', '輸入消費税', '通関手数料',
                 '施工外注費', '設置工事費', '加工費',
+                '周辺機器',
                 'その他'
             ];
             
