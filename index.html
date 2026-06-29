@@ -61,6 +61,7 @@
         let expandedSalesProjects = {}; // 販売案件の展開状態
         let salesProjectExpenses = {}; // 販売案件の経費（案件番号をキーに）
         let salesProjectRevenue = {}; // 販売案件の売上（案件番号をキーに）
+        let salesSortMode = 'fiscal'; // 販売案件の並び: 'fiscal'(期でまとめる) or 'project'(案件番号順)
         let inventoryData = []; // 在庫データキャッシュ
         
         // 種別リスト
@@ -2011,6 +2012,10 @@
                             <div class="flex flex-wrap justify-between items-center gap-2 mb-3 sm:mb-4">
                                 <h2 class="text-base sm:text-xl font-bold text-slate-900 dark:text-white">販売案件コスト</h2>
                                 <div class="flex items-center gap-2">
+                                    <select onchange="salesSortMode=this.value;renderMain()" class="px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm dark:bg-slate-700 dark:text-white">
+                                        <option value="fiscal" ${salesSortMode === 'fiscal' ? 'selected' : ''}>期でまとめる</option>
+                                        <option value="project" ${salesSortMode === 'project' ? 'selected' : ''}>案件番号順</option>
+                                    </select>
                                     <button onclick="exportSalesPnlCSV()" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700">📥 損益CSV</button>
                                     <button onclick="refreshSalesProjects()" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-500 text-white text-sm rounded-lg hover:bg-slate-600">🔄 更新</button>
                                 </div>
@@ -2049,12 +2054,17 @@
                             })()}
 
                             <div class="space-y-3 sm:space-y-4">
-                                ${getSalesProjects().length === 0 ? `
-                                    <div class="text-center py-8 text-slate-500 dark:text-slate-400">
-                                        <p class="mb-2">引当・出庫済みの案件がありません</p>
-                                        <p class="text-xs">在庫ナビで出庫先案件を設定すると、ここに表示されます</p>
-                                    </div>
-                                ` : getSalesProjects().map(sp => `
+                                ${renderSalesProjectGroups()}
+                            </div>
+                            `}
+                        </div>
+                    </main>
+                </div>`;
+        }
+
+        // 販売案件カード1枚分のHTML
+        function salesProjectCardHTML(sp) {
+            return `
                                     <div class="border-2 rounded-lg border-purple-300 bg-purple-50 dark:bg-purple-900/30 dark:border-purple-600">
                                         <div class="p-3 sm:p-5 cursor-pointer" onclick="toggleSalesProject('${sp.projectNumber}')">
                                             <div class="flex justify-between items-start">
@@ -2208,12 +2218,59 @@
                                             </div>
                                         ` : ''}
                                     </div>
-                                `).join('')}
-                            </div>
-                            `}
+                                `;
+        }
+
+        // 販売案件リストの描画（期でグループ化 or 案件番号順）
+        function renderSalesProjectGroups() {
+            const sps = getSalesProjects();
+            if (sps.length === 0) {
+                return `
+                                    <div class="text-center py-8 text-slate-500 dark:text-slate-400">
+                                        <p class="mb-2">引当・出庫済みの案件がありません</p>
+                                        <p class="text-xs">在庫ナビで出庫先案件を設定すると、ここに表示されます</p>
+                                    </div>
+                                `;
+            }
+            const sortMode = (typeof salesSortMode !== 'undefined') ? salesSortMode : 'fiscal';
+            if (sortMode === 'project') {
+                return sps.slice().sort((a, b) => b.projectNumber.localeCompare(a.projectNumber)).map(salesProjectCardHTML).join('');
+            }
+            const groups = {};
+            sps.forEach(sp => {
+                const key = sp.fiscalLabel || '__none__';
+                (groups[key] = groups[key] || []).push(sp);
+            });
+            const periodNum = (label) => {
+                if (!label) return -1;
+                const n = parseInt(String(label).replace(/[^0-9]/g, ''), 10);
+                return isNaN(n) ? -1 : n;
+            };
+            const keys = Object.keys(groups).sort((a, b) => {
+                if (a === '__none__') return 1;
+                if (b === '__none__') return -1;
+                return periodNum(b) - periodNum(a);
+            });
+            return keys.map(key => {
+                const list = groups[key].slice().sort((a, b) =>
+                    (b.deliveryDate || '').localeCompare(a.deliveryDate || '') || b.projectNumber.localeCompare(a.projectNumber));
+                const withRev = list.filter(sp => sp.revenue > 0);
+                const subRev = withRev.reduce((s, sp) => s + sp.revenue, 0);
+                const subCost = withRev.reduce((s, sp) => s + sp.totalCost, 0);
+                const subGP = subRev - subCost;
+                const subGM = subRev > 0 ? (subGP / subRev * 100).toFixed(1) + '%' : '-';
+                const gpColor = subGP >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
+                const title = key === '__none__' ? '納品日未入力' : key;
+                const header = `
+                    <div class="flex flex-wrap items-center justify-between gap-2 mt-4 mb-1 px-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-bold text-indigo-700 dark:text-indigo-300">${title}</span>
+                            <span class="text-xs text-slate-500 dark:text-slate-400">${list.length}件</span>
                         </div>
-                    </main>
-                </div>`;
+                        ${key === '__none__' ? '' : `<div class="text-xs text-slate-600 dark:text-slate-400">売上 ${formatJPY(subRev)} ／ 粗利 <span class="font-semibold ${gpColor}">${formatJPY(subGP)}（${subGM}）</span></div>`}
+                    </div>`;
+                return header + `<div class="space-y-3 sm:space-y-4">` + list.map(salesProjectCardHTML).join('') + `</div>`;
+            }).join('');
         }
 
         // ==================== 販売案件（タブ）関連 ====================
