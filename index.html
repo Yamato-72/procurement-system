@@ -62,6 +62,7 @@
         let salesProjectExpenses = {}; // 販売案件の経費（案件番号をキーに）
         let salesProjectRevenue = {}; // 販売案件の売上（案件番号をキーに）
         let salesSortMode = 'fiscal'; // 販売案件の並び: 'fiscal'(期でまとめる) or 'project'(案件番号順)
+        let businessTargets = {}; // 経営目標（期ラベルをキーに）: { revenueTarget, marginTarget, updatedDate }
         let inventoryData = []; // 在庫データキャッシュ
         
         // 種別リスト
@@ -2024,6 +2025,8 @@
                                 在庫ナビで引当・出庫先に設定された案件の原価を集計しています
                             </p>
 
+                            ${renderBusinessTargetsCard()}
+
                             ${(() => {
                                 const sm = getSalesSummary();
                                 if (sm.totalProjects === 0) return '';
@@ -2221,6 +2224,91 @@
                                 `;
         }
 
+        // 経営目標カード（各期を縦に並べて 目標 vs 実績 vs 達成率）
+        function renderBusinessTargetsCard() {
+            const sps = getSalesProjects();
+            const periodNum = (label) => { const n = parseInt(String(label).replace(/[^0-9]/g, ''), 10); return isNaN(n) ? -1 : n; };
+
+            // 表示する期：目標あり ∪ 実績あり
+            const periodSet = new Set(Object.keys(businessTargets));
+            sps.forEach(sp => { if (sp.fiscalLabel && sp.revenue > 0) periodSet.add(sp.fiscalLabel); });
+            const periods = Array.from(periodSet).sort((a, b) => periodNum(b) - periodNum(a));
+
+            const cur = getCurrentFiscalPeriodNumber();
+            const currentPeriod = `第${cur}期`;
+
+            // 設定欄の期セレクタ：今期-1〜今期+3 ∪ 既存
+            const optSet = new Set(periods);
+            for (let n = cur - 1; n <= cur + 3; n++) optSet.add(`第${n}期`);
+            const optPeriods = Array.from(optSet).sort((a, b) => periodNum(b) - periodNum(a));
+            const defTarget = businessTargets[currentPeriod] || {};
+
+            const rowsHtml = periods.length === 0 ? `
+                <p class="text-xs text-slate-400 dark:text-slate-500 text-center py-2">まだ目標も実績もありません。下の欄から期の目標を設定できます。</p>
+            ` : periods.map(p => {
+                const t = businessTargets[p] || {};
+                const act = getPeriodActuals(p);
+                const revTarget = t.revenueTarget || 0;
+                const revRate = revTarget > 0 ? (act.revenue / revTarget * 100) : null;
+                const marginTarget = t.marginTarget || 0;
+                const actMargin = act.grossMargin != null ? act.grossMargin * 100 : null;
+                const isCurrent = p === currentPeriod;
+                const revRateColor = revRate == null ? 'text-slate-400'
+                    : (revRate >= 100 ? 'text-emerald-600 dark:text-emerald-400' : (revRate >= 80 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-300'));
+                const marginColor = (actMargin != null && marginTarget > 0)
+                    ? (actMargin >= marginTarget ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')
+                    : 'text-slate-700 dark:text-slate-200';
+                return `
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 py-2 border-b border-slate-100 dark:border-slate-700 last:border-0">
+                    <div class="w-14 font-bold text-sm ${isCurrent ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-300'}">${p}${isCurrent ? '<span class="block text-[10px] font-normal text-indigo-400">今期</span>' : ''}</div>
+                    <div class="flex-1 min-w-[150px]">
+                        <p class="text-[11px] text-slate-400 dark:text-slate-500">売上（実績 / 目標）</p>
+                        <p class="text-sm"><span class="font-bold text-slate-900 dark:text-white">${formatJPY(act.revenue)}</span> <span class="text-slate-400">/</span> ${revTarget > 0 ? formatJPY(revTarget) : '<span class="text-slate-400">未設定</span>'}${revRate != null ? ` <span class="ml-1 text-xs font-semibold ${revRateColor}">達成${revRate.toFixed(0)}%</span>` : ''}</p>
+                    </div>
+                    <div class="flex-1 min-w-[120px]">
+                        <p class="text-[11px] text-slate-400 dark:text-slate-500">粗利率（実績 / 目標）</p>
+                        <p class="text-sm"><span class="font-bold ${marginColor}">${actMargin != null ? actMargin.toFixed(1) + '%' : '-'}</span> <span class="text-slate-400">/</span> ${marginTarget > 0 ? marginTarget.toFixed(1) + '%' : '<span class="text-slate-400">未設定</span>'}</p>
+                    </div>
+                </div>`;
+            }).join('');
+
+            return `
+            <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 sm:p-4 mb-3">
+                <p class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">🎯 経営目標 vs 実績</p>
+                <div class="mb-1">${rowsHtml}</div>
+                <div class="pt-3 mt-2 border-t border-slate-200 dark:border-slate-600">
+                    <p class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">目標を設定 / 更新</p>
+                    <div class="flex flex-wrap items-end gap-2">
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-0.5">期</label>
+                            <select id="target-period-select" onchange="onTargetPeriodChange()" class="px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm dark:bg-slate-700 dark:text-white">
+                                ${optPeriods.map(p => `<option value="${p}" ${p === currentPeriod ? 'selected' : ''}>${p}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-0.5">売上目標(¥)</label>
+                            <input type="number" id="target-revenue-input" value="${defTarget.revenueTarget || ''}" placeholder="例: 50000000" class="w-36 px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm dark:bg-slate-700 dark:text-white text-right">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-0.5">粗利率目標(%)</label>
+                            <input type="number" id="target-margin-input" value="${defTarget.marginTarget || ''}" step="0.1" placeholder="例: 45" class="w-24 px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm dark:bg-slate-700 dark:text-white text-right">
+                        </div>
+                        <button onclick="saveBusinessTarget()" class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">保存</button>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        // 設定欄の期を切り替えたら、その期の既存目標を入力欄に反映
+        function onTargetPeriodChange() {
+            const period = document.getElementById('target-period-select').value;
+            const t = businessTargets[period] || {};
+            const rev = document.getElementById('target-revenue-input');
+            const mar = document.getElementById('target-margin-input');
+            if (rev) rev.value = t.revenueTarget || '';
+            if (mar) mar.value = t.marginTarget || '';
+        }
+
         // 販売案件リストの描画（期でグループ化 or 案件番号順）
         function renderSalesProjectGroups() {
             const sps = getSalesProjects();
@@ -2353,6 +2441,8 @@
                 await loadSalesExpenses();
                 // 販売案件売上も読み込む
                 await loadSalesRevenue();
+                // 経営目標も読み込む
+                await loadBusinessTargets();
                 
                 showStatus('');
                 renderMain();
@@ -2541,6 +2631,133 @@
             }
         }
         
+        // 今日が属する会計期の番号（第1期=2019/7〜）
+        function getCurrentFiscalPeriodNumber() {
+            const d = new Date();
+            const startYear = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1;
+            return startYear - 2019 + 1;
+        }
+
+        async function loadBusinessTargets() {
+            try {
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '経営目標!A2:D',
+                });
+                const rows = response.result.values || [];
+                businessTargets = {};
+                rows.forEach(row => {
+                    const period = row[0] || '';
+                    if (!period) return;
+                    businessTargets[period] = {
+                        revenueTarget: parseFloat(row[1]) || 0,
+                        marginTarget: parseFloat(row[2]) || 0, // 粗利率(%)
+                        updatedDate: row[3] || ''
+                    };
+                });
+            } catch (e) {
+                if (e.result?.error?.code === 400 || e.status === 400) {
+                    await createBusinessTargetsSheet();
+                } else {
+                    console.error('経営目標読み込みエラー:', e);
+                }
+            }
+        }
+
+        async function createBusinessTargetsSheet() {
+            try {
+                await gapi.client.sheets.spreadsheets.batchUpdate({
+                    spreadsheetId: SPREADSHEET_ID,
+                    resource: {
+                        requests: [{ addSheet: { properties: { title: '経営目標' } } }]
+                    }
+                });
+                await gapi.client.sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '経営目標!A1:D1',
+                    valueInputOption: 'RAW',
+                    resource: { values: [['期', '売上目標', '粗利率目標(%)', '更新日']] }
+                });
+                console.log('経営目標シートを作成しました');
+            } catch (e) {
+                console.error('経営目標シート作成エラー:', e);
+            }
+        }
+
+        // 経営目標の保存（期ごとに1行をupsert）
+        async function saveBusinessTarget() {
+            const period = document.getElementById('target-period-select').value;
+            const revRaw = document.getElementById('target-revenue-input').value.trim();
+            const marginRaw = document.getElementById('target-margin-input').value.trim();
+            if (!period) { alert('期を選んでください'); return; }
+
+            const revenueTarget = revRaw === '' ? 0 : parseFloat(revRaw);
+            const marginTarget = marginRaw === '' ? 0 : parseFloat(marginRaw);
+            if (isNaN(revenueTarget) || revenueTarget < 0 || isNaN(marginTarget) || marginTarget < 0) {
+                alert('目標を正しく入力してください');
+                return;
+            }
+            const today = new Date().toISOString().split('T')[0];
+
+            try {
+                let rows = [];
+                try {
+                    const resp = await gapi.client.sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: '経営目標!A2:D',
+                    });
+                    rows = resp.result.values || [];
+                } catch (e) {
+                    if (e.result?.error?.code === 400 || e.status === 400) {
+                        await createBusinessTargetsSheet();
+                    } else { throw e; }
+                }
+
+                let rowIndex = -1;
+                rows.forEach((row, idx) => { if (row[0] === period) rowIndex = idx + 2; });
+                const values = [[period, revenueTarget, marginTarget, today]];
+
+                if (rowIndex > 0) {
+                    await gapi.client.sheets.spreadsheets.values.update({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: `経営目標!A${rowIndex}:D${rowIndex}`,
+                        valueInputOption: 'RAW',
+                        resource: { values }
+                    });
+                } else {
+                    await gapi.client.sheets.spreadsheets.values.append({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: '経営目標!A:D',
+                        valueInputOption: 'RAW',
+                        resource: { values }
+                    });
+                }
+
+                businessTargets[period] = { revenueTarget, marginTarget, updatedDate: today };
+                renderMain();
+                showStatus('✅ 目標を保存しました');
+                setTimeout(() => showStatus(''), 3000);
+            } catch (e) {
+                console.error('目標保存エラー:', e);
+                alert('目標の保存に失敗しました');
+            }
+        }
+
+        // 指定した期の実績（売上入力済の販売案件を集計）
+        function getPeriodActuals(periodLabel) {
+            const sps = getSalesProjects().filter(sp => sp.fiscalLabel === periodLabel && sp.revenue > 0);
+            const revenue = sps.reduce((s, sp) => s + sp.revenue, 0);
+            const cost = sps.reduce((s, sp) => s + sp.totalCost, 0);
+            const grossProfit = revenue - cost;
+            return {
+                count: sps.length,
+                revenue,
+                cost,
+                grossProfit,
+                grossMargin: revenue > 0 ? (grossProfit / revenue) : null
+            };
+        }
+
         // 会計期ラベル：第1期=2019/7〜2020/6、7月始まり（既存のgetFiscalYearInfoと同一基準）
         function getFiscalPeriodLabel(dateStr) {
             if (!dateStr) return '';
