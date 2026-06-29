@@ -1164,70 +1164,67 @@
             link.click();
         }
 
-        // 外注費まとめCSV（明細・1行=1費目）
-        // 本体は入金回ごと、諸費用（外注費ほか）は1件ごとに1行で吐く。
-        // 本体行が出て諸費用行が無い案件＝外注費の入力漏れ候補としてピボットで拾える。
-        function exportExpenseCSV() {
+        // 販売案件 外注費まとめCSV（明細・1行=1費目）
+        // 在庫アイテム（仕入原価）と販売案件経費（外注費ほか）を縦に並べる。
+        // 在庫行はあるのに経費行が無い案件＝外注費の入力漏れ候補としてピボットで拾える。
+        async function exportSalesExpenseCSV() {
+            // 最新の在庫＋販売案件経費を読み直す（どのタブからでも動くように）
+            showStatus('🔄 最新データを取得中...');
+            try {
+                await loadInventoryForSales();
+            } catch (e) {
+                console.error(e);
+            }
+            showStatus('');
+
+            const salesProjects = getSalesProjects();
+            if (salesProjects.length === 0) {
+                alert('引当・出庫済みの販売案件がありません');
+                return;
+            }
+
             // CSVエスケープ（内部の " を "" に、全体を " で囲む）
             const esc = (v) => '"' + ((v === null || v === undefined) ? '' : String(v)).replace(/"/g, '""') + '"';
 
-            const headers = ['案件番号', 'サプライヤー', '製品名', '行種別', '費目', '金額(USD)', '金額(JPY)', '原価算入', '支払先', '支払日', 'メモ'];
+            const headers = ['案件番号', '行種別', '費目', '金額(JPY)', 'Serial', '製品名', '仕入案件', 'ステータス', '支払先', '支払日', 'メモ'];
 
-            // 案件番号順に並べる
-            const sorted = [...projects].sort((a, b) => {
-                const pa = (a.projectPrefix || '') + String(a.projectNumber || 0).padStart(6, '0');
-                const pb = (b.projectPrefix || '') + String(b.projectNumber || 0).padStart(6, '0');
-                return pa.localeCompare(pb);
-            });
+            // 案件番号順
+            const sorted = [...salesProjects].sort((a, b) => a.projectNumber.localeCompare(b.projectNumber));
 
             const rows = [];
-            sorted.forEach(p => {
-                const supplierName = (suppliers.find(s => s.id === p.supplierId) || {}).name || '';
-                const projNo = formatProjectNumber(p);
-                const before = rows.length;
-
-                // 本体（入金スケジュール）— USD建て、入金済みのみJPY確定
-                (p.depositSchedule || []).forEach(dep => {
+            sorted.forEach(sp => {
+                // 在庫アイテム（仕入原価）— 1台1行
+                (sp.items || []).forEach(it => {
+                    const status = it.isArchived ? '完了' : (it.status || '');
                     rows.push([
-                        projNo, supplierName, p.productName || '',
-                        '本体',
-                        `本体・第${dep.depositNumber}回`,
-                        (dep.amountUSD != null) ? Number(dep.amountUSD).toFixed(2) : '',
-                        (dep.paid && dep.amountJPY != null) ? dep.amountJPY : '',  // 未払いはJPY空欄
-                        '○',                                                       // 本体は常に原価
-                        supplierName,
-                        dep.paid ? (dep.paidDate || '') : '',
-                        `${dep.percentage != null ? dep.percentage + '%' : ''}${dep.paid ? '' : ' / 未払'}`
+                        sp.projectNumber, '在庫', '仕入原価',
+                        (it.costJPY != null) ? it.costJPY : '',
+                        it.serial || '',
+                        it.productName || '',
+                        it.orderProject || '',
+                        status,
+                        '', '', it.note || ''
                     ]);
                 });
 
-                // 諸費用（外注費・工事費・配送料ほか）— JPY建て
-                (p.expenses || []).forEach(exp => {
-                    const inCost = exp.includeInCost !== false && !exp.isInventoryItem;
+                // 販売案件経費（外注費・工事費ほか）— 1件1行
+                (sp.expenses || []).forEach(exp => {
                     rows.push([
-                        projNo, supplierName, p.productName || '',
-                        '諸費用',
-                        exp.type || '',
-                        '',                                                        // 諸費用はJPY建て
+                        sp.projectNumber, '経費', exp.type || '',
                         (exp.amountJPY != null) ? exp.amountJPY : '',
-                        inCost ? '○' : '×',
+                        '', '', '', '',
                         exp.payee || '',
                         exp.paidDate || '',
                         exp.note || ''
                     ]);
                 });
-
-                // 本体も諸費用も無い案件も1行だけ残す（存在を消さない）
-                if (rows.length === before) {
-                    rows.push([projNo, supplierName, p.productName || '', '案件のみ', '', '', '', '', '', '', '本体・諸費用ともに未登録']);
-                }
             });
 
             const csv = [headers.map(esc).join(','), ...rows.map(r => r.map(esc).join(','))].join('\n');
             const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `expenses_${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = `sales_expenses_${new Date().toISOString().split('T')[0]}.csv`;
             link.click();
         }
 
@@ -1476,7 +1473,6 @@
                                             <button onclick="showSupplierSummary()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📊 サプライヤー別集計</button>
                                             <button onclick="showExchangeSimulator()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">💱 為替計算</button>
                                             <button onclick="exportCSV()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📥 支払CSV出力</button>
-                                            <button onclick="exportExpenseCSV()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📥 外注費まとめCSV（明細）</button>
                                             <hr class="border-slate-200 dark:border-slate-700">
                                             <button onclick="repairInventorySupplierIds()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 text-red-600 dark:text-red-400 rounded-b-lg">🔧 在庫サプライヤー復旧</button>
                                         </div>
@@ -1993,7 +1989,10 @@
                             <!-- 販売案件タブ -->
                             <div class="flex flex-wrap justify-between items-center gap-2 mb-3 sm:mb-4">
                                 <h2 class="text-base sm:text-xl font-bold text-slate-900 dark:text-white">販売案件コスト</h2>
-                                <button onclick="refreshSalesProjects()" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-500 text-white text-sm rounded-lg hover:bg-slate-600">🔄 更新</button>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="exportSalesExpenseCSV()" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700">📥 外注費CSV</button>
+                                    <button onclick="refreshSalesProjects()" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-500 text-white text-sm rounded-lg hover:bg-slate-600">🔄 更新</button>
+                                </div>
                             </div>
                             <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
                                 在庫ナビで引当・出庫先に設定された案件の原価を集計しています
