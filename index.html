@@ -854,8 +854,10 @@
                         }
                     }
                     
+                    // ID生成：タイムスタンプ + インデックス + ランダム値で重複を防ぐ
+                    const uniqueId = `${Date.now()}-${i + 1}-${Math.random().toString(36).substring(2, 8)}`;
                     newRows.push([
-                        Date.now().toString() + '-' + (i + 1),  // ID
+                        uniqueId,                          // ID
                         itemSerial,                        // Serial（空なら空のまま）
                         category,                          // 種別
                         productName,                       // 製品名
@@ -1162,6 +1164,73 @@
             link.click();
         }
 
+        // 外注費まとめCSV（明細・1行=1費目）
+        // 本体は入金回ごと、諸費用（外注費ほか）は1件ごとに1行で吐く。
+        // 本体行が出て諸費用行が無い案件＝外注費の入力漏れ候補としてピボットで拾える。
+        function exportExpenseCSV() {
+            // CSVエスケープ（内部の " を "" に、全体を " で囲む）
+            const esc = (v) => '"' + ((v === null || v === undefined) ? '' : String(v)).replace(/"/g, '""') + '"';
+
+            const headers = ['案件番号', 'サプライヤー', '製品名', '行種別', '費目', '金額(USD)', '金額(JPY)', '原価算入', '支払先', '支払日', 'メモ'];
+
+            // 案件番号順に並べる
+            const sorted = [...projects].sort((a, b) => {
+                const pa = (a.projectPrefix || '') + String(a.projectNumber || 0).padStart(6, '0');
+                const pb = (b.projectPrefix || '') + String(b.projectNumber || 0).padStart(6, '0');
+                return pa.localeCompare(pb);
+            });
+
+            const rows = [];
+            sorted.forEach(p => {
+                const supplierName = (suppliers.find(s => s.id === p.supplierId) || {}).name || '';
+                const projNo = formatProjectNumber(p);
+                const before = rows.length;
+
+                // 本体（入金スケジュール）— USD建て、入金済みのみJPY確定
+                (p.depositSchedule || []).forEach(dep => {
+                    rows.push([
+                        projNo, supplierName, p.productName || '',
+                        '本体',
+                        `本体・第${dep.depositNumber}回`,
+                        (dep.amountUSD != null) ? Number(dep.amountUSD).toFixed(2) : '',
+                        (dep.paid && dep.amountJPY != null) ? dep.amountJPY : '',  // 未払いはJPY空欄
+                        '○',                                                       // 本体は常に原価
+                        supplierName,
+                        dep.paid ? (dep.paidDate || '') : '',
+                        `${dep.percentage != null ? dep.percentage + '%' : ''}${dep.paid ? '' : ' / 未払'}`
+                    ]);
+                });
+
+                // 諸費用（外注費・工事費・配送料ほか）— JPY建て
+                (p.expenses || []).forEach(exp => {
+                    const inCost = exp.includeInCost !== false && !exp.isInventoryItem;
+                    rows.push([
+                        projNo, supplierName, p.productName || '',
+                        '諸費用',
+                        exp.type || '',
+                        '',                                                        // 諸費用はJPY建て
+                        (exp.amountJPY != null) ? exp.amountJPY : '',
+                        inCost ? '○' : '×',
+                        exp.payee || '',
+                        exp.paidDate || '',
+                        exp.note || ''
+                    ]);
+                });
+
+                // 本体も諸費用も無い案件も1行だけ残す（存在を消さない）
+                if (rows.length === before) {
+                    rows.push([projNo, supplierName, p.productName || '', '案件のみ', '', '', '', '', '', '', '本体・諸費用ともに未登録']);
+                }
+            });
+
+            const csv = [headers.map(esc).join(','), ...rows.map(r => r.map(esc).join(','))].join('\n');
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `expenses_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
         function showStatus(msg) {
             const el = document.getElementById('status');
             if (el) el.textContent = msg;
@@ -1406,7 +1475,8 @@
                                             <hr class="border-slate-200 dark:border-slate-700">
                                             <button onclick="showSupplierSummary()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📊 サプライヤー別集計</button>
                                             <button onclick="showExchangeSimulator()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">💱 為替計算</button>
-                                            <button onclick="exportCSV()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📥 CSV出力</button>
+                                            <button onclick="exportCSV()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📥 支払CSV出力</button>
+                                            <button onclick="exportExpenseCSV()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📥 外注費まとめCSV（明細）</button>
                                             <hr class="border-slate-200 dark:border-slate-700">
                                             <button onclick="repairInventorySupplierIds()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 text-red-600 dark:text-red-400 rounded-b-lg">🔧 在庫サプライヤー復旧</button>
                                         </div>
