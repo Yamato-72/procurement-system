@@ -45,6 +45,7 @@
         let inventory = [];
         let archivedInventory = [];
         let archiveLoaded = false; // アーカイブ読み込み完了フラグ
+        let dataLoaded = false; // 在庫読み込み完了フラグ（falseの間は保存をロックして空上書きを防ぐ）
         let folderCache = {};
         let lastUpdated = null; // 最終更新日時
         let isDarkMode = localStorage.getItem('darkMode') === 'true'; // ダークモード状態
@@ -627,6 +628,7 @@
         async function loadData() {
             try {
                 showStatus('データ読み込み中...');
+                dataLoaded = false; // 読み込み開始時はロック（成功時にtrueへ）
                 
                 // 在庫シートを読み込み
                 try {
@@ -693,10 +695,24 @@
                             supplierId: row[16] || ''
                         };
                     });
+                    dataLoaded = true; // 在庫の読み込みに成功（保存を許可）
                 } catch (e) {
-                    console.log('在庫シートがないため新規作成します');
-                    inventory = [];
-                    await createInventorySheet();
+                    // 「シートが本当に無い」場合だけ新規作成。通信・認証などの一時エラーでは
+                    // inventory を空にしない（空のまま保存されると全消失するため）。保存はロックしたまま。
+                    const code = e?.result?.error?.code ?? e?.status;
+                    const msg = (e?.result?.error?.message || e?.message || '');
+                    const sheetMissing = (code === 400 || code === 404) && /Unable to parse range|not found|does not exist|存在しません/i.test(msg);
+                    if (sheetMissing) {
+                        console.log('在庫シートがないため新規作成します');
+                        inventory = [];
+                        await createInventorySheet();
+                        dataLoaded = true;
+                    } else {
+                        console.error('在庫読み込み失敗（保存をロックします）:', e);
+                        dataLoaded = false;
+                        showStatus('⚠️ 在庫の読み込みに失敗しました。保存はロックされています。更新ボタンで再読み込みしてください。');
+                        return; // 以降の処理を止める（既存の表示・データは保持）
+                    }
                 }
 
                 // サプライヤーシートを読み込み（調達連携用）
@@ -810,10 +826,20 @@
                     });
                     archiveLoaded = true; // アーカイブ読み込み完了
                 } catch (e) {
-                    console.log('アーカイブシートがないため新規作成します');
-                    archivedInventory = [];
-                    await createArchiveSheet();
-                    archiveLoaded = true; // 新規作成も完了扱い
+                    const code = e?.result?.error?.code ?? e?.status;
+                    const msg = (e?.result?.error?.message || e?.message || '');
+                    const sheetMissing = (code === 400 || code === 404) && /Unable to parse range|not found|does not exist|存在しません/i.test(msg);
+                    if (sheetMissing) {
+                        console.log('アーカイブシートがないため新規作成します');
+                        archivedInventory = [];
+                        await createArchiveSheet();
+                        archiveLoaded = true;
+                    } else {
+                        // 一時エラー：アーカイブを空にしない。archiveLoaded=false のままにして
+                        // 保存時のアーカイブ書き込みをスキップ（既存アーカイブを守る）
+                        console.error('アーカイブ読み込み失敗（保存時はアーカイブをスキップ）:', e);
+                        archiveLoaded = false;
+                    }
                 }
 
                 // 製品マスタを読み込み
@@ -1168,25 +1194,36 @@
         async function saveData() {
             try {
                 showStatus('保存中...');
-                
-                // 保存前に最新データをチェック（競合検知）
+
+                // 保存ロック：在庫が正しく読み込めていない時は保存しない（空上書き事故の防止）
+                if (!dataLoaded) {
+                    showStatus('');
+                    alert('保存できません：在庫データが正しく読み込めていません。\n更新ボタンで再読み込みしてから操作してください。');
+                    return;
+                }
+
+                // 保存前に最新データを取得（競合検知＋はみ出し行の計算に使う）。取れなければ保存中止。
+                let currentRows = null;
                 try {
                     const checkResponse = await gapi.client.sheets.spreadsheets.values.get({
                         spreadsheetId: SPREADSHEET_ID,
                         range: '在庫!A2:Q',
                     });
-                    const currentRows = checkResponse.result.values || [];
-                    const currentHash = JSON.stringify(currentRows);
-                    
-                    if (lastDataHash && currentHash !== lastDataHash) {
-                        const confirmOverwrite = confirm('他のユーザーによってデータが更新されています。\n\n上書きしますか？\n（キャンセルで最新データを取得します）');
-                        if (!confirmOverwrite) {
-                            await loadData();
-                            return;
-                        }
-                    }
+                    currentRows = checkResponse.result.values || [];
                 } catch (e) {
-                    console.log('競合チェックスキップ:', e);
+                    console.error('保存前チェック失敗:', e);
+                    showStatus('');
+                    alert('保存を中止しました：現在のデータ取得に失敗しました（通信エラーの可能性）。\n少し待ってから、もう一度保存してください。');
+                    return; // 現在値が取れないなら絶対に上書きしない
+                }
+
+                const currentHash = JSON.stringify(currentRows);
+                if (lastDataHash && currentHash !== lastDataHash) {
+                    const confirmOverwrite = confirm('他のユーザーによってデータが更新されています。\n\n上書きしますか？\n（キャンセルで最新データを取得します）');
+                    if (!confirmOverwrite) {
+                        await loadData();
+                        return;
+                    }
                 }
                 
                 const inventoryData = [
@@ -1212,29 +1249,41 @@
                     ])
                 ];
                 
-                // まずクリアしてから書き込み（削除された行も反映）
-                await gapi.client.sheets.spreadsheets.values.clear({
-                    spreadsheetId: SPREADSHEET_ID,
-                    range: '在庫!A:Z'
-                });
+                // クリアせずにまず全データを上書き（空の瞬間を作らない）。
+                // update が失敗しても元データは無傷。成功後に、旧データの方が長ければ余分な下の行だけ消す。
                 await gapi.client.sheets.spreadsheets.values.update({
                     spreadsheetId: SPREADSHEET_ID,
                     range: '在庫!A1',
                     valueInputOption: 'RAW',
                     resource: { values: inventoryData }
                 });
+                const invNewRowCount = inventoryData.length;            // ヘッダー込み
+                const invOldRowCount = (currentRows ? currentRows.length : 0) + 1; // ヘッダー込み
+                if (invOldRowCount > invNewRowCount) {
+                    await gapi.client.sheets.spreadsheets.values.clear({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: `在庫!A${invNewRowCount + 1}:Z`
+                    });
+                }
 
                 // アーカイブの保存（読み込み完了している場合のみ）
                 if (archiveLoaded) {
-                    // アーカイブシートの競合チェック（在庫シートと同じロジック）
+                    // アーカイブの現在値を取得（競合検知＋はみ出し行の計算）。
+                    // 取れなければアーカイブ書き込みはスキップして既存アーカイブを守る。
+                    let currentArchiveRows = null;
                     try {
                         const archiveCheckResponse = await gapi.client.sheets.spreadsheets.values.get({
                             spreadsheetId: SPREADSHEET_ID,
                             range: '在庫アーカイブ!A2:Q',
                         });
-                        const currentArchiveRows = archiveCheckResponse.result.values || [];
-                        const currentArchiveHash = JSON.stringify(currentArchiveRows);
+                        currentArchiveRows = archiveCheckResponse.result.values || [];
+                    } catch (e) {
+                        console.error('アーカイブ保存前チェック失敗（アーカイブ書き込みをスキップ）:', e);
+                        currentArchiveRows = null;
+                    }
 
+                    if (currentArchiveRows !== null) {
+                        const currentArchiveHash = JSON.stringify(currentArchiveRows);
                         if (lastArchiveHash && currentArchiveHash !== lastArchiveHash) {
                             const confirmOverwrite = confirm(
                                 '他のユーザーによってアーカイブが更新されています。\n\n' +
@@ -1246,11 +1295,8 @@
                                 return;
                             }
                         }
-                    } catch (e) {
-                        console.log('アーカイブ競合チェックスキップ:', e);
-                    }
 
-                    const archiveData = [
+                        const archiveData = [
                         ['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税別)', '備考', '棚番', '保管場所', 'サプライヤーID'],
                         ...archivedInventory.map(item => [
                             item.id,
@@ -1272,21 +1318,26 @@
                             item.supplierId || ''
                         ])
                     ];
-                    
-                    // まずクリアしてから書き込み（削除された行も反映）
-                    await gapi.client.sheets.spreadsheets.values.clear({
-                        spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫アーカイブ!A:Z'
-                    });
-                    await gapi.client.sheets.spreadsheets.values.update({
-                        spreadsheetId: SPREADSHEET_ID,
-                        range: '在庫アーカイブ!A1',
-                        valueInputOption: 'RAW',
-                        resource: { values: archiveData }
-                    });
 
-                    // 書き込み後にアーカイブハッシュも更新（書き出した内容のハッシュ）
-                    lastArchiveHash = JSON.stringify(archiveData.slice(1));
+                        // クリアせず上書き → はみ出した下の行だけ削除（空の瞬間を作らない）
+                        await gapi.client.sheets.spreadsheets.values.update({
+                            spreadsheetId: SPREADSHEET_ID,
+                            range: '在庫アーカイブ!A1',
+                            valueInputOption: 'RAW',
+                            resource: { values: archiveData }
+                        });
+                        const arcNewRowCount = archiveData.length;
+                        const arcOldRowCount = currentArchiveRows.length + 1;
+                        if (arcOldRowCount > arcNewRowCount) {
+                            await gapi.client.sheets.spreadsheets.values.clear({
+                                spreadsheetId: SPREADSHEET_ID,
+                                range: `在庫アーカイブ!A${arcNewRowCount + 1}:Z`
+                            });
+                        }
+                        lastArchiveHash = JSON.stringify(archiveData.slice(1));
+                    } else {
+                        console.log('アーカイブの現在値が取得できないため、アーカイブ書き込みをスキップしました');
+                    }
                 } else {
                     console.log('アーカイブ未読み込みのため保存をスキップ');
                 }
