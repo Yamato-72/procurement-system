@@ -3388,6 +3388,19 @@
         }
         
         // ==================== サービス案件（0円チケット）====================
+        // サービスチケット用の次の案件番号（TS連番）。既存のTS番号の最大+1。
+        // 初期の最新はTS-0073なので、まだTSチケットが無ければTS-0074から始まる。
+        function getNextServiceTicketNumber() {
+            let maxNum = 73; // フロア：TS-0073が既存の最新。以降TS-0074〜
+            inventory.forEach(i => {
+                if ((i.shipPrefix || '').toUpperCase() === 'TS') {
+                    const n = parseInt(i.shipNumber, 10);
+                    if (!isNaN(n) && n > maxNum) maxNum = n;
+                }
+            });
+            return `TS-${String(maxNum + 1).padStart(4, '0')}`;
+        }
+
         // 修理・現調・保守など商品調達が不要な案件用。種別サービス・原価0・出庫済で1件発行し、
         // 出庫先＝案件番号にすることで販売案件（支払ナビ）に出て、損益＝売上−経費で集計できる。
         // ステータスを出庫済にすることで物理在庫（在庫中/引当済）・棚卸しには計上されない。
@@ -3401,8 +3414,8 @@
                         <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">修理・現調・保守など、商品調達が不要な案件用の0円チケットを発行します。物理在庫・棚卸しには計上されず、販売案件として損益（売上−経費）を集計できます。</p>
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">案件番号 <span class="text-red-500">*</span></label>
-                                <input type="text" id="svcProjectNo" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="例: YS-0521">
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">案件番号 <span class="text-red-500">*</span> <span class="text-slate-400 text-xs">（TS連番を自動入力・変更可）</span></label>
+                                <input type="text" id="svcProjectNo" value="${getNextServiceTicketNumber()}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="例: TS-0074">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">内容 <span class="text-red-500">*</span></label>
