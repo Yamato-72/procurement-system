@@ -150,7 +150,8 @@
             'メディアプレーヤー',
             'OPS',
             'スタンド/金具',
-            '周辺機器'
+            '周辺機器',
+            'サービス'
         ];
 
         // ステータスリスト
@@ -1666,6 +1667,7 @@
                                         <span class="sm:hidden">☑</span>
                                     </button>
                                     <button onclick="showAddInventoryModal()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-blue-600 text-white text-xs sm:text-sm rounded-lg hover:bg-blue-700">+ 追加</button>
+                                    <button onclick="showServiceTicketModal()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-emerald-600 text-white text-xs sm:text-sm rounded-lg hover:bg-emerald-700" title="修理・現調・保守など調達不要な案件の0円チケットを発行"><span class="hidden sm:inline">＋ サービス案件</span><span class="sm:hidden">＋役</span></button>
                                     <button onclick="handleSignoutClick()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-600 text-white text-xs sm:text-sm rounded-lg hover:bg-slate-700">
                                         <span class="hidden sm:inline">サインアウト</span>
                                         <span class="sm:hidden">↪</span>
@@ -3385,6 +3387,106 @@
             renderMain();
         }
         
+        // ==================== サービス案件（0円チケット）====================
+        // 修理・現調・保守など商品調達が不要な案件用。種別サービス・原価0・出庫済で1件発行し、
+        // 出庫先＝案件番号にすることで販売案件（支払ナビ）に出て、損益＝売上−経費で集計できる。
+        // ステータスを出庫済にすることで物理在庫（在庫中/引当済）・棚卸しには計上されない。
+        function showServiceTicketModal() {
+            const modal = document.createElement('div');
+            modal.id = 'serviceTicketModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+                        <h3 class="text-xl font-bold mb-1 dark:text-white">サービス案件を作成</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">修理・現調・保守など、商品調達が不要な案件用の0円チケットを発行します。物理在庫・棚卸しには計上されず、販売案件として損益（売上−経費）を集計できます。</p>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">案件番号 <span class="text-red-500">*</span></label>
+                                <input type="text" id="svcProjectNo" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="例: YS-0521">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">内容 <span class="text-red-500">*</span></label>
+                                <div class="flex gap-1 mb-2">
+                                    <button type="button" onclick="document.getElementById('svcContent').value='修理'" class="px-2 py-1 text-xs bg-slate-100 dark:bg-slate-700 dark:text-slate-200 rounded hover:bg-slate-200 dark:hover:bg-slate-600">修理</button>
+                                    <button type="button" onclick="document.getElementById('svcContent').value='現調'" class="px-2 py-1 text-xs bg-slate-100 dark:bg-slate-700 dark:text-slate-200 rounded hover:bg-slate-200 dark:hover:bg-slate-600">現調</button>
+                                    <button type="button" onclick="document.getElementById('svcContent').value='保守'" class="px-2 py-1 text-xs bg-slate-100 dark:bg-slate-700 dark:text-slate-200 rounded hover:bg-slate-200 dark:hover:bg-slate-600">保守</button>
+                                </div>
+                                <input type="text" id="svcContent" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="修理 / 現調 / 保守 など">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">備考</label>
+                                <textarea id="svcNote" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" rows="2"></textarea>
+                            </div>
+                            <div class="text-xs text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-700/50 rounded-lg p-2">
+                                種別「サービス」・取得金0円・ステータス「出庫済」・出庫先＝案件番号 で1件発行します。売上と経費は支払ナビの販売案件側で入力してください。
+                            </div>
+                        </div>
+                        <div class="flex gap-3 mt-6">
+                            <button onclick="closeModal('serviceTicketModal')" class="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">キャンセル</button>
+                            <button onclick="submitServiceTicket()" class="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">発行</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        async function submitServiceTicket() {
+            const projectNoRaw = document.getElementById('svcProjectNo').value.trim();
+            const content = document.getElementById('svcContent').value.trim();
+            const note = document.getElementById('svcNote').value.trim();
+
+            if (!projectNoRaw) { alert('案件番号は必須です'); return; }
+            if (!content) { alert('内容は必須です'); return; }
+
+            const parsed = parseProjectNumberString(projectNoRaw);
+            if (!parsed.prefix || !parsed.number) {
+                alert('案件番号の形式が正しくありません（例: YS-0521）');
+                return;
+            }
+
+            // 読み込み未完了なら作らない（保存ロックと整合）
+            if (!dataLoaded) {
+                alert('在庫データが読み込めていないため作成できません。更新してから再度お試しください。');
+                return;
+            }
+
+            // Serialは表示用ラベル。同じ案件に複数チケットがあっても重複しないよう連番を付ける
+            let serial = `SVC-${parsed.prefix}${parsed.number}`;
+            if (inventory.some(i => i.serial === serial)) {
+                let n = 2;
+                while (inventory.some(i => i.serial === `${serial}-${n}`)) n++;
+                serial = `${serial}-${n}`;
+            }
+
+            const today = new Date().toISOString().split('T')[0];
+            inventory.push({
+                id: Date.now().toString() + '-svc',
+                serial: serial,
+                category: 'サービス',
+                productName: content,
+                orderPrefix: '',
+                orderNumber: '',
+                orderDate: '',
+                receiveDate: '',
+                status: '出庫済',
+                shipDate: today,
+                shipPrefix: parsed.prefix,
+                shipNumber: parsed.number,
+                costJPY: 0,
+                note: note,
+                shelfNo: '',
+                location: '',
+                supplierId: ''
+            });
+
+            await saveData();
+            closeModal('serviceTicketModal');
+            renderMain();
+            showStatus('✅ サービス案件（0円チケット）を発行しました');
+            setTimeout(() => showStatus(''), 3000);
+        }
+
         // 調達シートに案件を追加（未払い状態で登録）
         async function addToProcurement(parsedOrder, supplierId, productName, serial, quantity, orderDate, category) {
             try {
