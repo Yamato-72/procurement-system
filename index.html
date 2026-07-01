@@ -40,9 +40,6 @@
         const PARENT_FOLDER_ID = '1EvObQiCJgxJCzd_kQJ1PNbOUMD5P-Zxp';
         const IMPORT_PERMIT_FOLDER_ID = '1YELi1u_fn1NiH09P_CONfBlUNQ_DtjwL'; // 輸入許可書フォルダ
         const INVOICE_FOLDER_ID = '1NzYjGGFzbNdG2wBYT1nreiehPH_TpRJr'; // 海外請求書フォルダ
-        // AN-KAN（案件ナビ）のクローズ窓口。売上入力後に「AN-KANに送信」で案件を残金請求済にする
-        const ANKAN_BASE_URL = 'https://an-kan-47228502594.europe-west1.run.app';
-        const ANKAN_CLOSE_URL = `${ANKAN_BASE_URL}/api/projects/close-by-payment`;
 
         let tokenClient;
         let gapiInited = false;
@@ -2084,6 +2081,7 @@
                                                         ${sp.shippedCount > 0 ? `<span class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 rounded-full">出庫${sp.shippedCount}</span>` : ''}
                                                         ${sp.archivedCount > 0 ? `<span class="px-2 py-0.5 text-xs bg-slate-200 text-slate-600 dark:bg-slate-600 dark:text-slate-300 rounded-full">完了${sp.archivedCount}</span>` : ''}
                                                     </div>
+                                                    ${(() => { const notes = sp.items.filter(i => i.note).map(i => i.note); return notes.length ? `<p class="text-xs text-slate-600 dark:text-slate-300 truncate" title="${notes.join(' / ')}">📝 ${notes.join(' / ')}</p>` : ''; })()}
                                                 </div>
                                                 <div class="text-right">
                                                     <p class="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">${formatJPY(sp.totalCost)}</p>
@@ -2118,6 +2116,7 @@
                                                                         ${item.category || ''} 
                                                                         ${item.orderProject ? `← 仕入: ${item.orderProject}` : ''}
                                                                     </p>
+                                                                    ${item.note ? `<p class="text-xs text-slate-600 dark:text-slate-300 mt-0.5">📝 ${item.note}</p>` : ''}
                                                                 </div>
                                                                 <div class="text-right">
                                                                     <span class="font-bold text-slate-900 dark:text-white">${formatJPY(item.costJPY || 0)}</span>
@@ -2202,16 +2201,6 @@
                                                                 class="px-2 py-1.5 border rounded-lg dark:bg-slate-700 dark:border-slate-500 dark:text-white text-sm">
                                                             <button onclick="event.stopPropagation();saveSalesProjectInfo('${sp.projectNumber}')" class="px-3 py-1.5 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 whitespace-nowrap">保存</button>
                                                         </div>
-                                                        ${sp.revenue > 0 ? `
-                                                            <div class="mt-2 flex justify-end">
-                                                                <button onclick="event.stopPropagation();sendCloseToAnkan('${sp.projectNumber}')"
-                                                                    class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 whitespace-nowrap">
-                                                                    📤 AN-KANに送信（クローズ）
-                                                                </button>
-                                                            </div>
-                                                        ` : `
-                                                            <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-1 text-right">売上を保存するとAN-KANに送信できます</p>
-                                                        `}
                                                         ${(salesProjectRevenue[sp.projectNumber] && salesProjectRevenue[sp.projectNumber].updatedDate) ? `<p class="text-[10px] text-slate-400 dark:text-slate-500 mt-1 text-right">更新: ${salesProjectRevenue[sp.projectNumber].updatedDate}</p>` : ''}
                                                     </div>
 
@@ -2643,57 +2632,7 @@
                 alert('保存に失敗しました');
             }
         }
-
-        // AN-KAN（案件ナビ）に「この案件をクローズして」と送る
-        // 売上が保存済みの案件だけ呼ばれる（ボタン自体が売上ゼロでは出ない）
-        async function sendCloseToAnkan(projectNumber) {
-            const rev = salesProjectRevenue[projectNumber];
-            const amount = rev ? (rev.amount || 0) : 0;
-            const deliveryDate = rev ? (rev.deliveryDate || '') : '';
-
-            if (!amount || amount <= 0) {
-                alert('先に売上を入力・保存してください');
-                return;
-            }
-
-            if (!confirm(`案件 ${projectNumber} をAN-KANでクローズします。\n売上: ${formatJPY(amount)}\n\nよろしいですか？`)) {
-                return;
-            }
-
-            try {
-                showStatus('📤 AN-KANに送信中...');
-                const resp = await fetch(ANKAN_CLOSE_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        ad_number: projectNumber, // "AD-0001" 形式。AN-KAN側で数字に正規化される
-                        revenue: amount,
-                        deliveryDate: deliveryDate || null
-                    })
-                });
-
-                const data = await resp.json().catch(() => ({}));
-
-                if (resp.ok) {
-                    showStatus('✅ AN-KANでクローズしました');
-                    setTimeout(() => showStatus(''), 4000);
-                } else if (resp.status === 404) {
-                    alert(`AN-KANに案件 ${projectNumber} が見つかりませんでした。\n案件番号がAN-KAN側と一致しているか確認してください。`);
-                    showStatus('');
-                } else if (resp.status === 409) {
-                    alert(`AN-KANに同じ案件番号が複数あります。\nAN-KAN側を確認してください。`);
-                    showStatus('');
-                } else {
-                    alert(`送信に失敗しました（${resp.status}）\n${data.error || ''}`);
-                    showStatus('');
-                }
-            } catch (e) {
-                console.error('AN-KAN送信エラー:', e);
-                alert('AN-KANに送信できませんでした。通信エラーかURLをご確認ください。');
-                showStatus('');
-            }
-        }
-
+        
         // 今日が属する会計期の番号（第1期=2019/7〜）
         function getCurrentFiscalPeriodNumber() {
             const d = new Date();
