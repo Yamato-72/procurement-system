@@ -3478,13 +3478,13 @@
                 serial: serial,
                 category: 'サービス',
                 productName: content,
-                orderPrefix: '',
-                orderNumber: '',
+                orderPrefix: parsed.prefix,   // 案件番号として付与（発注案件でのグループ表示用）
+                orderNumber: parsed.number,
                 orderDate: '',
                 receiveDate: '',
                 status: '出庫済',
                 shipDate: today,
-                shipPrefix: parsed.prefix,
+                shipPrefix: parsed.prefix,     // 出庫先＝引き当て（販売案件になる）
                 shipNumber: parsed.number,
                 costJPY: 0,
                 note: note,

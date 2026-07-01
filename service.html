@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>サービス案件 発行</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { -webkit-tap-highlight-color: transparent; }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+    <div class="max-w-md mx-auto p-4 sm:p-6">
+        <header class="mb-4">
+            <h1 class="text-xl font-bold text-slate-900">サービス案件 発行</h1>
+            <p class="text-xs text-slate-500 mt-1">修理・現調・保守など、商品調達が不要な案件のチケット（0円）を発行します。発行すると支払ナビの販売案件に出て、売上・経費を入力すれば損益が集計されます。</p>
+        </header>
+
+        <!-- 接続状態 -->
+        <div id="authGate" class="bg-white rounded-xl shadow-sm p-5 text-center">
+            <p class="text-sm text-slate-600 mb-3">Googleアカウントでログインしてください</p>
+            <button id="signinBtn" onclick="handleSignin()" disabled
+                class="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40">
+                Googleでログイン
+            </button>
+            <p id="authLoading" class="text-xs text-slate-400 mt-2">読み込み中...</p>
+        </div>
+
+        <!-- 発行フォーム -->
+        <div id="formCard" class="bg-white rounded-xl shadow-sm p-5 hidden">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold mb-1">案件番号 <span class="text-red-500">*</span>
+                        <span class="text-slate-400 text-xs font-normal">（TS連番を自動入力・変更可）</span>
+                    </label>
+                    <input type="text" id="projectNo" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg" placeholder="例: TS-0074" autocomplete="off">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1">内容 <span class="text-red-500">*</span></label>
+                    <div class="flex gap-1.5 mb-2">
+                        <button type="button" onclick="setContent('修理')" class="px-3 py-1 text-sm bg-slate-100 rounded-lg hover:bg-slate-200">修理</button>
+                        <button type="button" onclick="setContent('現調')" class="px-3 py-1 text-sm bg-slate-100 rounded-lg hover:bg-slate-200">現調</button>
+                        <button type="button" onclick="setContent('保守')" class="px-3 py-1 text-sm bg-slate-100 rounded-lg hover:bg-slate-200">保守</button>
+                    </div>
+                    <input type="text" id="content" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg" placeholder="修理 / 現調 / 保守 など" autocomplete="off">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1">備考</label>
+                    <textarea id="note" rows="2" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg" placeholder="任意"></textarea>
+                </div>
+
+                <div class="text-xs text-slate-400 bg-slate-50 rounded-lg p-2 leading-relaxed">
+                    種別「サービス」・取得金0円・ステータス「出庫済」・出庫先＝案件番号 で1件発行します。物理在庫・棚卸しには計上されません。
+                </div>
+
+                <button id="submitBtn" onclick="issueTicket()"
+                    class="w-full px-4 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-40">
+                    発行する
+                </button>
+
+                <div id="msg" class="text-sm text-center min-h-[1.25rem]"></div>
+            </div>
+
+            <!-- 今回発行したチケット -->
+            <div id="issuedWrap" class="mt-5 pt-4 border-t border-slate-100 hidden">
+                <p class="text-xs font-semibold text-slate-500 mb-2">このセッションで発行</p>
+                <ul id="issuedList" class="space-y-1 text-sm"></ul>
+            </div>
+        </div>
+
+        <p class="text-center text-[11px] text-slate-400 mt-4">在庫ナビ / 支払ナビと同じデータに書き込みます</p>
+    </div>
+
+    <script>
+        const CLIENT_ID = '47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
+        const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ'; // 在庫データ（在庫ナビと同じ）
+        const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
+        const SHEET_NAME = '在庫';
+        const TS_FLOOR = 73; // TS-0073が既存の最新。以降TS-0074〜
+
+        let tokenClient, gapiInited = false, gisInited = false, accessToken = null;
+
+        // ---- Google API 初期化 ----
+        function gapiLoaded() { gapi.load('client', initializeGapiClient); }
+        async function initializeGapiClient() {
+            await gapi.client.init({
+                discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+            });
+            gapiInited = true;
+            maybeEnableSignin();
+        }
+        function gisLoaded() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: (resp) => {
+                    if (resp.error !== undefined) { setMsg('ログインに失敗しました', 'err'); return; }
+                    accessToken = resp.access_token;
+                    sessionStorage.setItem('svcToken', accessToken);
+                    gapi.client.setToken({ access_token: accessToken });
+                    onSignedIn();
+                },
+            });
+            gisInited = true;
+            maybeEnableSignin();
+        }
+        function maybeEnableSignin() {
+            if (gapiInited && gisInited) {
+                document.getElementById('signinBtn').disabled = false;
+                document.getElementById('authLoading').classList.add('hidden');
+                // セッションに残っていれば自動で使う（無効なら手動ログインに戻る）
+                const saved = sessionStorage.getItem('svcToken');
+                if (saved) {
+                    accessToken = saved;
+                    gapi.client.setToken({ access_token: saved });
+                    onSignedIn(true);
+                }
+            }
+        }
+        function handleSignin() {
+            if (!tokenClient) return;
+            tokenClient.requestAccessToken({ prompt: accessToken ? '' : 'consent' });
+        }
+
+        async function onSignedIn(silent) {
+            try {
+                await refreshNextTicketNumber(); // 疎通確認も兼ねる
+                document.getElementById('authGate').classList.add('hidden');
+                document.getElementById('formCard').classList.remove('hidden');
+            } catch (e) {
+                console.error(e);
+                // 保存トークンが失効していた場合などは手動ログインに戻す
+                sessionStorage.removeItem('svcToken');
+                accessToken = null;
+                if (!silent) setMsg('接続に失敗しました。もう一度ログインしてください', 'err');
+            }
+        }
+
+        // ---- 次のTS番号（在庫の出庫接頭辞K・出庫番号L からTSの最大+1）----
+        async function computeNextTicketNumber() {
+            const resp = await gapi.client.sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: `${SHEET_NAME}!K2:L`, // K=出庫接頭辞, L=出庫番号
+            });
+            const rows = resp.result.values || [];
+            let maxNum = TS_FLOOR;
+            rows.forEach(r => {
+                if ((r[0] || '').toUpperCase() === 'TS') {
+                    const n = parseInt(r[1], 10);
+                    if (!isNaN(n) && n > maxNum) maxNum = n;
+                }
+            });
+            return `TS-${String(maxNum + 1).padStart(4, '0')}`;
+        }
+        async function refreshNextTicketNumber() {
+            const next = await computeNextTicketNumber();
+            document.getElementById('projectNo').value = next;
+        }
+
+        // 案件番号パース（例 TS-0074 → {prefix:'TS', number:'0074'}）
+        function parseProjectNumber(str) {
+            if (!str) return { prefix: '', number: '' };
+            const m = str.trim().match(/^([A-Z]+)-?(\d+)$/i);
+            if (m) return { prefix: m[1].toUpperCase(), number: m[2] };
+            return { prefix: '', number: '' };
+        }
+
+        function setContent(v) { document.getElementById('content').value = v; }
+        function setMsg(text, type) {
+            const el = document.getElementById('msg');
+            el.textContent = text || '';
+            el.className = 'text-sm text-center min-h-[1.25rem] ' +
+                (type === 'err' ? 'text-red-600' : type === 'ok' ? 'text-emerald-600' : 'text-slate-500');
+        }
+
+        // ---- 発行（在庫シートに1行 追記）----
+        async function issueTicket() {
+            const projectNoRaw = document.getElementById('projectNo').value.trim();
+            const content = document.getElementById('content').value.trim();
+            const note = document.getElementById('note').value.trim();
+
+            if (!projectNoRaw) { setMsg('案件番号は必須です', 'err'); return; }
+            if (!content) { setMsg('内容は必須です', 'err'); return; }
+            const parsed = parseProjectNumber(projectNoRaw);
+            if (!parsed.prefix || !parsed.number) { setMsg('案件番号の形式が正しくありません（例: TS-0074）', 'err'); return; }
+
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            setMsg('発行中...', '');
+
+            const today = new Date().toISOString().split('T')[0];
+            const serial = `SVC-${parsed.prefix}${parsed.number}`;
+            // 在庫シートの列順（A〜Q）に合わせた1行
+            const row = [
+                Date.now().toString() + '-svc', // ID
+                serial,                          // Serial
+                'サービス',                      // 種別
+                content,                         // 製品名
+                parsed.prefix,                   // 発注接頭辞（案件番号として付与）
+                parsed.number,                   // 発注番号
+                '',                              // 発注日
+                '',                              // 入庫日
+                '出庫済',                        // ステータス
+                today,                           // 出庫日
+                parsed.prefix,                   // 出庫接頭辞（引き当て＝販売案件）
+                parsed.number,                   // 出庫番号
+                0,                               // 取得金(税別)
+                note,                            // 備考
+                '',                              // 棚番
+                '',                              // 保管場所
+                ''                               // サプライヤーID
+            ];
+
+            try {
+                await gapi.client.sheets.spreadsheets.values.append({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `${SHEET_NAME}!A:Q`,
+                    valueInputOption: 'RAW',
+                    insertDataOption: 'INSERT_ROWS',
+                    resource: { values: [row] },
+                });
+
+                addIssued(`${parsed.prefix}-${parsed.number}`, content);
+                setMsg(`✅ ${parsed.prefix}-${parsed.number}（${content}）を発行しました`, 'ok');
+                document.getElementById('content').value = '';
+                document.getElementById('note').value = '';
+                await refreshNextTicketNumber(); // 次の番号を用意
+            } catch (e) {
+                console.error(e);
+                const status = e && (e.status || (e.result && e.result.error && e.result.error.code));
+                if (status === 401) {
+                    setMsg('セッションが切れました。ログインし直してください', 'err');
+                    sessionStorage.removeItem('svcToken');
+                    accessToken = null;
+                    document.getElementById('authGate').classList.remove('hidden');
+                    document.getElementById('formCard').classList.add('hidden');
+                } else {
+                    setMsg('発行に失敗しました。通信を確認してもう一度お試しください', 'err');
+                }
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function addIssued(projectNo, content) {
+            const wrap = document.getElementById('issuedWrap');
+            const list = document.getElementById('issuedList');
+            wrap.classList.remove('hidden');
+            const li = document.createElement('li');
+            li.className = 'flex justify-between text-slate-700';
+            const t = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+            li.innerHTML = `<span class="font-medium">${projectNo}</span><span class="text-slate-500">${content}・${t}</span>`;
+            list.prepend(li);
+        }
+    </script>
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+</body>
+</html>
