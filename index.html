@@ -3902,22 +3902,24 @@
         function generateGroupInvoiceText(projectNumber) {
             const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
             if (groupProjects.length === 0) return '';
-            
+
             const representative = groupProjects[0];
             const pickupDateDisplay = representative.pickupDate ? representative.pickupDate.replace(/-/g, '/') : '未設定';
             const serialDisplay = formatGroupSerials(groupProjects);
-            
+
             let text = `PJ番号：${projectNumber}\n`;
             text += `Serial：${serialDisplay}\n`;
             text += `集荷予定日：${pickupDateDisplay}\n\n`;
-            
-            // デポジット情報（代表から取得）
-            const depositSchedule = representative.depositSchedule || [];
+
+            // デポジット情報：グループ全製品を合計したもの（カード表示と同じ集計）を使う。
+            // 以前は代表1製品(groupProjects[0])分しか出ておらず、複数製品の案件で金額が過少だった。
+            const grouped = getGroupedProjects().find(g => g.projectNumber === projectNumber);
+            const depositSchedule = (grouped && grouped.depositSchedule) || representative.depositSchedule || [];
             depositSchedule.forEach(dep => {
                 const status = dep.paid ? '✓済' : '未';
                 text += `${dep.percentage}%  $${(dep.amountUSD || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} [${status}]\n`;
             });
-            
+
             return text.trim();
         }
 
