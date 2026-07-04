@@ -325,7 +325,11 @@ async function loadAll(){
 
 // ================= 表示 =================
 const yen = (n) => '¥' + Math.round(n).toLocaleString();
-const man = (n) => '¥' + Math.round(n / 10000).toLocaleString() + '万';
+const man = (n) => {
+  const v = Math.round(n);
+  if (Math.abs(v) < 10000) return '¥' + v.toLocaleString(); // 1万円未満は円のまま
+  return '¥' + Math.round(v / 10000).toLocaleString() + '万';
+};
 const pad4 = (n) => String(n).padStart(4, '0');
 
 function render(){
