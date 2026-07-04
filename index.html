@@ -2624,6 +2624,16 @@
                 }
 
                 salesProjectRevenue[projectNumber] = { amount, updatedDate: today, note: existingNote, deliveryDate };
+
+                // AN-KANへ売上を自動同期（失敗しても保存自体は成功扱い・裏で送るだけ）
+                try {
+                    fetch('https://an-kan-47228502594.europe-west1.run.app/api/projects/update-revenue', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ project_number: projectNumber, revenue: amount })
+                    }).catch(() => {});
+                } catch (e) { /* 同期失敗は無視（AN-KAN側は次回保存時に追いつく） */ }
+
                 renderMain();
                 showStatus('✅ 保存しました');
                 setTimeout(() => showStatus(''), 3000);
