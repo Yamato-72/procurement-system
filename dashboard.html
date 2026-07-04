@@ -142,6 +142,7 @@ h1{font-size:17px;font-weight:700;letter-spacing:.02em}
       <div class="h-actions">
         <span class="updated" id="lastUpdate"></span>
         <button class="hbtn" onclick="loadAll()"><i data-lucide="refresh-cw"></i>更新</button>
+        <button class="hbtn" onclick="resetAnkanUrl()" title="AN-KANのURLを設定し直す"><i data-lucide="link"></i></button>
         <button class="hbtn" onclick="toggleDark()"><i data-lucide="moon"></i></button>
         <button class="hbtn" onclick="signOut()"><i data-lucide="log-out"></i></button>
       </div>
@@ -164,6 +165,7 @@ h1{font-size:17px;font-weight:700;letter-spacing:.02em}
         <div class="hero-num mono" id="marginNum">-</div>
         <div class="gauge"><div class="fill" id="marginFill"></div></div>
         <div class="hero-foot"><span class="tag" id="marginTag">-</span><span id="marginText"></span></div>
+        <div class="hero-foot mono" id="marginBreakdown" style="font-size:11.5px"></div>
         <div class="note">概算＝売上 −（引当在庫の取得金 × 1.18〈諸掛係数〉）− 登録済み経費。売上0円のサービス案件は除外。正確な損益は支払ナビで。</div>
       </div>
     </div>
@@ -206,8 +208,8 @@ h1{font-size:17px;font-weight:700;letter-spacing:.02em}
     <!-- ツール -->
     <div class="sec-label">各ツールへ</div>
     <div class="tools">
-      <a class="tool" href="https://an-kan-47228502594.europe-west1.run.app" target="_blank">
-        <i data-lucide="kanban"></i><div><div class="t">AN-KAN</div><div class="d">案件管理・ステータス</div></div>
+      <a class="tool" href="javascript:void(0)" onclick="openAnkan()">
+        <i data-lucide="kanban"></i><div><div class="t">AN-KAN</div><div class="d">案件管理・ステータス（初回はURL貼り付け）</div></div>
       </a>
       <a class="tool" href="https://yamato-72.github.io/procurement-system/index.html" target="_blank">
         <i data-lucide="banknote"></i><div><div class="t">支払ナビ</div><div class="d">支払・売上・案件別損益</div></div>
@@ -388,6 +390,7 @@ function render(){
   if (margin === null){
     mEl.textContent = '-'; mTag.className = 'tag tag-mute'; mTag.textContent = '売上データ待ち';
     document.getElementById('marginText').textContent = '';
+    document.getElementById('marginBreakdown').textContent = '';
     document.getElementById('marginFill').style.width = '0%';
   } else {
     mEl.textContent = margin.toFixed(1) + '%';
@@ -395,6 +398,8 @@ function render(){
     mTag.className = 'tag ' + (d >= 0 ? 'tag-ok' : d >= -5 ? 'tag-warn' : 'tag-bad');
     mTag.textContent = (d >= 0 ? '+' : '') + d.toFixed(1) + 'pt';
     document.getElementById('marginText').textContent = `対象 ${fySales.length}案件`;
+    document.getElementById('marginBreakdown').textContent =
+      `売上 ${man(rev)} ／ 原価(諸掛込) ${man(cost * EXPENSE_COEF)} ／ 経費 ${man(exp)}`;
     document.getElementById('marginFill').style.width = Math.max(0, Math.min(100, margin / TARGET_MARGIN * 100)) + '%';
     document.getElementById('marginFill').style.background = d >= 0 ? 'var(--ok)' : 'var(--warn)';
   }
@@ -433,8 +438,8 @@ function render(){
   const overDelivery = dAlerts.filter(d => d.daysLeft < 0).length;
   const alerts = [
     { n: overdue, label: '支払遅延', href: 'index.html', hotIf: 1 },
-    { n: dAlerts.length, label: `納期7日以内${overDelivery ? `（超過${overDelivery}）` : ''}`, href: 'https://an-kan-47228502594.europe-west1.run.app', hotIf: overDelivery ? 1 : 999, warmIf: 1 },
-    { n: ankan ? ankan.trouble : null, label: 'トラブル案件', href: 'https://an-kan-47228502594.europe-west1.run.app', warmIf: 1 },
+    { n: dAlerts.length, label: `納期7日以内${overDelivery ? `（超過${overDelivery}）` : ''}`, ankan: true, hotIf: overDelivery ? 1 : 999, warmIf: 1 },
+    { n: ankan ? ankan.trouble : null, label: 'トラブル案件', ankan: true, warmIf: 1 },
     { n: staleRows.length, label: `長期滞留（${STALE_DAYS}日+）`, href: 'inventory.html', warmIf: 1 },
     { n: noShelf, label: '棚番未設定', href: 'inventory.html', warmIf: 1 },
   ];
@@ -446,7 +451,8 @@ function render(){
       else if (a.warmIf && a.n >= a.warmIf) cls = 'warm';
     }
     const sub = a.n === null ? '<div class="lbl">AN-KAN接続不可</div>' : '';
-    return `<a class="alert ${cls}" href="${a.href}" target="${a.href.startsWith('http') ? '_blank' : '_self'}">
+    const open = a.ankan ? `href="javascript:void(0)" onclick="openAnkan()"` : `href="${a.href}"`;
+    return `<a class="alert ${cls}" ${open}>
       <div class="num mono">${v}</div><div class="lbl">${a.label}</div>${sub}</a>`;
   }).join('');
 
@@ -492,6 +498,24 @@ function render(){
     : '<div class="empty">長期滞留はありません</div>';
 
   lucide.createIcons();
+}
+
+// ================= AN-KANのURL（合言葉つき） =================
+// AN-KANの画面URLには秘密の文字列が含まれるため、公開ファイルには書かず
+// 各自のブラウザ（localStorage）にだけ保存する。
+function openAnkan(){
+  let url = localStorage.getItem('ankanUrl');
+  if (!url){
+    url = prompt('AN-KANのURL（いつものブックマークのURL）を貼ってください。\nこのブラウザにだけ保存され、次回からワンクリックで開きます。');
+    if (!url) return;
+    url = url.trim();
+    localStorage.setItem('ankanUrl', url);
+  }
+  window.open(url, '_blank');
+}
+function resetAnkanUrl(){
+  localStorage.removeItem('ankanUrl');
+  openAnkan();
 }
 
 // ================= ダークモード =================
