@@ -274,6 +274,22 @@ const FY_BASE_YEAR = 2019;        // 1期の開始年（7月始まり）
 
 // ================= 状態 =================
 let tokenClient, gapiInited = false, gisInited = false, accessToken = null;
+let refreshResolver = null; // 通行証の裏再発行の待ち受け
+
+// 通行証（アクセストークン）が切れていたら裏で再発行する
+// Googleのログイン状態が生きていれば、画面を遮らずに済む
+function refreshTokenSilently(){
+  return new Promise((resolve) => {
+    if (!tokenClient) return resolve(false);
+    refreshResolver = resolve;
+    try {
+      tokenClient.requestAccessToken({ prompt: '' });
+    } catch (e) {
+      refreshResolver = null;
+      resolve(false);
+    }
+  });
+}
 let projects = [], inventory = [], archive = [], sales = [], expenses = [];
 let ankan = null; // AN-KAN集計（取得失敗時はnull）
 
@@ -286,11 +302,19 @@ function gisLoaded(){
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID, scope: SCOPES,
     callback: (resp) => {
-      if (resp.error !== undefined) return;
+      if (resp.error !== undefined) {
+        if (refreshResolver) { refreshResolver(false); refreshResolver = null; }
+        return;
+      }
       accessToken = resp.access_token;
       sessionStorage.setItem('dashToken', accessToken);
       gapi.client.setToken({ access_token: accessToken });
-      onSignedIn();
+      if (refreshResolver) {
+        // 裏での再発行だった場合はログイン処理をやり直さず続行
+        refreshResolver(true); refreshResolver = null;
+      } else {
+        onSignedIn();
+      }
     },
   });
   gisInited = true; maybeEnable();
@@ -331,6 +355,24 @@ function inCurrentFY(dateStr){
 
 // ================= 読み込み =================
 async function loadAll(){
+  try {
+    await loadAllInner();
+  } catch (e) {
+    const status = e && (e.status || (e.result && e.result.error && e.result.error.code));
+    if (status === 401 || status === 403) {
+      // 通行証切れ：裏で再発行して一度だけやり直す
+      const ok = await refreshTokenSilently();
+      if (ok) { await loadAllInner(); return; }
+      // 再発行も失敗＝Googleのログイン自体が切れている → ログイン画面へ
+      sessionStorage.removeItem('dashToken'); accessToken = null;
+      location.reload();
+      return;
+    }
+    throw e;
+  }
+}
+
+async function loadAllInner(){
   const get = (range) => gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range });
   const [prj, inv, sal, exp] = await Promise.all([
     get('案件!A2:N'), get('在庫!A2:Q'), get('販売案件売上!A2:E'), get('販売案件経費!A2:G'),
