@@ -20,41 +20,6 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;900&display=swap');
         * { font-family: 'Noto Sans JP', sans-serif; }
-
-        /* ==== スマホ：サマリーカードを4列の小型タイルに（サマリー群だけが対象） ==== */
-        @media (max-width: 640px) {
-            .grid[class~="sm:grid-cols-4"] {
-                grid-template-columns: repeat(4, minmax(0, 1fr));
-                gap: 6px;
-                margin-bottom: 10px;
-            }
-            .grid[class~="sm:grid-cols-4"] > div {
-                padding: 7px 7px;
-                border-left-width: 3px;
-                border-radius: 8px;
-            }
-            /* ラベル行（1行に収めて省略） */
-            .grid[class~="sm:grid-cols-4"] > div > p:first-child {
-                font-size: 9px;
-                margin-bottom: 2px;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-            /* 数値（大きい数字もまとめて縮小） */
-            .grid[class~="sm:grid-cols-4"] > div .text-sm,
-            .grid[class~="sm:grid-cols-4"] > div .text-lg,
-            .grid[class~="sm:grid-cols-4"] > div .text-xl,
-            .grid[class~="sm:grid-cols-4"] > div .text-2xl,
-            .grid[class~="sm:grid-cols-4"] > div .text-base {
-                font-size: 12.5px;
-                line-height: 1.3;
-            }
-            /* 補足行 */
-            .grid[class~="sm:grid-cols-4"] > div .text-xs {
-                font-size: 8.5px;
-            }
-        }
     </style>
 </head>
 <body>
@@ -84,8 +49,7 @@
         let projects = [];
         let productMaster = []; // 製品マスタ
         let nextSerial = 554; // YS0554から開始
-        let showSupplierSection = false;
-        let showMobileSummary = false; // スマホのサマリー折りたたみ（初期は閉） // サプライヤー管理の折りたたみ状態
+        let showSupplierSection = false; // サプライヤー管理の折りたたみ状態
         let showUnpaidSection = false; // 未払いデポジットの折りたたみ状態
         let expandedProjects = {}; // 案件カードの展開状態
         let lastUpdated = null; // 最終更新日時
@@ -1631,12 +1595,6 @@
                             </div>
                         ` : ''}
                         
-                        <!-- スマホ用：サマリー折りたたみボタン（PCでは非表示） -->
-                        <button onclick="toggleMobileSummary()" class="sm:hidden w-full flex justify-between items-center px-4 py-2.5 mb-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm border dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                            <span>📊 サマリー（12項目）</span>
-                            <span class="text-slate-400">${showMobileSummary ? '▼ 閉じる' : '▶ 見る'}</span>
-                        </button>
-                        <div class="${showMobileSummary ? '' : 'hidden'} sm:block">
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-4">
                             <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-slate-500">
                                 <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">今期支払</p>
@@ -1705,7 +1663,6 @@
                                 <p class="text-xs text-slate-400">加重平均 / USD</p>
                             </div>
                         </div>
-                        </div><!-- /スマホ折りたたみ -->
 
                         <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border dark:border-slate-700 mb-4 sm:mb-8">
                             <button onclick="toggleSupplierSection()" class="w-full flex justify-between items-center text-left">
@@ -1807,28 +1764,28 @@
                                     const isMultiProduct = g.items.length > 1;
                                     
                                     return `<div id="project-${g.projectNumber}" class="border-2 rounded-lg transition-all ${nextPayment ? 'border-amber-300 bg-amber-50 dark:bg-amber-900/30 dark:border-amber-600' : 'border-green-300 bg-green-50 dark:bg-green-900/30 dark:border-green-600'}">
-                                        <div class="p-2.5 sm:p-5 cursor-pointer" onclick="toggleProject('${g.projectNumber}')">
+                                        <div class="p-3 sm:p-5 cursor-pointer" onclick="toggleProject('${g.projectNumber}')">
                                             <div class="flex justify-between items-start">
                                                 <div class="flex-1">
                                                     <div class="flex items-center gap-2 mb-1 flex-wrap">
                                                         <span class="text-slate-400">${isExpanded ? '▼' : '▶'}</span>
-                                                        <h3 class="font-bold text-sm sm:text-xl text-slate-900 dark:text-white">${g.projectNumber}</h3>
+                                                        <h3 class="font-bold text-base sm:text-xl text-slate-900 dark:text-white">${g.projectNumber}</h3>
                                                         ${isMultiProduct ? `<span class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">${g.items.length}製品</span>` : ''}
                                                         <span class="px-2 py-0.5 text-xs rounded-full ${projectStatus.color}">${projectStatus.icon} ${projectStatus.status}</span>
-                                                        <button onclick="event.stopPropagation();editGroupDetails('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-blue-600 ${isExpanded ? '' : 'hidden sm:inline-block'}" title="グループ編集">
+                                                        <button onclick="event.stopPropagation();editGroupDetails('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-blue-600" title="グループ編集">
                                                             <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                                         </button>
-                                                        <button onclick="event.stopPropagation();copyGroupInvoiceText('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-purple-600 ${isExpanded ? '' : 'hidden sm:inline-block'}" title="インボイス情報をコピー">
+                                                        <button onclick="event.stopPropagation();copyGroupInvoiceText('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-purple-600" title="インボイス情報をコピー">
                                                             <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
                                                         </button>
-                                                        <button onclick="event.stopPropagation();openInventoryForProject('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-emerald-600 ${isExpanded ? '' : 'hidden sm:inline-block'}" title="在庫を見る">
+                                                        <button onclick="event.stopPropagation();openInventoryForProject('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-emerald-600" title="在庫を見る">
                                                             <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
                                                         </button>
-                                                        <button onclick="event.stopPropagation();deleteProjectGroup('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-red-600 ${isExpanded ? '' : 'hidden sm:inline-block'}" title="削除">
+                                                        <button onclick="event.stopPropagation();deleteProjectGroup('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-red-600" title="削除">
                                                             <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                                         </button>
                                                         ${folderCache[g.projectNumber] ? `
-                                                            <a href="${folderCache[g.projectNumber]}" target="_blank" onclick="event.stopPropagation()" class="text-blue-600 hover:text-blue-800 ${isExpanded ? '' : 'hidden sm:inline-block'}" title="Driveを開く">
+                                                            <a href="${folderCache[g.projectNumber]}" target="_blank" onclick="event.stopPropagation()" class="text-blue-600 hover:text-blue-800" title="Driveを開く">
                                                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2z"/></svg>
                                                             </a>
                                                         ` : ''}
@@ -2112,12 +2069,12 @@
         function salesProjectCardHTML(sp) {
             return `
                                     <div class="border-2 rounded-lg border-purple-300 bg-purple-50 dark:bg-purple-900/30 dark:border-purple-600">
-                                        <div class="p-2.5 sm:p-5 cursor-pointer" onclick="toggleSalesProject('${sp.projectNumber}')">
+                                        <div class="p-3 sm:p-5 cursor-pointer" onclick="toggleSalesProject('${sp.projectNumber}')">
                                             <div class="flex justify-between items-start">
                                                 <div class="flex-1 min-w-0">
                                                     <div class="flex items-center gap-2 mb-1 flex-wrap">
                                                         <span class="text-slate-400">${expandedSalesProjects[sp.projectNumber] ? '▼' : '▶'}</span>
-                                                        <h3 class="font-bold text-sm sm:text-xl text-slate-900 dark:text-white">${sp.projectNumber}</h3>
+                                                        <h3 class="font-bold text-base sm:text-xl text-slate-900 dark:text-white">${sp.projectNumber}</h3>
                                                         ${sp.fiscalLabel ? `<span class="px-2 py-0.5 text-xs bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 rounded-full">${sp.fiscalLabel}</span>` : ''}
                                                         <span class="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full">${sp.items.length}品目</span>
                                                         ${sp.allocatedCount > 0 ? `<span class="px-2 py-0.5 text-xs bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300 rounded-full">引当${sp.allocatedCount}</span>` : ''}
@@ -2127,7 +2084,7 @@
                                                     ${(() => { const notes = [...new Set(sp.items.filter(i => i.note).map(i => i.note))]; if (!notes.length) return ''; const full = notes.join(' / '); let text = full; if (text.length > 50) text = text.slice(0, 50) + '…'; return `<p class="text-xs text-slate-600 dark:text-slate-300 truncate" title="${full}">📝 ${text}</p>`; })()}
                                                 </div>
                                                 <div class="text-right">
-                                                    <p class="text-base sm:text-xl font-bold text-slate-900 dark:text-white">${formatJPY(sp.totalCost)}</p>
+                                                    <p class="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">${formatJPY(sp.totalCost)}</p>
                                                     <p class="text-xs text-slate-500 dark:text-slate-400">原価合計</p>
                                                     ${sp.revenue > 0 ? `<p class="text-xs mt-0.5 font-semibold ${sp.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}">粗利 ${formatJPY(sp.grossProfit)}${sp.grossMargin != null ? `（${(sp.grossMargin * 100).toFixed(1)}%）` : ''}</p>` : ''}
                                                 </div>
@@ -2667,16 +2624,6 @@
                 }
 
                 salesProjectRevenue[projectNumber] = { amount, updatedDate: today, note: existingNote, deliveryDate };
-
-                // AN-KANへ売上を自動同期（失敗しても保存自体は成功扱い・裏で送るだけ）
-                try {
-                    fetch('https://an-kan-47228502594.europe-west1.run.app/api/projects/update-revenue', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ project_number: projectNumber, revenue: amount })
-                    }).catch(() => {});
-                } catch (e) { /* 同期失敗は無視（AN-KAN側は次回保存時に追いつく） */ }
-
                 renderMain();
                 showStatus('✅ 保存しました');
                 setTimeout(() => showStatus(''), 3000);
@@ -2824,8 +2771,11 @@
 
         function getSalesProjects() {
             // 出庫先が設定されている在庫をグループ化（引当済 + 出庫済 + アーカイブ済み）
+            // ただしRS（リザーブ＝販売可能在庫としての仮押さえ）は実売ではないため除外する。
+            // RSは最終的にAD/TSなどへ割り当て直される。
             const allocated = inventoryData.filter(item => 
                 item.shipPrefix && item.shipNumber && 
+                String(item.shipPrefix).toUpperCase() !== 'RS' &&
                 (item.status === '出庫済' || item.status === '出庫済み' || item.status === '引当済' || item.isArchived)
             );
             
@@ -3189,7 +3139,6 @@
             setTimeout(() => showStatus(''), 3000);
         }
 
-        function toggleMobileSummary() { showMobileSummary = !showMobileSummary; renderMain(); }
         function toggleSupplierSection() {
             showSupplierSection = !showSupplierSection;
             renderMain();
