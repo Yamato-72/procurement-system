@@ -957,7 +957,8 @@
         }
         
         // 在庫の取得金を更新
-        async function updateInventoryCost(project) {
+        // silent=true のとき、在庫が見つからなくても確認ダイアログを出さずスキップ（按分など一括処理用）
+        async function updateInventoryCost(project, silent = false) {
             try {
                 // 認証トークンが古くなりすぎてないかチェックして、必要なら事前に更新
                 await ensureFreshToken();
@@ -1001,6 +1002,10 @@
                 // デバッグ：案件番号は一致したが製品名でハジかれた行を記録
                 const productNameMismatches = [];
 
+                // 製品名の表記揺れ（全角半角・空白・大小文字）を吸収して照合する
+                const normalizeName = (s) => String(s || '').normalize('NFKC').replace(/\s+/g, '').toLowerCase();
+                const productNameNorm = normalizeName(productName);
+
                 rows.forEach((row, idx) => {
                     const rowPrefix = row[4] || '';
                     const rowNumber = String(row[5] || '').padStart(4, '0');
@@ -1009,7 +1014,7 @@
                     const prefixMatch = rowPrefix.toUpperCase() === projectPrefix.toUpperCase();
                     const numberMatch = rowNumber === projectNumber;
                     // 製品名も一致条件に加える（グループ案件で複数製品が同じ案件番号を持つため）
-                    const productMatch = rowProductName === productName;
+                    const productMatch = normalizeName(rowProductName) === productNameNorm;
                     
                     // 案件番号 + 製品名で一致判定
                     if (prefixMatch && numberMatch && productMatch) {
@@ -1056,6 +1061,11 @@
                     showStatus(msg);
                     setTimeout(() => showStatus(''), 3000);
                 } else {
+                    // 静かモード（按分など一括処理）では確認を出さずスキップ
+                    if (silent) {
+                        console.warn(`[updateInventoryCost] 在庫が見つからないためスキップ（${projectPrefix}-${projectNumber} / ${productName}）`);
+                        return;
+                    }
                     // 在庫が見つからない場合は新規追加を提案
                     const confirmAdd = confirm(`在庫が見つかりません（${projectPrefix}-${projectNumber}）\n\n新規追加しますか？\n\n製品名: ${productName}\n数量: ${quantity}台\n取得金: ¥${costPerUnit.toLocaleString()}/台`);
                     
@@ -6401,10 +6411,22 @@
             });
 
             await saveData();
+
+            // 按分先それぞれの在庫取得金を再計算（原価算入諸費用＝送料等を単価に反映）
+            // silent=true で在庫未検出の確認は出さない
+            showStatus('在庫取得金を再計算中...');
+            for (const p of selectedProjects) {
+                try {
+                    await updateInventoryCost(p, true);
+                } catch (e) {
+                    console.error('按分後の取得金更新エラー:', formatProjectNumber(p), e);
+                }
+            }
+
             closeModal('allocateExpenseModal');
             renderMain();
             
-            showStatus(`✅ ${selectedProjects.length}件に諸費用を按分しました`);
+            showStatus(`✅ ${selectedProjects.length}件に諸費用を按分し、在庫取得金に反映しました`);
             setTimeout(() => showStatus(''), 3000);
         }
 
