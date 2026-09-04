@@ -830,22 +830,21 @@
             const pageW = pdf.internal.pageSize.getWidth();
             const pageH = pdf.internal.pageSize.getHeight();
             const margin = 8;
-            const imgW = pageW - margin * 2;
-            const pxPerMm = shot.width / imgW;           // 画像px→mm換算
-            const pageContentPx = (pageH - margin * 2) * pxPerMm; // 1ページに入るpx高さ
-            let srcY = 0;
-            let first = true;
-            while (srcY < shot.height) {
-                const sliceH = Math.min(pageContentPx, shot.height - srcY);
-                const slice = document.createElement('canvas');
-                slice.width = shot.width;
-                slice.height = sliceH;
-                slice.getContext('2d').drawImage(shot, 0, srcY, shot.width, sliceH, 0, 0, shot.width, sliceH);
-                if (!first) pdf.addPage();
-                pdf.addImage(slice.toDataURL('image/png'), 'PNG', margin, margin, imgW, sliceH / pxPerMm);
-                srcY += sliceH;
-                first = false;
+            const availW = pageW - margin * 2;
+            const availH = pageH - margin * 2;
+
+            // 画像のアスペクト比を保ったまま、幅・高さ両方が1ページに収まる倍率で縮小フィット
+            const imgRatio = shot.width / shot.height;
+            let drawW = availW;
+            let drawH = drawW / imgRatio;
+            if (drawH > availH) {          // 縦がはみ出すなら高さ基準に切り替え
+                drawH = availH;
+                drawW = drawH * imgRatio;
             }
+            // 横方向は中央寄せ
+            const offsetX = margin + (availW - drawW) / 2;
+            pdf.addImage(imgData, 'PNG', offsetX, margin, drawW, drawH);
+
             const fileName = `検品_${formatProjectNumber(item.orderPrefix, item.orderNumber)}_${(item.serial || 'NoSerial')}_${new Date().toISOString().split('T')[0]}.pdf`;
             pdf.save(fileName);
         }
