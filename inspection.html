@@ -9,6 +9,8 @@
     <script src="https://apis.google.com/js/api.js" async defer></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script>
         tailwind.config = { darkMode: 'class' }
     </script>
@@ -616,23 +618,21 @@
                 return;
             }
 
-            // 左ペインのチェックリスト（設定の INSPECTION_CHECKLIST を使用）
-            const checklistHtml = INSPECTION_CHECKLIST.map((ci, index) => {
-                const refBtn = ci.slideId
-                    ? `<button type="button" onclick="showReference('${ci.slideId}', ${index})" class="shrink-0 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200">📄 参考</button>`
-                    : (ci.note
-                        ? `<button type="button" onclick="showNote(${index})" class="shrink-0 px-2 py-1 text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded hover:bg-slate-200">ℹ️ 補足</button>`
-                        : '');
-                return `
-                <div class="flex items-start gap-2 p-2 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                    <input type="checkbox" id="check${index}" class="mt-1 w-6 h-6 rounded text-green-600 shrink-0">
-                    <label for="check${index}" class="flex-1 min-w-0 cursor-pointer">
+            const today = new Date().toISOString().split('T')[0];
+
+            // 左ペインのチェックリスト。チェック欄＝手書きcanvas（自動レ点なし）。
+            // 行（項目名エリア）をクリックすると右に該当シートを表示。
+            const checklistHtml = INSPECTION_CHECKLIST.map((ci, index) => `
+                <div class="flex items-stretch border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
+                    <div class="flex-1 min-w-0 p-2 cursor-pointer active:bg-blue-50 dark:active:bg-slate-700" onclick="openItemReference(${index})">
                         <span class="text-sm font-semibold text-slate-800 dark:text-white">${index + 1}. ${ci.name}</span>
                         <span class="block text-xs text-slate-500 dark:text-slate-400">${ci.desc}</span>
-                    </label>
-                    ${refBtn}
-                </div>`;
-            }).join('');
+                    </div>
+                    <div class="shrink-0 w-20 border-l border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/40">
+                        <canvas id="ink${index}" class="w-full h-full block" style="touch-action:none; min-height:52px;"></canvas>
+                    </div>
+                </div>
+            `).join('');
 
             const overlay = document.createElement('div');
             overlay.id = 'inspectionModal';
@@ -652,17 +652,24 @@
                 <!-- 本体：左右分割（狭い画面では上下に積む） -->
                 <div class="flex-1 min-h-0 flex flex-col md:flex-row">
 
-                    <!-- 左：検品項目 -->
+                    <!-- 左：検品項目（手書きチェック） -->
                     <div class="md:w-2/5 md:max-w-md flex flex-col min-h-0 border-b md:border-b-0 md:border-r border-slate-700 bg-white dark:bg-slate-800">
-                        <div class="flex-1 overflow-y-auto p-3 space-y-2">
-                            <div class="flex items-center justify-between">
-                                <p class="text-sm font-bold text-slate-700 dark:text-slate-300">検品項目</p>
-                                <button type="button" onclick="toggleAllChecks()" class="text-xs text-green-600 hover:text-green-800">全部チェック</button>
+                        <div class="flex-1 overflow-y-auto p-3">
+                            <!-- ここが PDF 出力対象 -->
+                            <div id="inspectionSheet" class="bg-white p-3 rounded">
+                                <div class="mb-3 pb-2 border-b border-slate-300">
+                                    <p class="font-bold text-slate-900">屋外サイネージ 検品チェックシート</p>
+                                    <p class="text-xs text-slate-600 mt-0.5">案件: ${formatProjectNumber(item.orderPrefix, item.orderNumber)}　Serial: ${item.serial || '未設定'}</p>
+                                    <p class="text-xs text-slate-600">製品: ${item.productName}</p>
+                                    <p class="text-xs text-slate-600">検品者: ${currentUser}　検品日: ${today}</p>
+                                </div>
+                                <div class="space-y-2">
+                                    ${checklistHtml}
+                                </div>
                             </div>
-                            ${checklistHtml}
 
-                            <!-- 不良時の入力（不良品を押すと開く） -->
-                            <div id="defectSection" class="hidden space-y-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                            <!-- 不良時の入力（不良品を押すと開く。PDFには含めない） -->
+                            <div id="defectSection" class="hidden mt-3 space-y-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
                                 <div>
                                     <label class="block text-xs font-semibold text-red-700 dark:text-red-400 mb-1">不良理由</label>
                                     <select id="defectReason" class="w-full p-2 text-sm border border-red-300 dark:border-red-700 rounded-lg dark:bg-slate-700 dark:text-white">
@@ -682,10 +689,14 @@
                                     </select>
                                 </div>
                             </div>
+
+                            <div class="mt-2 text-right">
+                                <button type="button" onclick="clearAllInk()" class="text-xs text-slate-500 hover:text-red-600">手書きを全消し</button>
+                            </div>
                         </div>
-                        <!-- 判定ボタン（左ペイン下部に固定） -->
+                        <!-- 判定ボタン（左ペイン下部に固定）。押すとPDF出力＋記録 -->
                         <div class="shrink-0 p-3 border-t border-slate-200 dark:border-slate-700 grid grid-cols-2 gap-2 bg-white dark:bg-slate-800">
-                            <button onclick="completeInspection('${item.id}', '良品')" class="py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700">✓ 良品</button>
+                            <button onclick="completeInspection('${item.id}', '良品')" class="py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700">✓ 良品で完了</button>
                             <button id="defectBtn" class="py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700">✕ 不良品</button>
                         </div>
                     </div>
@@ -693,8 +704,8 @@
                     <!-- 右：参考資料（スライド埋め込み） -->
                     <div class="flex-1 min-h-0 flex flex-col bg-slate-100 dark:bg-slate-900">
                         <div class="shrink-0 px-3 py-2 flex items-center justify-between bg-slate-200 dark:bg-slate-700">
-                            <p class="text-sm font-bold text-slate-700 dark:text-slate-200">📄 参考資料</p>
-                            <a href="https://docs.google.com/presentation/d/${REFERENCE_SLIDES_ID}/edit" target="_blank" rel="noopener" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">別タブで開く ↗</a>
+                            <p class="text-sm font-bold text-slate-700 dark:text-slate-200">📄 参考資料（項目をタップで切替）</p>
+                            <a href="https://docs.google.com/presentation/d/${REFERENCE_SLIDES_ID}/edit" target="_blank" rel="noopener" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">別タブ ↗</a>
                         </div>
                         <div id="referenceNote" class="hidden shrink-0 p-3 text-sm text-slate-700 dark:text-slate-200 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 whitespace-pre-wrap"></div>
                         <div class="flex-1 min-h-0">
@@ -705,17 +716,96 @@
             `;
             document.body.appendChild(overlay);
 
-            // 不良品ボタン：1回目で不良入力を開く／2回目で確定
+            // 手書きcanvasを初期化
+            initInkCanvases();
+
+            // 不良品ボタン：1回目で不良入力を開く／2回目で確定（PDFも出る）
             document.getElementById('defectBtn').onclick = function () {
                 const section = document.getElementById('defectSection');
                 if (section.classList.contains('hidden')) {
                     section.classList.remove('hidden');
                     section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    this.textContent = '✕ 不良品で確定';
+                    this.textContent = '✕ 不良品で完了';
                 } else {
                     completeInspection(item.id, '不良品');
                 }
             };
+        }
+
+        // 項目クリック → 右に該当シートを表示
+        function openItemReference(index) {
+            const ci = INSPECTION_CHECKLIST[index];
+            if (!ci) return;
+            if (ci.slideId) showReference(ci.slideId, index);
+            else if (ci.note) showNote(index);
+            else showReference(null, index);
+        }
+
+        // 手書きcanvasの初期化（各項目のチェック欄に指で書ける）
+        function initInkCanvases() {
+            INSPECTION_CHECKLIST.forEach((_, i) => {
+                const c = document.getElementById('ink' + i);
+                if (!c) return;
+                const rect = c.getBoundingClientRect();
+                c.width = Math.max(1, Math.round(rect.width));
+                c.height = Math.max(1, Math.round(rect.height));
+                const ctx = c.getContext('2d');
+                ctx.strokeStyle = '#15803d'; // green-700
+                ctx.lineWidth = 3;
+                ctx.lineJoin = 'round';
+                ctx.lineCap = 'round';
+                let drawing = false, lastX = 0, lastY = 0;
+                const pos = (e) => {
+                    const r = c.getBoundingClientRect();
+                    return { x: e.clientX - r.left, y: e.clientY - r.top };
+                };
+                c.addEventListener('pointerdown', (e) => { drawing = true; const p = pos(e); lastX = p.x; lastY = p.y; try { c.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); });
+                c.addEventListener('pointermove', (e) => { if (!drawing) return; const p = pos(e); ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke(); lastX = p.x; lastY = p.y; e.preventDefault(); });
+                c.addEventListener('pointerup', () => { drawing = false; });
+                c.addEventListener('pointercancel', () => { drawing = false; });
+            });
+        }
+
+        // 手書きを全部消す
+        function clearAllInk() {
+            INSPECTION_CHECKLIST.forEach((_, i) => {
+                const c = document.getElementById('ink' + i);
+                if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+            });
+        }
+
+        // 検品シート（手書き入り）をPDF化してダウンロード
+        async function generateInspectionPDF(item) {
+            const sheet = document.getElementById('inspectionSheet');
+            if (!sheet || typeof html2canvas === 'undefined' || !window.jspdf) {
+                console.warn('PDFライブラリまたは対象要素が見つかりません');
+                return;
+            }
+            const shot = await html2canvas(sheet, { backgroundColor: '#ffffff', scale: 2, onclone: (doc) => { doc.documentElement.classList.remove('dark'); } });
+            const imgData = shot.toDataURL('image/png');
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+            const pageW = pdf.internal.pageSize.getWidth();
+            const pageH = pdf.internal.pageSize.getHeight();
+            const margin = 8;
+            const imgW = pageW - margin * 2;
+            const pxPerMm = shot.width / imgW;           // 画像px→mm換算
+            const pageContentPx = (pageH - margin * 2) * pxPerMm; // 1ページに入るpx高さ
+            let srcY = 0;
+            let first = true;
+            while (srcY < shot.height) {
+                const sliceH = Math.min(pageContentPx, shot.height - srcY);
+                const slice = document.createElement('canvas');
+                slice.width = shot.width;
+                slice.height = sliceH;
+                slice.getContext('2d').drawImage(shot, 0, srcY, shot.width, sliceH, 0, 0, shot.width, sliceH);
+                if (!first) pdf.addPage();
+                pdf.addImage(slice.toDataURL('image/png'), 'PNG', margin, margin, imgW, sliceH / pxPerMm);
+                srcY += sliceH;
+                first = false;
+            }
+            const fileName = `検品_${formatProjectNumber(item.orderPrefix, item.orderNumber)}_${(item.serial || 'NoSerial')}_${new Date().toISOString().split('T')[0]}.pdf`;
+            pdf.save(fileName);
         }
 
         // 右ペインに参考スライドを表示（項目の「参考」ボタン）
@@ -829,6 +919,14 @@
                         ]]
                     }
                 });
+
+                // 手書き入り検品シートをPDF出力（DOMを閉じる前に実行）
+                try {
+                    await generateInspectionPDF(item);
+                } catch (pdfErr) {
+                    console.error('PDF出力エラー:', pdfErr);
+                    alert('検品は記録しましたが、PDF出力に失敗しました。');
+                }
 
                 closeInspectionModal();
                 
