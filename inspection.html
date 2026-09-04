@@ -620,18 +620,19 @@
 
             const today = new Date().toISOString().split('T')[0];
 
-            // 左ペインのチェックリスト。チェック欄＝手書きcanvas（自動レ点なし）。
-            // 行（項目名エリア）をクリックすると右に該当シートを表示。
-            const checklistHtml = INSPECTION_CHECKLIST.map((ci, index) => `
-                <div class="flex items-stretch border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
-                    <div class="flex-1 min-w-0 p-2 cursor-pointer active:bg-blue-50 dark:active:bg-slate-700" onclick="openItemReference(${index})">
-                        <span class="text-sm font-semibold text-slate-800 dark:text-white">${index + 1}. ${ci.name}</span>
-                        <span class="block text-xs text-slate-500 dark:text-slate-400">${ci.desc}</span>
-                    </div>
-                    <div class="shrink-0 w-20 border-l border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/40">
-                        <canvas id="ink${index}" class="w-full h-full block" style="touch-action:none; min-height:52px;"></canvas>
-                    </div>
-                </div>
+            // 左ペイン＝紙の検品シート体裁（罫線付きの表）。チェック欄＝手書きcanvas。
+            // 項目行クリックで右に該当シート表示。
+            const bd = 'border:1px solid #94a3b8;';
+            const cellPad = 'padding:5px 6px;';
+            const checklistRows = INSPECTION_CHECKLIST.map((ci, index) => `
+                <tr>
+                    <td style="${bd}${cellPad}text-align:center;font-size:12px;color:#0f172a;">${index + 1}</td>
+                    <td style="${bd}${cellPad}font-size:12px;font-weight:600;color:#0f172a;cursor:pointer;" onclick="openItemReference(${index})">${ci.name}</td>
+                    <td style="${bd}${cellPad}font-size:11px;color:#334155;cursor:pointer;" onclick="openItemReference(${index})">${ci.desc}</td>
+                    <td style="${bd}padding:0;width:84px;background:#f8fafc;">
+                        <canvas id="ink${index}" style="display:block;width:100%;height:46px;touch-action:none;"></canvas>
+                    </td>
+                </tr>
             `).join('');
 
             const overlay = document.createElement('div');
@@ -653,18 +654,57 @@
                 <div class="flex-1 min-h-0 flex flex-col md:flex-row">
 
                     <!-- 左：検品項目（手書きチェック） -->
-                    <div class="md:w-2/5 md:max-w-md flex flex-col min-h-0 border-b md:border-b-0 md:border-r border-slate-700 bg-white dark:bg-slate-800">
+                    <div class="md:w-1/2 md:max-w-xl flex flex-col min-h-0 border-b md:border-b-0 md:border-r border-slate-700 bg-white dark:bg-slate-800">
                         <div class="flex-1 overflow-y-auto p-3">
-                            <!-- ここが PDF 出力対象 -->
-                            <div id="inspectionSheet" class="bg-white p-3 rounded">
-                                <div class="mb-3 pb-2 border-b border-slate-300">
-                                    <p class="font-bold text-slate-900">屋外サイネージ 検品チェックシート</p>
-                                    <p class="text-xs text-slate-600 mt-0.5">案件: ${formatProjectNumber(item.orderPrefix, item.orderNumber)}　Serial: ${item.serial || '未設定'}</p>
-                                    <p class="text-xs text-slate-600">製品: ${item.productName}</p>
-                                    <p class="text-xs text-slate-600">検品者: ${currentUser}　検品日: ${today}</p>
-                                </div>
-                                <div class="space-y-2">
-                                    ${checklistHtml}
+                            <!-- ここが PDF 出力対象（紙シート体裁） -->
+                            <div id="inspectionSheet" style="background:#ffffff;padding:16px;color:#0f172a;">
+                                <p style="text-align:center;font-size:16px;font-weight:700;margin:0 0 10px;">屋外サイネージ 検品チェックシート</p>
+
+                                <!-- 案件情報枠 -->
+                                <table style="width:100%;border-collapse:collapse;margin-bottom:10px;">
+                                    <tr>
+                                        <td style="${bd}${cellPad}font-size:11px;background:#f1f5f9;width:70px;">検品日</td>
+                                        <td style="${bd}${cellPad}font-size:12px;">${today}</td>
+                                        <td style="${bd}${cellPad}font-size:11px;background:#f1f5f9;width:70px;">検品者</td>
+                                        <td style="${bd}${cellPad}font-size:12px;">${currentUser}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="${bd}${cellPad}font-size:11px;background:#f1f5f9;">案件番号</td>
+                                        <td style="${bd}${cellPad}font-size:12px;">${formatProjectNumber(item.orderPrefix, item.orderNumber)}</td>
+                                        <td style="${bd}${cellPad}font-size:11px;background:#f1f5f9;">Serial</td>
+                                        <td style="${bd}${cellPad}font-size:12px;">${item.serial || '未設定'}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="${bd}${cellPad}font-size:11px;background:#f1f5f9;">製品名</td>
+                                        <td style="${bd}${cellPad}font-size:12px;" colspan="3">${item.productName}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="${bd}${cellPad}font-size:11px;background:#f1f5f9;">総合判定</td>
+                                        <td style="${bd}${cellPad}font-size:13px;font-weight:700;" colspan="3"><span id="overallResult">－</span></td>
+                                    </tr>
+                                </table>
+
+                                <!-- 検品項目表 -->
+                                <table style="width:100%;border-collapse:collapse;">
+                                    <thead>
+                                        <tr>
+                                            <td style="${bd}${cellPad}font-size:11px;font-weight:700;background:#e2e8f0;text-align:center;width:28px;">No.</td>
+                                            <td style="${bd}${cellPad}font-size:11px;font-weight:700;background:#e2e8f0;">点検項目</td>
+                                            <td style="${bd}${cellPad}font-size:11px;font-weight:700;background:#e2e8f0;">確認内容・手順</td>
+                                            <td style="${bd}${cellPad}font-size:11px;font-weight:700;background:#e2e8f0;text-align:center;width:84px;">チェック</td>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${checklistRows}
+                                    </tbody>
+                                </table>
+
+                                <!-- 検品者サイン -->
+                                <div style="margin-top:12px;display:flex;align-items:center;gap:8px;">
+                                    <span style="font-size:12px;color:#334155;white-space:nowrap;">検品者サイン</span>
+                                    <div style="flex:1;${bd}height:56px;">
+                                        <canvas id="inkSign" style="display:block;width:100%;height:100%;touch-action:none;"></canvas>
+                                    </div>
                                 </div>
                             </div>
 
@@ -741,37 +781,39 @@
             else showReference(null, index);
         }
 
-        // 手書きcanvasの初期化（各項目のチェック欄に指で書ける）
+        // 1つのcanvasを手書き可能にする
+        function enableInkCanvas(c) {
+            if (!c) return;
+            const rect = c.getBoundingClientRect();
+            c.width = Math.max(1, Math.round(rect.width));
+            c.height = Math.max(1, Math.round(rect.height));
+            const ctx = c.getContext('2d');
+            ctx.strokeStyle = '#15803d'; // green-700
+            ctx.lineWidth = 3;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            let drawing = false, lastX = 0, lastY = 0;
+            const pos = (e) => {
+                const r = c.getBoundingClientRect();
+                return { x: e.clientX - r.left, y: e.clientY - r.top };
+            };
+            c.addEventListener('pointerdown', (e) => { drawing = true; const p = pos(e); lastX = p.x; lastY = p.y; try { c.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); });
+            c.addEventListener('pointermove', (e) => { if (!drawing) return; const p = pos(e); ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke(); lastX = p.x; lastY = p.y; e.preventDefault(); });
+            c.addEventListener('pointerup', () => { drawing = false; });
+            c.addEventListener('pointercancel', () => { drawing = false; });
+        }
+
+        // 手書きcanvasの初期化（各項目のチェック欄＋サイン欄）
         function initInkCanvases() {
-            INSPECTION_CHECKLIST.forEach((_, i) => {
-                const c = document.getElementById('ink' + i);
-                if (!c) return;
-                const rect = c.getBoundingClientRect();
-                c.width = Math.max(1, Math.round(rect.width));
-                c.height = Math.max(1, Math.round(rect.height));
-                const ctx = c.getContext('2d');
-                ctx.strokeStyle = '#15803d'; // green-700
-                ctx.lineWidth = 3;
-                ctx.lineJoin = 'round';
-                ctx.lineCap = 'round';
-                let drawing = false, lastX = 0, lastY = 0;
-                const pos = (e) => {
-                    const r = c.getBoundingClientRect();
-                    return { x: e.clientX - r.left, y: e.clientY - r.top };
-                };
-                c.addEventListener('pointerdown', (e) => { drawing = true; const p = pos(e); lastX = p.x; lastY = p.y; try { c.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); });
-                c.addEventListener('pointermove', (e) => { if (!drawing) return; const p = pos(e); ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke(); lastX = p.x; lastY = p.y; e.preventDefault(); });
-                c.addEventListener('pointerup', () => { drawing = false; });
-                c.addEventListener('pointercancel', () => { drawing = false; });
-            });
+            INSPECTION_CHECKLIST.forEach((_, i) => enableInkCanvas(document.getElementById('ink' + i)));
+            enableInkCanvas(document.getElementById('inkSign'));
         }
 
         // 手書きを全部消す
         function clearAllInk() {
-            INSPECTION_CHECKLIST.forEach((_, i) => {
-                const c = document.getElementById('ink' + i);
-                if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
-            });
+            const clear = (c) => { if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height); };
+            INSPECTION_CHECKLIST.forEach((_, i) => clear(document.getElementById('ink' + i)));
+            clear(document.getElementById('inkSign'));
         }
 
         // 検品シート（手書き入り）をPDF化してダウンロード
@@ -920,8 +962,10 @@
                     }
                 });
 
-                // 手書き入り検品シートをPDF出力（DOMを閉じる前に実行）
+                // 総合判定を検品シートに反映してからPDF出力（DOMを閉じる前に実行）
                 try {
+                    const rEl = document.getElementById('overallResult');
+                    if (rEl) rEl.textContent = result;
                     await generateInspectionPDF(item);
                 } catch (pdfErr) {
                     console.error('PDF出力エラー:', pdfErr);
