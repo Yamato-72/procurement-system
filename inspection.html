@@ -64,6 +64,42 @@
             '保留'
         ];
 
+        // ============================================================
+        // 検品チェックリスト設定（ここを編集すれば項目を調整できます）
+        // ============================================================
+        // 参考資料のGoogleスライド（右ペインに埋め込み表示）
+        // ※スライドは「リンクを知っている全員が閲覧可」または「ウェブに公開」にしておくこと
+        const REFERENCE_SLIDES_ID = '1svgByR6Q_4uDGW3Tu-BFCgReN19QwoTewelb7IZNkdE';
+
+        // スライドの埋め込みURLを組み立てる。slideId を渡すとそのスライドを先頭表示。
+        function buildSlideEmbedUrl(slideId) {
+            let url = `https://docs.google.com/presentation/d/${REFERENCE_SLIDES_ID}/embed?start=false&loop=false&rm=minimal`;
+            if (slideId) url += `&slide=${slideId}`;
+            return url;
+        }
+
+        // 検品項目（屋外サイネージ / STUDIA）
+        //   name     : 点検項目
+        //   desc     : 確認内容・手順
+        //   slideId  : 参考スライドのID（あれば「参考」ボタンで右ペインに表示）。無ければ null
+        //   note     : 参考テキスト（スライドではなく文章で示したい場合。任意）
+        const INSPECTION_CHECKLIST = [
+            { name: '付属品確認', desc: 'リモコンやその他の付属品が揃っているか確認、撮影する', slideId: 'g3fa14e77340_0_0', note: '' },
+            { name: '外観写真撮影', desc: '製品の「前後左右4方向」から外観写真を撮影する', slideId: null, note: '' },
+            { name: '背面内部の確認・撮影', desc: '後ろ扉を開け、カバー四隅にねじが正しく留まっているか確認し、撮影する', slideId: null, note: '' },
+            { name: '内部基板・電池の確認', desc: 'それぞれのボードやケーブルの接続状況を細かく確認・撮影し、ボタン電池を確認する', slideId: null, note: '' },
+            { name: '電源動作', desc: '電源のON/OFFが正常に行えるか', slideId: null, note: '' },
+            { name: 'リモコン操作', desc: 'リモコンが正常に動作するか', slideId: null, note: '' },
+            { name: '音量確認', desc: '音量が正常に出力・確認できるか', slideId: null, note: '' },
+            { name: 'Wi-Fi接続・ネット確認', desc: 'Wi-Fiに接続し、実際にインターネット接続ができるか試す', slideId: null, note: '' },
+            { name: '日時・言語設定', desc: 'システムの日時、言語合わせを行う(日本)', slideId: null, note: '' },
+            { name: '明るさ調整', desc: '画面の明るさ調整ができるか。自動明るさ調整はスマホのライト等を当てて動作するか確認する', slideId: null, note: '' },
+            { name: 'HDMI入力確認', desc: 'HDMIを接続し、画面が表示されるか、また文字崩れがないか確認する', slideId: null, note: '' },
+            { name: 'USB自動再生', desc: 'USBを挿入した際、自動再生され、ループ再生するか確認する', slideId: null, note: '' },
+            { name: 'バージョン確認', desc: 'システムのバージョン確認を行い、撮影する', slideId: null, note: '確認方法：設定→タブレット情報を7回クリック→開発者向けオプション→システム→WebViewの実装 を撮影。また Android バージョン等の画面も撮影する' },
+            { name: 'データ削除', desc: '取り込んだ動画や画像、Wi-Fi接続等を削除する', slideId: null, note: '動画削除：設定→ファイルマネージャー→InternalMemory→MagicPlayer→Resource を長押し→削除' },
+        ];
+
         // ダークモード初期化
         if (isDarkMode) {
             document.documentElement.classList.add('dark');
@@ -580,100 +616,131 @@
                 return;
             }
 
-            // 種別に応じた検品項目を取得
-            const checkItems = getInspectionItemsForCategory(item.category);
-            const checklistHtml = checkItems.map((itemName, index) => `
-                <label class="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg cursor-pointer">
-                    <input type="checkbox" id="check${index}" class="w-5 h-5 rounded text-green-600">
-                    <span class="text-sm text-slate-700 dark:text-slate-300">${itemName}</span>
-                </label>
-            `).join('');
+            // 左ペインのチェックリスト（設定の INSPECTION_CHECKLIST を使用）
+            const checklistHtml = INSPECTION_CHECKLIST.map((ci, index) => {
+                const refBtn = ci.slideId
+                    ? `<button type="button" onclick="showReference('${ci.slideId}', ${index})" class="shrink-0 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200">📄 参考</button>`
+                    : (ci.note
+                        ? `<button type="button" onclick="showNote(${index})" class="shrink-0 px-2 py-1 text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded hover:bg-slate-200">ℹ️ 補足</button>`
+                        : '');
+                return `
+                <div class="flex items-start gap-2 p-2 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                    <input type="checkbox" id="check${index}" class="mt-1 w-6 h-6 rounded text-green-600 shrink-0">
+                    <label for="check${index}" class="flex-1 min-w-0 cursor-pointer">
+                        <span class="text-sm font-semibold text-slate-800 dark:text-white">${index + 1}. ${ci.name}</span>
+                        <span class="block text-xs text-slate-500 dark:text-slate-400">${ci.desc}</span>
+                    </label>
+                    ${refBtn}
+                </div>`;
+            }).join('');
 
-            const modal = document.createElement('div');
-            modal.id = 'inspectionModal';
-            modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
-            modal.innerHTML = `
-                <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
-                    <div class="p-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white">
-                        <h3 class="font-bold text-lg">検品実施</h3>
-                        <p class="text-sm text-green-100">検品者: ${currentUser}</p>
-                    </div>
-                    
-                    <div class="p-4 border-b dark:border-slate-700">
-                        <p class="text-lg font-bold text-slate-900 dark:text-white">${item.productName}</p>
-                        <p class="text-sm text-blue-600 dark:text-blue-400 font-mono">${formatProjectNumber(item.orderPrefix, item.orderNumber)}</p>
-                        <p class="text-sm text-slate-500 dark:text-slate-400">Serial: ${item.serial || '未設定'}</p>
-                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                            サプライヤー: ${getSupplierName(item.supplierId)} | 種別: ${item.category || '未設定'}
+            const overlay = document.createElement('div');
+            overlay.id = 'inspectionModal';
+            overlay.className = 'fixed inset-0 bg-slate-900 z-50 flex flex-col';
+            overlay.innerHTML = `
+                <!-- ヘッダー -->
+                <div class="shrink-0 px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white flex items-center justify-between">
+                    <div class="min-w-0">
+                        <p class="font-bold text-base sm:text-lg truncate">${item.productName}</p>
+                        <p class="text-xs text-green-100 truncate">
+                            ${formatProjectNumber(item.orderPrefix, item.orderNumber)} ｜ Serial: ${item.serial || '未設定'} ｜ 検品者: ${currentUser}
                         </p>
                     </div>
+                    <button onclick="closeInspectionModal()" class="shrink-0 ml-3 px-3 py-2 bg-white/20 rounded-lg hover:bg-white/30 text-sm">✕ 閉じる</button>
+                </div>
 
-                    <div class="p-4 space-y-4">
-                        <!-- 検品チェックリスト（種別に応じた項目） -->
-                        <div class="space-y-2">
-                            <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                                チェック項目
-                                <span class="text-xs font-normal text-slate-500">（${item.category || '共通'}）</span>
-                            </p>
+                <!-- 本体：左右分割（狭い画面では上下に積む） -->
+                <div class="flex-1 min-h-0 flex flex-col md:flex-row">
+
+                    <!-- 左：検品項目 -->
+                    <div class="md:w-2/5 md:max-w-md flex flex-col min-h-0 border-b md:border-b-0 md:border-r border-slate-700 bg-white dark:bg-slate-800">
+                        <div class="flex-1 overflow-y-auto p-3 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <p class="text-sm font-bold text-slate-700 dark:text-slate-300">検品項目</p>
+                                <button type="button" onclick="toggleAllChecks()" class="text-xs text-green-600 hover:text-green-800">全部チェック</button>
+                            </div>
                             ${checklistHtml}
-                        </div>
 
-                        <!-- 不良時の入力 -->
-                        <div id="defectSection" class="hidden space-y-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-                            <div>
-                                <label class="block text-sm font-semibold text-red-700 dark:text-red-400 mb-1">不良理由</label>
-                                <select id="defectReason" class="w-full p-2 border border-red-300 dark:border-red-700 rounded-lg dark:bg-slate-700 dark:text-white">
-                                    <option value="">選択してください</option>
-                                    ${DEFECT_REASONS.map(r => `<option value="${r}">${r}</option>`).join('')}
-                                </select>
+                            <!-- 不良時の入力（不良品を押すと開く） -->
+                            <div id="defectSection" class="hidden space-y-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                                <div>
+                                    <label class="block text-xs font-semibold text-red-700 dark:text-red-400 mb-1">不良理由</label>
+                                    <select id="defectReason" class="w-full p-2 text-sm border border-red-300 dark:border-red-700 rounded-lg dark:bg-slate-700 dark:text-white">
+                                        <option value="">選択してください</option>
+                                        ${DEFECT_REASONS.map(r => `<option value="${r}">${r}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-red-700 dark:text-red-400 mb-1">詳細</label>
+                                    <textarea id="defectDetail" rows="2" class="w-full p-2 text-sm border border-red-300 dark:border-red-700 rounded-lg dark:bg-slate-700 dark:text-white" placeholder="具体的な不良内容"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-red-700 dark:text-red-400 mb-1">対応</label>
+                                    <select id="defectAction" class="w-full p-2 text-sm border border-red-300 dark:border-red-700 rounded-lg dark:bg-slate-700 dark:text-white">
+                                        <option value="">選択してください</option>
+                                        ${DEFECT_ACTIONS.map(a => `<option value="${a}">${a}</option>`).join('')}
+                                    </select>
+                                </div>
                             </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-red-700 dark:text-red-400 mb-1">詳細</label>
-                                <textarea id="defectDetail" rows="2" class="w-full p-2 border border-red-300 dark:border-red-700 rounded-lg dark:bg-slate-700 dark:text-white" placeholder="具体的な不良内容"></textarea>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-red-700 dark:text-red-400 mb-1">対応</label>
-                                <select id="defectAction" class="w-full p-2 border border-red-300 dark:border-red-700 rounded-lg dark:bg-slate-700 dark:text-white">
-                                    <option value="">選択してください</option>
-                                    ${DEFECT_ACTIONS.map(a => `<option value="${a}">${a}</option>`).join('')}
-                                </select>
-                            </div>
+                        </div>
+                        <!-- 判定ボタン（左ペイン下部に固定） -->
+                        <div class="shrink-0 p-3 border-t border-slate-200 dark:border-slate-700 grid grid-cols-2 gap-2 bg-white dark:bg-slate-800">
+                            <button onclick="completeInspection('${item.id}', '良品')" class="py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700">✓ 良品</button>
+                            <button id="defectBtn" class="py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700">✕ 不良品</button>
                         </div>
                     </div>
 
-                    <div class="p-4 border-t dark:border-slate-700 space-y-3">
-                        <div class="grid grid-cols-2 gap-3">
-                            <button onclick="completeInspection('${item.id}', '良品')" class="py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                                </svg>
-                                良品
-                            </button>
-                            <button onclick="showDefectSection(); completeInspection('${item.id}', '不良品')" id="defectBtn" class="py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                </svg>
-                                不良品
-                            </button>
+                    <!-- 右：参考資料（スライド埋め込み） -->
+                    <div class="flex-1 min-h-0 flex flex-col bg-slate-100 dark:bg-slate-900">
+                        <div class="shrink-0 px-3 py-2 flex items-center justify-between bg-slate-200 dark:bg-slate-700">
+                            <p class="text-sm font-bold text-slate-700 dark:text-slate-200">📄 参考資料</p>
+                            <a href="https://docs.google.com/presentation/d/${REFERENCE_SLIDES_ID}/edit" target="_blank" rel="noopener" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">別タブで開く ↗</a>
                         </div>
-                        <button onclick="closeInspectionModal()" class="w-full py-2 border dark:border-slate-600 text-slate-600 dark:text-slate-400 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700">
-                            キャンセル
-                        </button>
+                        <div id="referenceNote" class="hidden shrink-0 p-3 text-sm text-slate-700 dark:text-slate-200 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 whitespace-pre-wrap"></div>
+                        <div class="flex-1 min-h-0">
+                            <iframe id="referenceFrame" src="${buildSlideEmbedUrl(null)}" class="w-full h-full border-0" allowfullscreen></iframe>
+                        </div>
                     </div>
                 </div>
             `;
-            document.body.appendChild(modal);
+            document.body.appendChild(overlay);
 
-            // 不良品ボタンの動作を修正
-            document.getElementById('defectBtn').onclick = function() {
+            // 不良品ボタン：1回目で不良入力を開く／2回目で確定
+            document.getElementById('defectBtn').onclick = function () {
                 const section = document.getElementById('defectSection');
                 if (section.classList.contains('hidden')) {
                     section.classList.remove('hidden');
-                    this.textContent = '不良品で確定';
+                    section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    this.textContent = '✕ 不良品で確定';
                 } else {
                     completeInspection(item.id, '不良品');
                 }
             };
+        }
+
+        // 右ペインに参考スライドを表示（項目の「参考」ボタン）
+        function showReference(slideId, index) {
+            const frame = document.getElementById('referenceFrame');
+            const note = document.getElementById('referenceNote');
+            if (note) note.classList.add('hidden');
+            if (frame) frame.src = buildSlideEmbedUrl(slideId);
+        }
+
+        // 右ペイン上部にテキスト補足を表示（スライドが無い項目）
+        function showNote(index) {
+            const ci = INSPECTION_CHECKLIST[index];
+            const note = document.getElementById('referenceNote');
+            if (note && ci) {
+                note.textContent = `【${ci.name}】\n${ci.note || ci.desc}`;
+                note.classList.remove('hidden');
+            }
+        }
+
+        // 全項目チェックのトグル
+        function toggleAllChecks() {
+            const boxes = INSPECTION_CHECKLIST.map((_, i) => document.getElementById('check' + i)).filter(Boolean);
+            const allChecked = boxes.every(b => b.checked);
+            boxes.forEach(b => { b.checked = !allChecked; });
         }
 
         function showDefectSection() {
