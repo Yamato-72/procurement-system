@@ -18,15 +18,146 @@
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;900&display=swap');
-        * { font-family: 'Noto Sans JP', sans-serif; }
+        :root {
+            --ui-bg: #f4f6f8;
+            --ui-surface: #ffffff;
+            --ui-surface-muted: #f8fafc;
+            --ui-text: #172033;
+            --ui-subtle: #64748b;
+            --ui-line: #e2e8f0;
+            --ui-brand: #2457d6;
+            --ui-brand-strong: #1d46ad;
+            --ui-brand-soft: #edf3ff;
+            --ui-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 10px 30px rgba(15, 23, 42, .05);
+        }
+        html.dark {
+            --ui-bg: #0f172a;
+            --ui-surface: #172033;
+            --ui-surface-muted: #1e293b;
+            --ui-text: #f1f5f9;
+            --ui-subtle: #94a3b8;
+            --ui-line: #334155;
+            --ui-brand: #7aa2ff;
+            --ui-brand-strong: #9bb7ff;
+            --ui-brand-soft: #1d2e55;
+            --ui-shadow: 0 14px 34px rgba(0, 0, 0, .2);
+        }
+        * { font-family: 'Noto Sans JP', sans-serif; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body { margin: 0; background: var(--ui-bg); color: var(--ui-text); }
+        button, a, select, input, textarea { font: inherit; }
+        button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, [role="button"]:focus-visible {
+            outline: 3px solid rgba(37, 99, 235, .28);
+            outline-offset: 2px;
+        }
+        .tabular { font-variant-numeric: tabular-nums; }
+
+        .auth-shell, .loading-shell {
+            min-height: 100vh; display: grid; place-items: center; padding: 24px;
+            background: radial-gradient(circle at 18% 8%, rgba(37, 99, 235, .09), transparent 31%), radial-gradient(circle at 88% 88%, rgba(14, 165, 233, .07), transparent 28%), var(--ui-bg);
+        }
+        .auth-panel { width: min(100%, 430px); padding: 38px; border: 1px solid var(--ui-line); border-radius: 24px; background: var(--ui-surface); box-shadow: var(--ui-shadow); }
+        .auth-mark { display: inline-grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; color: white; background: linear-gradient(145deg, #2f67ea, #1944b3); box-shadow: 0 8px 18px rgba(36, 87, 214, .24); font-size: 24px; font-weight: 900; }
+        .auth-eyebrow { margin-top: 24px; color: var(--ui-brand); font-size: 11px; font-weight: 800; letter-spacing: .16em; }
+        .auth-title { margin-top: 6px; color: var(--ui-text); font-size: 30px; font-weight: 800; letter-spacing: -.03em; }
+        .auth-copy { margin-top: 10px; color: var(--ui-subtle); font-size: 14px; line-height: 1.8; }
+        .auth-button { width: 100%; margin-top: 28px; padding: 13px 18px; border: 0; border-radius: 12px; background: var(--ui-brand); color: white; font-weight: 700; cursor: pointer; box-shadow: 0 8px 20px rgba(36, 87, 214, .2); }
+        .auth-button:hover { background: var(--ui-brand-strong); transform: translateY(-1px); }
+        .auth-note { margin-top: 14px; color: var(--ui-subtle); font-size: 11px; text-align: center; }
+
+        .inventory-shell { min-height: 100vh; background: var(--ui-bg); }
+        .inventory-shell-header {
+            position: sticky; top: 0; z-index: 40;
+            border-bottom: 1px solid var(--ui-line);
+            background: color-mix(in srgb, var(--ui-surface) 94%, transparent);
+            backdrop-filter: blur(14px);
+        }
+        .inventory-header-inner { width: min(100% - 32px, 1400px); margin: 0 auto; padding: 12px 0 10px; }
+        .inventory-header-row { display: flex; align-items: center; gap: 22px; }
+        .brand-lockup { display: flex; align-items: center; gap: 10px; min-width: max-content; text-decoration: none; }
+        .brand-mark {
+            display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 10px;
+            color: white; background: linear-gradient(145deg, #2f67ea, #1944b3);
+            box-shadow: 0 8px 18px rgba(36, 87, 214, .24); font-size: 16px; font-weight: 900;
+        }
+        .brand-title { color: var(--ui-text); font-size: 16px; font-weight: 800; line-height: 1.2; }
+        .brand-subtitle { color: var(--ui-subtle); font-size: 10px; margin-top: 2px; }
+        .global-nav { display: flex; align-items: center; gap: 4px; }
+        .global-nav a { padding: 8px 11px; border-radius: 9px; color: var(--ui-subtle); font-size: 12px; font-weight: 700; text-decoration: none; }
+        .global-nav a:hover { color: var(--ui-text); background: var(--ui-surface-muted); }
+        .global-nav a.active { color: var(--ui-brand); background: var(--ui-brand-soft); }
+        .header-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+        .header-status { max-width: 190px; overflow: hidden; color: var(--ui-brand); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+        .shell-icon-button, .shell-tool-button, .shell-primary-button {
+            min-height: 36px; border: 1px solid var(--ui-line); border-radius: 10px; cursor: pointer;
+        }
+        .shell-icon-button { min-width: 36px; padding: 7px; background: var(--ui-surface); color: var(--ui-subtle); }
+        .shell-tool-button { padding: 7px 11px; background: var(--ui-surface); color: var(--ui-text); font-size: 12px; font-weight: 700; }
+        .shell-primary-button { padding: 7px 13px; border-color: var(--ui-brand); background: var(--ui-brand); color: white; font-size: 12px; font-weight: 800; box-shadow: 0 5px 14px rgba(36, 87, 214, .18); }
+        .shell-icon-button:hover, .shell-tool-button:hover { color: var(--ui-brand); border-color: color-mix(in srgb, var(--ui-brand) 42%, var(--ui-line)); }
+        .shell-primary-button:hover { border-color: var(--ui-brand-strong); background: var(--ui-brand-strong); }
+        .shell-menu {
+            position: absolute; right: 0; width: 250px; margin-top: 8px; overflow: hidden;
+            border: 1px solid var(--ui-line); border-radius: 14px; background: var(--ui-surface); box-shadow: var(--ui-shadow);
+        }
+        .shell-menu button { color: var(--ui-text); }
+        .shell-menu button.menu-accent { color: var(--ui-brand); }
+        .shell-menu button.menu-danger { color: #c62828; }
+        .shell-menu-label { padding: 10px 14px 5px; color: var(--ui-subtle); font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+        .inventory-sync-row { display: flex; align-items: center; gap: 8px; margin: 7px 0 0 44px; color: var(--ui-subtle); font-size: 10px; }
+        .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: #16a34a; box-shadow: 0 0 0 3px rgba(22, 163, 74, .12); }
+        .sync-divider { color: var(--ui-line); }
+        .sync-refresh { border: 0; padding: 0; background: transparent; color: var(--ui-brand); cursor: pointer; }
+        .inventory-main { width: min(100% - 32px, 1400px); margin: 0 auto; padding: 26px 0 100px; }
+        .section-heading { display: flex; align-items: baseline; gap: 8px; margin-bottom: 9px; }
+        .section-heading strong { font-size: 15px; letter-spacing: -.02em; }
+        .section-heading span { color: var(--ui-subtle); font-size: 10px; }
+        .summary-card { min-height: 92px; border: 1px solid var(--ui-line); border-radius: 14px; background: var(--ui-surface); box-shadow: none; }
+        .filter-panel, .inventory-panel { border-color: var(--ui-line) !important; border-radius: 16px !important; background: var(--ui-surface) !important; box-shadow: var(--ui-shadow); }
+        .filter-panel select, .filter-panel input { border-color: var(--ui-line); background: var(--ui-surface); color: var(--ui-text); }
+        .inventory-group-trigger { transition: background-color .15s ease; }
+        .inventory-table-head { position: sticky; top: 88px; z-index: 10; }
+        .mobile-nav { display: none; }
+
+        @media (max-width: 920px) {
+            .global-nav { display: none; }
+            .inventory-header-row { gap: 10px; }
+            .header-status, .header-tool-label { display: none; }
+        }
+        @media (max-width: 640px) {
+            body { padding-bottom: 70px; }
+            .inventory-header-inner, .inventory-main { width: min(100% - 20px, 1400px); }
+            .inventory-header-inner { padding: 9px 0 8px; }
+            .brand-mark { width: 31px; height: 31px; border-radius: 9px; }
+            .brand-title { font-size: 14px; }
+            .brand-subtitle { display: none; }
+            .header-actions { gap: 4px; }
+            .shell-icon-button, .shell-tool-button { min-width: 34px; min-height: 34px; padding: 6px 8px; }
+            .shell-primary-button { min-height: 34px; padding: 6px 9px; }
+            .inventory-sync-row { margin-left: 41px; margin-top: 3px; }
+            .inventory-main { padding-top: 18px; }
+            .summary-card { min-height: 80px; }
+            .auth-panel { padding: 30px 24px; border-radius: 20px; }
+            .mobile-nav {
+                position: fixed; left: 10px; right: 10px; bottom: 9px; z-index: 45;
+                display: grid; grid-template-columns: repeat(4, 1fr); overflow: hidden;
+                border: 1px solid var(--ui-line); border-radius: 16px; background: color-mix(in srgb, var(--ui-surface) 96%, transparent);
+                box-shadow: 0 14px 36px rgba(15, 23, 42, .18); backdrop-filter: blur(14px);
+            }
+            .mobile-nav a { padding: 8px 3px 7px; color: var(--ui-subtle); font-size: 9px; font-weight: 700; text-align: center; text-decoration: none; }
+            .mobile-nav a span { display: block; margin-bottom: 1px; font-size: 16px; }
+            .mobile-nav a.active { color: var(--ui-brand); background: var(--ui-brand-soft); }
+            .inventory-table-head { top: 69px; }
+        }
     </style>
 </head>
 <body>
     <div id="app">
-        <div class="min-h-screen bg-slate-100 flex items-center justify-center">
+        <div class="loading-shell">
             <div class="text-center">
-                <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
-                <p class="text-slate-600 text-lg">初期化中...</p>
+                <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600 mx-auto mb-4"></div>
+                <p class="font-semibold text-slate-800 dark:text-white">在庫ナビを準備しています</p>
+                <p class="text-slate-500 text-sm mt-1">Google Sheets と接続中...</p>
             </div>
         </div>
     </div>
@@ -531,21 +662,14 @@
 
         function renderSignIn() {
             document.getElementById('app').innerHTML = `
-                <div class="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900">
-                    <div class="bg-white dark:bg-slate-800 p-10 rounded-2xl shadow-xl max-w-md w-full mx-4">
-                        <div class="text-center">
-                            <div class="w-20 h-20 bg-blue-100 dark:bg-blue-900/50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                                <svg class="w-10 h-10 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                                </svg>
-                            </div>
-                            <h1 class="text-3xl font-bold text-slate-800 dark:text-white mb-2">YS在庫ナビ</h1>
-                            <p class="text-slate-500 dark:text-slate-400 mb-8">入出庫・棚卸し管理</p>
-                            <button onclick="handleAuthClick()" class="w-full flex items-center justify-center gap-3 bg-white dark:bg-slate-700 border-2 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-white px-6 py-4 rounded-xl font-semibold hover:bg-slate-50 dark:hover:bg-slate-600 hover:border-slate-300 transition-all">
-                                <svg class="w-6 h-6" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-                                Googleでログイン
-                            </button>
-                        </div>
+                <div class="auth-shell">
+                    <div class="auth-panel">
+                        <div class="auth-mark" aria-hidden="true">□</div>
+                        <p class="auth-eyebrow">YS OPERATIONS</p>
+                        <h1 class="auth-title">在庫ナビ</h1>
+                        <p class="auth-copy">入庫、引当、出庫、棚卸しを一か所で管理します。</p>
+                        <button onclick="handleAuthClick()" class="auth-button">Googleで続ける</button>
+                        <p class="auth-note">Google Sheets の業務データを利用します</p>
                     </div>
                 </div>`;
         }
@@ -1376,8 +1500,9 @@
                     if (max !== null && cost >= max) return false;
                 }
                 
-                // クイックフィルタ: 棚未設定
-                if (currentFilters.noShelf && item.shelfNo) return false;
+                // クイックフィルタ: 販売可能な在庫のうち棚未設定
+                // サマリーの「棚未設定」と同じ母集団にそろえる
+                if (currentFilters.noShelf && (item.status !== '在庫中' || item.shelfNo)) return false;
                 
                 // 保管場所フィルタ
                 if (currentFilters.location && item.location !== currentFilters.location) return false;
@@ -1610,81 +1735,82 @@
             const lastUpdatedText = lastUpdated ? lastUpdated.toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'}) : '-';
             
             document.getElementById('app').innerHTML = `
-                <div class="min-h-screen bg-slate-100 dark:bg-slate-900 ${bulkSelectMode ? 'pb-20' : ''}">
-                    <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm sticky top-0 z-40">
-                        <div class="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <h1 class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">YS在庫ナビ</h1>
-                                    <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">入出庫・棚卸し管理</p>
-                                </div>
-                                <div class="flex items-center gap-1 sm:gap-3">
-                                    <span id="status" class="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hidden sm:inline"></span>
-                                    <button onclick="toggleDarkMode()" class="p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" title="ダークモード切替">
-                                        ${isDarkMode ? '☀️' : '🌙'}
+                <div class="inventory-shell ${bulkSelectMode ? 'pb-20' : ''}">
+                    <header class="inventory-shell-header">
+                        <div class="inventory-header-inner">
+                            <div class="inventory-header-row">
+                                <a href="inventory.html" class="brand-lockup" aria-label="YS在庫ナビ ホーム">
+                                    <span class="brand-mark" aria-hidden="true">□</span>
+                                    <span>
+                                        <span class="brand-title block">YS在庫ナビ</span>
+                                        <span class="brand-subtitle block">入出庫・棚卸し管理</span>
+                                    </span>
+                                </a>
+                                <nav class="global-nav" aria-label="メインナビゲーション">
+                                    <a href="dashboard.html">概要</a>
+                                    <a href="index.html">支払</a>
+                                    <a href="inventory.html" class="active" aria-current="page">在庫</a>
+                                    <a href="inspection.html">検品</a>
+                                </nav>
+                                <div class="header-actions">
+                                    <span id="status" class="header-status" aria-live="polite"></span>
+                                    <button onclick="showAddInventoryModal()" class="shell-primary-button"><span class="hidden sm:inline">＋ 在庫登録</span><span class="sm:hidden" aria-hidden="true">＋</span></button>
+                                    <button onclick="loadData()" class="shell-icon-button" title="最新データに更新" aria-label="最新データに更新">
+                                        <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                                     </button>
                                     <div class="relative">
-                                        <button onclick="toggleReportMenu()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-purple-600 text-white text-xs sm:text-sm rounded-lg hover:bg-purple-700">
-                                            <span class="hidden sm:inline">📊 レポート</span>
-                                            <span class="sm:hidden">📊</span>
+                                        <button onclick="toggleReportMenu()" class="shell-tool-button" aria-haspopup="true" aria-controls="reportMenu" aria-expanded="false">
+                                            <span class="header-tool-label">その他</span><span class="sm:hidden" aria-hidden="true">•••</span>
                                         </button>
-                                        <div id="reportMenu" class="hidden absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border dark:border-slate-700 z-50">
-                                            <button onclick="exportCSV()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white rounded-t-lg">📥 CSV出力</button>
-                                            <button onclick="printInventoryList()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">🖨️ 棚卸しリスト印刷</button>
-                                            <button onclick="showMonthlyReport()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📈 月次在庫レポート</button>
-                                            <div class="border-t dark:border-slate-600"></div>
-                                            <button onclick="showLabelPrintModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">🏷️ QRラベル印刷</button>
-                                            <div class="border-t dark:border-slate-600"></div>
-                                            <button onclick="showImportToProcurementModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📤 調達にインポート</button>
-                                            <div class="border-t dark:border-slate-600"></div>
-                                            <button onclick="repairDuplicateIds()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 text-red-600 dark:text-red-400 rounded-b-lg">🔧 ID重複を修復</button>
+                                        <div id="reportMenu" class="shell-menu hidden z-50">
+                                            <p class="shell-menu-label">在庫操作</p>
+                                            <button onclick="toggleBulkSelectMode()" class="menu-accent w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold">${bulkSelectMode ? '✓ 一括選択を終了' : '☑ 一括操作を開始'}</button>
+                                            <button onclick="closeReportMenu();showServiceTicketModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">＋ サービス案件を登録</button>
+                                            <p class="shell-menu-label border-t border-slate-200 dark:border-slate-700 mt-1">集計・出力</p>
+                                            <button onclick="closeReportMenu();exportCSV()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">CSV出力</button>
+                                            <button onclick="closeReportMenu();printInventoryList()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">棚卸しリスト印刷</button>
+                                            <button onclick="closeReportMenu();showMonthlyReport()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">月次在庫レポート</button>
+                                            <button onclick="closeReportMenu();showLabelPrintModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">QRラベル印刷</button>
+                                            <button onclick="showImportToProcurementModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">調達にインポート</button>
+                                            <p class="shell-menu-label border-t border-slate-200 dark:border-slate-700 mt-1">管理</p>
+                                            <button onclick="closeReportMenu();repairDuplicateIds()" class="menu-danger w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">ID重複を修復</button>
                                         </div>
                                     </div>
-                                    <a href="index.html" class="p-1.5 sm:px-3 sm:py-2 border border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 text-xs sm:text-sm rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30" title="支払ナビ">
-                                        <span class="sm:hidden">💴</span>
-                                        <span class="hidden sm:inline">支払</span>
-                                    </a>
-                                    <a href="inspection.html" class="p-1.5 sm:px-3 sm:py-2 border border-green-600 text-green-600 dark:text-green-400 dark:border-green-400 text-xs sm:text-sm rounded-lg hover:bg-green-50 dark:hover:bg-green-900/30" title="検品ナビ">
-                                        <span class="sm:hidden">✓</span>
-                                        <span class="hidden sm:inline">検品</span>
-                                    </a>
-                                    <button onclick="toggleBulkSelectMode()" class="px-2 sm:px-3 py-1.5 sm:py-2 ${bulkSelectMode ? 'bg-amber-500' : 'bg-slate-500'} text-white text-xs sm:text-sm rounded-lg hover:opacity-90">
-                                        <span class="hidden sm:inline">${bulkSelectMode ? '選択中' : '一括'}</span>
-                                        <span class="sm:hidden">☑</span>
-                                    </button>
-                                    <button onclick="showAddInventoryModal()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-blue-600 text-white text-xs sm:text-sm rounded-lg hover:bg-blue-700">+ 追加</button>
-                                    <button onclick="showServiceTicketModal()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-emerald-600 text-white text-xs sm:text-sm rounded-lg hover:bg-emerald-700" title="修理・現調・保守など調達不要な案件の0円チケットを発行"><span class="hidden sm:inline">＋ サービス案件</span><span class="sm:hidden">＋役</span></button>
-                                    <button onclick="handleSignoutClick()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-600 text-white text-xs sm:text-sm rounded-lg hover:bg-slate-700">
-                                        <span class="hidden sm:inline">サインアウト</span>
-                                        <span class="sm:hidden">↪</span>
-                                    </button>
+                                    <button onclick="toggleDarkMode()" class="shell-icon-button" title="表示テーマを切り替え" aria-label="表示テーマを切り替え">${isDarkMode ? '☀️' : '🌙'}</button>
+                                    <button onclick="handleSignoutClick()" class="shell-icon-button" title="サインアウト" aria-label="サインアウト">↪</button>
                                 </div>
                             </div>
-                            <div class="flex items-center justify-between mt-2 text-xs text-slate-500 dark:text-slate-400">
-                                <div class="flex items-center gap-3">
-                                    <span class="flex items-center gap-1">
-                                        <span id="connectionIndicator" class="w-2 h-2 rounded-full bg-green-400" title="接続中"></span>
-                                        最終更新: ${lastUpdatedText}
-                                    </span>
-                                    <button onclick="toggleAutoReload()" class="flex items-center gap-1 px-2 py-0.5 rounded ${autoReloadEnabled ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}" title="${autoReloadEnabled ? '自動同期ON (60秒)' : '自動同期OFF'}">
-                                        <span class="${autoReloadEnabled ? 'animate-pulse' : ''}">🔄</span>
-                                        <span class="hidden sm:inline">${autoReloadEnabled ? '自動同期ON' : '自動同期OFF'}</span>
-                                    </button>
-                                </div>
-                                <button onclick="loadData()" class="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-900/70">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                                    今すぐ更新
-                                </button>
+                            <div class="inventory-sync-row">
+                                <span id="connectionIndicator" class="sync-dot" title="接続中" aria-hidden="true"></span>
+                                <span>Google Sheets と同期</span>
+                                <span class="sync-divider">・</span>
+                                <span>最終更新 ${lastUpdatedText}</span>
+                                <button onclick="toggleAutoReload()" class="sync-refresh" title="${autoReloadEnabled ? '自動同期ON (60秒)' : '自動同期OFF'}">${autoReloadEnabled ? '自動同期ON' : '自動同期OFF'}</button>
+                                <span class="sync-divider hidden sm:inline">・</span>
+                                <button onclick="loadData()" class="sync-refresh hidden sm:inline">今すぐ更新</button>
                             </div>
                         </div>
                     </header>
+                    ${!bulkSelectMode ? `
+                        <nav class="mobile-nav" aria-label="モバイルナビゲーション">
+                            <a href="dashboard.html"><span aria-hidden="true">⌂</span>概要</a>
+                            <a href="index.html"><span aria-hidden="true">¥</span>支払</a>
+                            <a href="inventory.html" class="active" aria-current="page"><span aria-hidden="true">□</span>在庫</a>
+                            <a href="inspection.html"><span aria-hidden="true">✓</span>検品</a>
+                        </nav>
+                    ` : ''}
                     
-                    <main class="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
+                    <main class="inventory-main">
                         <!-- アラート -->
                         ${(summary.noShelf > 0 || summary.waiting > 0 || summary.pendingInspection > 0 || summary.defect > 0) ? `
-                            <div class="flex flex-wrap gap-2 mb-4">
+                            <section class="mb-5" aria-labelledby="inventoryPriorityHeading">
+                                <div class="section-heading">
+                                    <strong id="inventoryPriorityHeading">今日の確認</strong>
+                                    <span>対応が必要な項目を先に確認できます</span>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
                                 ${summary.noShelf > 0 ? `
-                                    <button onclick="quickFilter('noShelf')" class="flex items-center gap-1 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 text-xs sm:text-sm rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/70 border border-amber-300 dark:border-amber-700">
+                                    <button onclick="quickFilter('noShelf')" class="flex items-center gap-1 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 text-xs sm:text-sm rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/70 border border-amber-300 dark:border-amber-700" aria-pressed="${currentFilters.noShelf}">
                                         ⚠️ 棚未設定 ${summary.noShelf}件
                                     </button>
                                 ` : ''}
@@ -1703,36 +1829,53 @@
                                         🔴 不良品 ${summary.defect}件
                                     </span>
                                 ` : ''}
-                            </div>
+                                </div>
+                            </section>
                         ` : ''}
                         
                         <!-- サマリー -->
-                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-4 mb-4 sm:mb-6">
-                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border-l-4 border-emerald-500">
-                                <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">在庫中</p>
-                                <p class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">${summary.inStock + summary.allocated}</p>
+                        <section class="mb-5 sm:mb-6" aria-labelledby="inventorySummaryHeading">
+                            <div class="section-heading">
+                                <strong id="inventorySummaryHeading">在庫概況</strong>
+                                <span>登録全体 ${summary.total.toLocaleString()}件</span>
                             </div>
-                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border-l-4 border-amber-500">
-                                <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">入庫待</p>
-                                <p class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">${summary.waiting}</p>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3">
+                                <div class="summary-card p-3 sm:p-4 border-t-2 border-t-emerald-500">
+                                    <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">販売可能</p>
+                                    <p class="tabular text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1">${summary.inStock.toLocaleString()}</p>
+                                    <p class="text-[10px] text-slate-400 mt-1">在庫中</p>
+                                </div>
+                                <div class="summary-card p-3 sm:p-4 border-t-2 border-t-cyan-500">
+                                    <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">引当済</p>
+                                    <p class="tabular text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1">${summary.allocated.toLocaleString()}</p>
+                                    <p class="text-[10px] text-slate-400 mt-1">出庫先確定</p>
+                                </div>
+                                <div class="summary-card p-3 sm:p-4 border-t-2 border-t-amber-500">
+                                    <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">入庫待ち</p>
+                                    <p class="tabular text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1">${summary.waiting.toLocaleString()}</p>
+                                    <p class="text-[10px] text-slate-400 mt-1">未着荷</p>
+                                </div>
+                                <div class="summary-card p-3 sm:p-4 border-t-2 border-t-orange-500">
+                                    <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">検品待ち</p>
+                                    <p class="tabular text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1">${summary.pendingInspection.toLocaleString()}</p>
+                                    <p class="text-[10px] text-slate-400 mt-1">要検品</p>
+                                </div>
+                                <div class="summary-card p-3 sm:p-4 border-t-2 border-t-blue-500">
+                                    <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">出庫済</p>
+                                    <p class="tabular text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1">${summary.shipped.toLocaleString()}</p>
+                                    <p class="text-[10px] text-slate-400 mt-1">履歴を含む</p>
+                                </div>
+                                <div class="summary-card p-3 sm:p-4 border-t-2 border-t-red-500">
+                                    <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">不良品</p>
+                                    <p class="tabular text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1">${summary.defect.toLocaleString()}</p>
+                                    <p class="text-[10px] text-slate-400 mt-1">要対応</p>
+                                </div>
                             </div>
-                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border-l-4 border-orange-500">
-                                <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">検品待</p>
-                                <p class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">${summary.pendingInspection}</p>
-                            </div>
-                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border-l-4 border-blue-500 hidden sm:block">
-                                <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">出庫済</p>
-                                <p class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">${summary.shipped}</p>
-                            </div>
-                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-sm border-l-4 border-red-500 hidden sm:block">
-                                <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">不良品</p>
-                                <p class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">${summary.defect}</p>
-                            </div>
-                        </div>
+                        </section>
 
                         <!-- クイックフィルタ -->
-                        <div class="flex flex-wrap items-center gap-2 mb-3 sm:mb-4">
-                            <span class="text-slate-400" title="ショートカット">⚡</span>
+                        <div class="flex flex-wrap items-center gap-2 mb-3 sm:mb-4" aria-label="クイック絞り込み">
+                            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 mr-1">クイック絞り込み</span>
                             <button onclick="quickFilter('multi')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.category === 'マルチディスプレイ' ? 'bg-slate-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'}">
                                 マルチ
                             </button>
@@ -1751,7 +1894,7 @@
                         </div>
 
                         <!-- 基本フィルタ -->
-                        <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm border dark:border-slate-700 mb-4 sm:mb-6">
+                        <div class="filter-panel p-3 sm:p-4 border dark:border-slate-700 mb-4 sm:mb-6">
                             <div class="flex flex-wrap gap-2 sm:gap-4 items-end">
                                 <div class="w-1/4 sm:w-auto">
                                     <label class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 block mb-1">ステータス</label>
@@ -1788,19 +1931,19 @@
                                 ` : ''}
                                 <button onclick="clearFilters()" class="px-3 py-1.5 sm:py-2 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-white text-sm rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500">クリア</button>
                             </div>
-                            <div class="flex gap-2 mt-2">
-                                <input type="text" id="filterSearch" value="${currentFilters.search}" onkeydown="if(event.key==='Enter'){applyFilters();event.target.blur();}" placeholder="Serial/製品名/案件番号で検索" class="flex-1 px-3 py-2 text-sm border dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:placeholder-slate-400 rounded-lg">
+                            <div class="flex gap-2 mt-3">
+                                <input type="search" id="filterSearch" value="${currentFilters.search}" onkeydown="if(event.key==='Enter'){applyFilters();event.target.blur();}" placeholder="Serial・製品名・案件番号を検索" aria-label="在庫を検索" class="flex-1 px-3 py-2 text-sm border dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:placeholder-slate-400 rounded-lg">
                                 <button onclick="applyFilters()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">検索</button>
                             </div>
                             
                             <!-- 詳細フィルタ（倉庫担当者向け） -->
                             <div class="mt-3 border-t dark:border-slate-600 pt-3">
-                                <button onclick="toggleDetailFilters()" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1">
+                                <button onclick="toggleDetailFilters()" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1" aria-expanded="${showDetailFilters}" aria-controls="detailFiltersPanel">
                                     <span>${showDetailFilters ? '▼' : '▶'}</span>
                                     <span>詳細フィルタ（倉庫担当者向け）</span>
                                 </button>
                                 ${showDetailFilters ? `
-                                    <div class="mt-3 grid grid-cols-2 sm:grid-cols-5 gap-3">
+                                    <div id="detailFiltersPanel" class="mt-3 grid grid-cols-2 sm:grid-cols-5 gap-3">
                                         <div>
                                             <label class="text-xs text-slate-600 block mb-1">棚番</label>
                                             <select id="filterShelfNo" onchange="applyFilters()" class="w-full px-2 py-1.5 text-sm border rounded-lg">
@@ -1829,7 +1972,7 @@
                                     </div>
                                     <div class="mt-3 flex flex-wrap gap-2">
                                         <button onclick="quickFilter('noShelf')" class="px-3 py-1.5 text-xs sm:text-sm rounded-lg border ${currentFilters.noShelf ? 'bg-amber-600 text-white border-amber-600' : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'}">
-                                            ⚠️ 棚未設定のみ
+                                            ⚠️ 販売可能・棚未設定のみ
                                         </button>
                                     </div>
                                     <!-- 在庫総額（棚卸し用） -->
@@ -1846,19 +1989,19 @@
                         </div>
 
                         <!-- 在庫リスト -->
-                        <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl shadow-sm border dark:border-slate-700 overflow-hidden">
+                        <div class="inventory-panel border dark:border-slate-700 overflow-hidden">
                             <div class="p-3 sm:p-4 border-b dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 flex flex-wrap justify-between items-center gap-2">
                                 <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
                                     <h2 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white">在庫一覧（${filtered.length}件）</h2>
                                     <div class="flex rounded-lg overflow-hidden border dark:border-slate-600">
-                                        <button onclick="setViewMode('group')" class="px-2 py-1 text-xs ${(hasActiveFilters() ? 'flat' : viewMode) === 'group' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'}">
+                                        <button onclick="setViewMode('group')" class="px-2 py-1 text-xs ${viewMode === 'group' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'}" aria-pressed="${viewMode === 'group'}">
                                             グループ
                                         </button>
-                                        <button onclick="setViewMode('flat')" class="px-2 py-1 text-xs ${(hasActiveFilters() ? 'flat' : viewMode) === 'flat' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'}">
+                                        <button onclick="setViewMode('flat')" class="px-2 py-1 text-xs ${viewMode === 'flat' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'}" aria-pressed="${viewMode === 'flat'}">
                                             一覧
                                         </button>
                                     </div>
-                                    ${(!hasActiveFilters() && viewMode === 'group') ? `
+                                    ${viewMode === 'group' ? `
                                         <div class="flex rounded-lg overflow-hidden border dark:border-slate-600">
                                             <button onclick="setGroupMode('order')" class="px-2 py-1 text-xs ${groupMode === 'order' ? 'bg-slate-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'}">
                                                 発注元
@@ -1877,11 +2020,11 @@
                             <div>
                                 ${filtered.length === 0 ? `
                                     <div class="px-4 py-8 text-center text-slate-500 dark:text-slate-400 text-sm">データがありません</div>
-                                ` : (hasActiveFilters() || viewMode === 'flat') ? `
+                                ` : viewMode === 'flat' ? `
                                     <!-- フラット表示（テーブル） -->
                                     <div class="overflow-x-auto">
                                         <table class="w-full">
-                                            <thead class="bg-slate-100 dark:bg-slate-700">
+                                            <thead class="inventory-table-head bg-slate-100 dark:bg-slate-700">
                                                 <tr>
                                                     ${bulkSelectMode ? '<th class="px-2 py-2 text-center w-8"><input type="checkbox" onclick="toggleSelectAllFlat()" class="w-4 h-4 rounded"></th>' : ''}
                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">Serial</th>
@@ -1964,7 +2107,7 @@
                                         
                                         return `
                                             <div id="group-${project.replace(/[^a-zA-Z0-9]/g, '-')}" class="border-b dark:border-slate-700 last:border-b-0">
-                                                <div onclick="toggleProject('${project}')" class="p-3 sm:p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 active:bg-slate-100 dark:active:bg-slate-600">
+                                                <div onclick="toggleProject('${project}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleProject('${project}')}" role="button" tabindex="0" aria-expanded="${Boolean(isExpanded)}" class="inventory-group-trigger p-3 sm:p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 active:bg-slate-100 dark:active:bg-slate-600">
                                                     <div class="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                                                         <span class="text-slate-400 flex-shrink-0">${isExpanded ? '▼' : '▶'}</span>
                                                         <span class="font-semibold text-blue-600 dark:text-blue-400 text-sm sm:text-base flex-shrink-0">${project}</span>
@@ -1990,20 +2133,20 @@
                                                         ` : ''}
                                                     </div>
                                                     <div class="flex gap-1 sm:gap-2 flex-shrink-0">
-                                                        ${statusCounts.waiting > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">待${statusCounts.waiting}</span>` : ''}
-                                                        ${statusCounts.inStock > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">庫${statusCounts.inStock}</span>` : ''}
-                                                        ${statusCounts.allocated > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-cyan-100 dark:bg-cyan-900/50 text-cyan-700 dark:text-cyan-300">引${statusCounts.allocated}</span>` : ''}
-                                                        ${statusCounts.shipped > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">出${statusCounts.shipped}</span>` : ''}
-                                                        ${statusCounts.internal > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">社${statusCounts.internal}</span>` : ''}
-                                                        ${statusCounts.issue > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">不${statusCounts.issue}</span>` : ''}
-                                                        ${statusCounts.disposed > 0 ? `<span class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300">廃${statusCounts.disposed}</span>` : ''}
+                                                        ${statusCounts.waiting > 0 ? `<span title="入庫待ち ${statusCounts.waiting}件" aria-label="入庫待ち ${statusCounts.waiting}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">待${statusCounts.waiting}</span>` : ''}
+                                                        ${statusCounts.inStock > 0 ? `<span title="販売可能 ${statusCounts.inStock}件" aria-label="販売可能 ${statusCounts.inStock}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">庫${statusCounts.inStock}</span>` : ''}
+                                                        ${statusCounts.allocated > 0 ? `<span title="引当済 ${statusCounts.allocated}件" aria-label="引当済 ${statusCounts.allocated}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-cyan-100 dark:bg-cyan-900/50 text-cyan-700 dark:text-cyan-300">引${statusCounts.allocated}</span>` : ''}
+                                                        ${statusCounts.shipped > 0 ? `<span title="出庫済 ${statusCounts.shipped}件" aria-label="出庫済 ${statusCounts.shipped}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">出${statusCounts.shipped}</span>` : ''}
+                                                        ${statusCounts.internal > 0 ? `<span title="社内使用 ${statusCounts.internal}件" aria-label="社内使用 ${statusCounts.internal}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">社${statusCounts.internal}</span>` : ''}
+                                                        ${statusCounts.issue > 0 ? `<span title="不良品 ${statusCounts.issue}件" aria-label="不良品 ${statusCounts.issue}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">不${statusCounts.issue}</span>` : ''}
+                                                        ${statusCounts.disposed > 0 ? `<span title="廃棄 ${statusCounts.disposed}件" aria-label="廃棄 ${statusCounts.disposed}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300">廃${statusCounts.disposed}</span>` : ''}
                                                     </div>
                                                 </div>
                                                 ${isExpanded ? `
                                                     <!-- PC: テーブル表示 -->
                                                     <div class="hidden md:block bg-slate-50 dark:bg-slate-700/30 border-t dark:border-slate-700">
                                                         <table class="w-full">
-                                                            <thead class="bg-slate-100 dark:bg-slate-700">
+                                                            <thead class="inventory-table-head bg-slate-100 dark:bg-slate-700">
                                                                 <tr>
                                                                     ${bulkSelectMode ? `<th class="px-2 py-2 text-center w-8"><input type="checkbox" onclick="toggleSelectAll('${project}')" class="w-4 h-4 rounded"></th>` : ''}
                                                                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300">Serial</th>
@@ -2121,7 +2264,7 @@
                 
                 <!-- フローティングスキャンボタン（スマホ用） -->
                 ${!bulkSelectMode ? `
-                    <button onclick="openQRScanner()" class="fixed bottom-6 right-6 z-40 w-16 h-16 rounded-full shadow-xl active:scale-95 transition-transform flex items-center justify-center" style="background: linear-gradient(135deg, #2383e2 0%, #1a5fb4 100%);">
+                    <button onclick="openQRScanner()" class="fixed bottom-24 sm:bottom-6 right-4 sm:right-6 z-40 w-14 h-14 sm:w-16 sm:h-16 rounded-full shadow-xl active:scale-95 transition-transform flex items-center justify-center" style="background: linear-gradient(135deg, #2383e2 0%, #1a5fb4 100%);" title="QRコードを読み取る" aria-label="QRコードを読み取る">
                         <svg class="w-8 h-8" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M3 9V6a3 3 0 013-3h3M3 15v3a3 3 0 003 3h3m6-18h3a3 3 0 013 3v3m0 6v3a3 3 0 01-3 3h-3M9 12h6m-3-3v6"/>
                         </svg>
@@ -2968,9 +3111,10 @@
         function quickFilter(type) {
             // クイックフィルタはトグル式
             if (type === 'noShelf') {
-                currentFilters.noShelf = !currentFilters.noShelf;
+                const enableNoShelf = !currentFilters.noShelf;
+                currentFilters.noShelf = enableNoShelf;
+                currentFilters.status = enableNoShelf ? '在庫中' : '';
                 currentFilters.category = '';
-                if (currentFilters.status === '不具合') currentFilters.status = '';
             } else if (type === 'multi') {
                 if (currentFilters.category === 'マルチディスプレイ') {
                     currentFilters.category = '';
@@ -3637,7 +3781,7 @@
         // 調達インポートモーダル表示
         function showImportToProcurementModal() {
             // メニューを閉じる
-            document.getElementById('reportMenu').classList.add('hidden');
+            closeReportMenu();
             
             const missing = getMissingProjects();
             
@@ -5468,7 +5612,10 @@
         // レポートメニュー開閉
         function toggleReportMenu() {
             const menu = document.getElementById('reportMenu');
+            if (!menu) return;
             menu.classList.toggle('hidden');
+            const trigger = document.querySelector('button[aria-controls="reportMenu"]');
+            if (trigger) trigger.setAttribute('aria-expanded', String(!menu.classList.contains('hidden')));
             // 外側クリックで閉じる
             if (!menu.classList.contains('hidden')) {
                 setTimeout(() => {
@@ -5477,11 +5624,18 @@
             }
         }
 
+        function closeReportMenu() {
+            const menu = document.getElementById('reportMenu');
+            if (menu) menu.classList.add('hidden');
+            const trigger = document.querySelector('button[aria-controls="reportMenu"]');
+            if (trigger) trigger.setAttribute('aria-expanded', 'false');
+            document.removeEventListener('click', closeReportMenuOnClickOutside);
+        }
+
         function closeReportMenuOnClickOutside(e) {
             const menu = document.getElementById('reportMenu');
             if (menu && !menu.contains(e.target) && !e.target.closest('button[onclick="toggleReportMenu()"]')) {
-                menu.classList.add('hidden');
-                document.removeEventListener('click', closeReportMenuOnClickOutside);
+                closeReportMenu();
             }
         }
 
@@ -5685,8 +5839,8 @@
                             <h4 class="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2">現在の在庫状況</h4>
                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                 <div class="bg-emerald-50 dark:bg-emerald-900/30 rounded-lg p-3 text-center">
-                                    <p class="text-2xl font-bold text-emerald-600">${summary.inStock + summary.allocated}</p>
-                                    <p class="text-xs text-slate-600 dark:text-slate-400">在庫中</p>
+                                    <p class="text-2xl font-bold text-emerald-600">${summary.stocktakeCount}</p>
+                                    <p class="text-xs text-slate-600 dark:text-slate-400">棚卸対象</p>
                                 </div>
                                 <div class="bg-amber-50 dark:bg-amber-900/30 rounded-lg p-3 text-center">
                                     <p class="text-2xl font-bold text-amber-600">${summary.waiting}</p>
@@ -6498,7 +6652,7 @@
 
     <!-- トップへ戻るボタン -->
     <button id="scrollTopBtn" onclick="window.scrollTo({top:0,behavior:'smooth'})"
-            class="fixed bottom-6 right-6 z-40 w-11 h-11 bg-slate-700 dark:bg-slate-600 text-white rounded-full shadow-lg flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300 hover:bg-slate-800"
+            class="fixed bottom-24 sm:bottom-6 right-20 sm:right-24 z-40 w-11 h-11 bg-slate-700 dark:bg-slate-600 text-white rounded-full shadow-lg flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300 hover:bg-slate-800"
             title="トップへ戻る" aria-label="トップへ戻る">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
     </button>
