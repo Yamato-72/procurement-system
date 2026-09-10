@@ -73,12 +73,17 @@
         // ※スライドは「リンクを知っている全員が閲覧可」または「ウェブに公開」にしておくこと
         const REFERENCE_SLIDES_ID = '1svgByR6Q_4uDGW3Tu-BFCgReN19QwoTewelb7IZNkdE';
 
-        // スライドの埋め込みURLを組み立てる。slideId を渡すとそのスライドを先頭表示。
-        function buildSlideEmbedUrl(slideId) {
+        // スライドの埋め込みURLを組み立てる。pageNumber（1始まりのページ番号）を渡すとそのページを表示。
+        function buildSlideEmbedUrl(pageNumber) {
             let url = `https://docs.google.com/presentation/d/${REFERENCE_SLIDES_ID}/embed?start=false&loop=false&rm=minimal`;
-            if (slideId) url += `&slide=${slideId}`;
+            if (pageNumber) url += `&slide=${pageNumber}`;
             return url;
         }
+
+        // 検品項目の番号 → スライドのページ番号のズレ調整
+        //   スライド1ページ目が「項目1」ならそのまま 0。
+        //   1ページ目が表紙で、2ページ目から項目が始まるなら 1 にする。
+        const SLIDE_PAGE_OFFSET = 0;
 
         // 検品項目（屋外サイネージ / STUDIA）
         //   name     : 点検項目
@@ -772,13 +777,22 @@
             };
         }
 
-        // 項目クリック → 右に該当シートを表示
+        // 項目クリック → 右にその項目のページ（項目番号順）を表示。noteがあれば補足も出す。
         function openItemReference(index) {
             const ci = INSPECTION_CHECKLIST[index];
             if (!ci) return;
-            if (ci.slideId) showReference(ci.slideId, index);
-            else if (ci.note) showNote(index);
-            else showReference(null, index);
+            const pageNumber = index + 1 + SLIDE_PAGE_OFFSET;
+            const frame = document.getElementById('referenceFrame');
+            const note = document.getElementById('referenceNote');
+            if (frame) frame.src = buildSlideEmbedUrl(pageNumber);
+            if (note) {
+                if (ci.note) {
+                    note.textContent = `【${ci.name}】\n${ci.note}`;
+                    note.classList.remove('hidden');
+                } else {
+                    note.classList.add('hidden');
+                }
+            }
         }
 
         // 1つのcanvasを手書き可能にする
@@ -793,9 +807,12 @@
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
             let drawing = false, lastX = 0, lastY = 0;
+            // 表示サイズと描画バッファのズレを比率で補正して座標を求める
             const pos = (e) => {
                 const r = c.getBoundingClientRect();
-                return { x: e.clientX - r.left, y: e.clientY - r.top };
+                const scaleX = r.width ? (c.width / r.width) : 1;
+                const scaleY = r.height ? (c.height / r.height) : 1;
+                return { x: (e.clientX - r.left) * scaleX, y: (e.clientY - r.top) * scaleY };
             };
             c.addEventListener('pointerdown', (e) => { drawing = true; const p = pos(e); lastX = p.x; lastY = p.y; try { c.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); });
             c.addEventListener('pointermove', (e) => { if (!drawing) return; const p = pos(e); ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke(); lastX = p.x; lastY = p.y; e.preventDefault(); });
