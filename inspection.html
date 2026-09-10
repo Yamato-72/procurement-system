@@ -86,25 +86,26 @@
         const SLIDE_PAGE_OFFSET = 0;
 
         // 検品項目（屋外サイネージ / STUDIA）
-        //   name     : 点検項目
-        //   desc     : 確認内容・手順
-        //   slideId  : 参考スライドのID（あれば「参考」ボタンで右ペインに表示）。無ければ null
-        //   note     : 参考テキスト（スライドではなく文章で示したい場合。任意）
+        //   name       : 点検項目
+        //   desc       : 確認内容・手順
+        //   startPage  : 参考スライドの開始ページ（1始まり）
+        //   pageCount  : そのページ数（複数なら送りボタン＋📑バッジが出る）
+        //   note       : 参考テキスト（任意）
         const INSPECTION_CHECKLIST = [
-            { name: '付属品確認', desc: 'リモコンやその他の付属品が揃っているか確認、撮影する', slideId: 'g3fa14e77340_0_0', note: '' },
-            { name: '外観写真撮影', desc: '製品の「前後左右4方向」から外観写真を撮影する', slideId: null, note: '' },
-            { name: '背面内部の確認・撮影', desc: '後ろ扉を開け、カバー四隅にねじが正しく留まっているか確認し、撮影する', slideId: null, note: '' },
-            { name: '内部基板・電池の確認', desc: 'それぞれのボードやケーブルの接続状況を細かく確認・撮影し、ボタン電池を確認する', slideId: null, note: '' },
-            { name: '電源動作', desc: '電源のON/OFFが正常に行えるか', slideId: null, note: '' },
-            { name: 'リモコン操作', desc: 'リモコンが正常に動作するか', slideId: null, note: '' },
-            { name: '音量確認', desc: '音量が正常に出力・確認できるか', slideId: null, note: '' },
-            { name: 'Wi-Fi接続・ネット確認', desc: 'Wi-Fiに接続し、実際にインターネット接続ができるか試す', slideId: null, note: '' },
-            { name: '日時・言語設定', desc: 'システムの日時、言語合わせを行う(日本)', slideId: null, note: '' },
-            { name: '明るさ調整', desc: '画面の明るさ調整ができるか。自動明るさ調整はスマホのライト等を当てて動作するか確認する', slideId: null, note: '' },
-            { name: 'HDMI入力確認', desc: 'HDMIを接続し、画面が表示されるか、また文字崩れがないか確認する', slideId: null, note: '' },
-            { name: 'USB自動再生', desc: 'USBを挿入した際、自動再生され、ループ再生するか確認する', slideId: null, note: '' },
-            { name: 'バージョン確認', desc: 'システムのバージョン確認を行い、撮影する', slideId: null, note: '確認方法：設定→タブレット情報を7回クリック→開発者向けオプション→システム→WebViewの実装 を撮影。また Android バージョン等の画面も撮影する' },
-            { name: 'データ削除', desc: '取り込んだ動画や画像、Wi-Fi接続等を削除する', slideId: null, note: '動画削除：設定→ファイルマネージャー→InternalMemory→MagicPlayer→Resource を長押し→削除' },
+            { name: '付属品の確認', desc: 'リモコン・鍵・アイボルト等の付属品が揃っているか確認し撮影する（リモコン電池は倉庫の単4を入れる）', startPage: 1, pageCount: 1, note: '' },
+            { name: '外観写真撮影', desc: 'ラベル・正面・背面・左右側面の計5枚を撮影する', startPage: 2, pageCount: 1, note: '' },
+            { name: '内部基板撮影：ディスプレイ側', desc: '後ろ扉を開け、ディスプレイ裏側の基板・配線・ファン部分を撮影する', startPage: 3, pageCount: 6, note: '' },
+            { name: '内部基板撮影：上部蓋側', desc: '上部蓋を開けた状態で、スピーカー・ケーブル接続部を撮影する', startPage: 9, pageCount: 2, note: '' },
+            { name: '内部基板撮影：下部扉＋電池確認', desc: '下部扉を開け、内部基板・各パーツを撮影。ボタン電池(CR2025)の有無を確認し、無ければ装着する', startPage: 11, pageCount: 9, note: '' },
+            { name: 'リモコン操作・電源ON/OFF', desc: 'リモコンの電池を確認し、電源ON/OFFを数回繰り返す様子を動画撮影する', startPage: 20, pageCount: 1, note: '' },
+            { name: '音量確認', desc: '音量の上げ下げで音量が変化する様子を動画撮影する', startPage: 21, pageCount: 1, note: '' },
+            { name: 'Wi-Fi接続・ネット確認', desc: 'Wi-Fiに接続し、ネット接続・動画再生・音量変化を確認する', startPage: 22, pageCount: 4, note: '' },
+            { name: '日時・言語設定', desc: '言語を日本語、地域・タイムゾーンを日本に設定する', startPage: 26, pageCount: 3, note: '' },
+            { name: '明るさ調整', desc: '明るさを0〜100に変化させ、変わる様子を動画撮影する', startPage: 29, pageCount: 1, note: '' },
+            { name: 'HDMI入力確認', desc: 'HDMIでPCと接続し、映像表示・文字崩れ・音量を確認する', startPage: 30, pageCount: 2, note: '' },
+            { name: 'USB自動再生', desc: 'USBを挿し、自動再生・ループ再生・音量変化を確認する', startPage: 32, pageCount: 1, note: '' },
+            { name: 'バージョン確認', desc: 'システムのバージョンを確認し撮影する', startPage: 33, pageCount: 3, note: '設定→タブレット情報を7回クリック→開発者向けオプション→システム→WebViewの実装 を撮影。またAndroidバージョン等も撮影' },
+            { name: 'データ削除', desc: '取り込んだ動画・画像、Wi-Fi接続等を削除する', startPage: 36, pageCount: 2, note: '設定→ファイルマネージャー→InternalMemory→MagicPlayer→Resource を長押し→削除' },
         ];
 
         // ダークモード初期化
@@ -632,7 +633,7 @@
             const checklistRows = INSPECTION_CHECKLIST.map((ci, index) => `
                 <tr>
                     <td style="${bd}${cellPad}text-align:center;font-size:12px;color:#0f172a;">${index + 1}</td>
-                    <td style="${bd}${cellPad}font-size:12px;font-weight:600;color:#0f172a;cursor:pointer;" onclick="openItemReference(${index})">${ci.name}</td>
+                    <td style="${bd}${cellPad}font-size:12px;font-weight:600;color:#0f172a;cursor:pointer;" onclick="openItemReference(${index})">${ci.name}${(ci.pageCount > 1) ? ` <span style="font-size:10px;color:#2563eb;white-space:nowrap;">📑${ci.pageCount}枚</span>` : ''}</td>
                     <td style="${bd}${cellPad}font-size:11px;color:#334155;cursor:pointer;" onclick="openItemReference(${index})">${ci.desc}</td>
                     <td style="${bd}padding:0;width:84px;background:#f8fafc;">
                         <canvas id="ink${index}" style="display:block;width:100%;height:46px;touch-action:none;"></canvas>
@@ -752,9 +753,17 @@
                             <p class="text-sm font-bold text-slate-700 dark:text-slate-200">📄 参考資料（項目をタップで切替）</p>
                             <a href="https://docs.google.com/presentation/d/${REFERENCE_SLIDES_ID}/edit" target="_blank" rel="noopener" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">別タブ ↗</a>
                         </div>
+                        <!-- ページ送り（複数ページの項目のときだけ表示）。現場・手袋前提で大きく。 -->
+                        <div id="refNav" class="hidden shrink-0 px-3 py-3 flex items-center justify-between gap-3 bg-slate-800">
+                            <button id="refPrevBtn" onclick="refPrev()" class="flex-1 py-4 bg-blue-600 text-white rounded-xl font-bold text-xl shadow-lg hover:bg-blue-700 active:bg-blue-800 disabled:opacity-25">◀ 前</button>
+                            <span id="refIndicator" class="text-2xl font-bold text-white min-w-[80px] text-center">1 / 1</span>
+                            <button id="refNextBtn" onclick="refNext()" class="flex-1 py-4 bg-blue-600 text-white rounded-xl font-bold text-xl shadow-lg hover:bg-blue-700 active:bg-blue-800 disabled:opacity-25">次 ▶</button>
+                        </div>
                         <div id="referenceNote" class="hidden shrink-0 p-3 text-sm text-slate-700 dark:text-slate-200 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 whitespace-pre-wrap"></div>
-                        <div class="flex-1 min-h-0">
+                        <div class="flex-1 min-h-0 relative">
                             <iframe id="referenceFrame" src="${buildSlideEmbedUrl(null)}" class="w-full h-full border-0" allowfullscreen></iframe>
+                            <!-- スライド自体のタップめくりを無効化（項目の範囲外に進めないように）。送りは下のボタンのみ。 -->
+                            <div class="absolute inset-0" style="z-index:5;background:transparent;" title="ページ送りは下のボタンを使ってください"></div>
                         </div>
                     </div>
                 </div>
@@ -777,22 +786,39 @@
             };
         }
 
-        // 項目クリック → 右にその項目のページ（項目番号順）を表示。noteがあれば補足も出す。
+        // 参考スライドの現在位置（項目タップで設定）
+        let refState = { start: 1, count: 1, pos: 0 };
+
+        // 項目クリック → その項目のページ範囲の先頭を右に表示
         function openItemReference(index) {
             const ci = INSPECTION_CHECKLIST[index];
             if (!ci) return;
-            const pageNumber = index + 1 + SLIDE_PAGE_OFFSET;
-            const frame = document.getElementById('referenceFrame');
+            refState = { start: ci.startPage || 1, count: ci.pageCount || 1, pos: 0 };
+            renderReference();
+            // noteがあれば右上に補足表示
             const note = document.getElementById('referenceNote');
-            if (frame) frame.src = buildSlideEmbedUrl(pageNumber);
             if (note) {
-                if (ci.note) {
-                    note.textContent = `【${ci.name}】\n${ci.note}`;
-                    note.classList.remove('hidden');
-                } else {
-                    note.classList.add('hidden');
-                }
+                if (ci.note) { note.textContent = `【${ci.name}】\n${ci.note}`; note.classList.remove('hidden'); }
+                else { note.classList.add('hidden'); }
             }
+        }
+
+        // 前/次のページへ
+        function refPrev() { if (refState.pos > 0) { refState.pos--; renderReference(); } }
+        function refNext() { if (refState.pos < refState.count - 1) { refState.pos++; renderReference(); } }
+
+        // 現在位置をiframe・ページ送りUIに反映
+        function renderReference() {
+            const frame = document.getElementById('referenceFrame');
+            if (frame) frame.src = buildSlideEmbedUrl(refState.start + refState.pos);
+            const nav = document.getElementById('refNav');
+            const ind = document.getElementById('refIndicator');
+            const prev = document.getElementById('refPrevBtn');
+            const next = document.getElementById('refNextBtn');
+            if (nav) nav.classList.toggle('hidden', refState.count <= 1); // 1枚だけの項目は送りボタン非表示
+            if (ind) ind.textContent = `${refState.pos + 1} / ${refState.count}`;
+            if (prev) prev.disabled = (refState.pos === 0);
+            if (next) next.disabled = (refState.pos === refState.count - 1);
         }
 
         // 1つのcanvasを手書き可能にする
