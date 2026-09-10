@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>YS現場ナビ</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='15' fill='%23ea580c'/><path d='M10 22 L16 9 L22 22 Z' fill='none' stroke='%23fff' stroke-width='2.5' stroke-linejoin='round'/></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
+    <style> body { -webkit-tap-highlight-color: transparent; } </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen">
+
+    <!-- ヘッダー -->
+    <header class="sticky top-0 z-30 bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow">
+        <div class="max-w-5xl mx-auto px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-3">
+            <button id="backBtn" class="hidden shrink-0 px-3 py-2 bg-white/20 rounded-lg text-sm active:bg-white/40">←</button>
+            <div class="min-w-0 flex-1">
+                <h1 class="text-base sm:text-xl font-bold leading-tight">YS現場ナビ</h1>
+                <p id="crumb" class="text-[11px] sm:text-xs text-orange-100 truncate">製品を選んでください</p>
+            </div>
+            <button id="reloadBtn" onclick="reloadManuals()" class="hidden shrink-0 px-3 py-2 bg-white/20 rounded-lg text-sm active:bg-white/40" title="再読み込み">🔄</button>
+        </div>
+    </header>
+
+    <main id="app" class="max-w-5xl mx-auto p-3 sm:p-4">
+        <!-- ログイン前 -->
+        <div id="authGate" class="bg-white rounded-xl shadow-sm p-6 text-center mt-6">
+            <p class="text-3xl mb-2">🧭</p>
+            <p class="text-sm text-slate-600 mb-4">会社のGoogleアカウントでログインしてください</p>
+            <button id="signinBtn" onclick="handleSignin()" disabled
+                class="w-full sm:w-auto px-6 py-3 bg-orange-600 text-white font-bold rounded-xl active:bg-orange-800 disabled:opacity-40">
+                Googleでログイン
+            </button>
+            <p id="authMsg" class="text-xs text-slate-400 mt-3">読み込み中...</p>
+        </div>
+    </main>
+
+    <script>
+        // ===== 設定 =====
+        const CLIENT_ID = '47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
+        const SPREADSHEET_ID = '1SlQp1j4WKkud47UgVq2VJrWu_miEd-oJ3yhKokJaOyM'; // YS現場ナビ 専用シート
+        const SHEET_NAME = 'マニュアル';
+        const SCOPES = 'https://www.googleapis.com/auth/spreadsheets.readonly'; // 読み取りのみ
+
+        // 用途の表示色（これ以外はグレー）
+        const CAT_COLOR = {
+            '設置': 'bg-blue-100 text-blue-700',
+            '操作': 'bg-emerald-100 text-emerald-700',
+            'トラブル': 'bg-red-100 text-red-700',
+        };
+
+        let tokenClient, gapiInited = false, gisInited = false, accessToken = null;
+        let MANUALS = [];
+        let refState = { slideId: '', start: 1, count: 1, pos: 0 };
+
+        // ===== Google API 初期化・認証 =====
+        function gapiLoaded() { gapi.load('client', initializeGapiClient); }
+        async function initializeGapiClient() {
+            await gapi.client.init({ discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'] });
+            gapiInited = true; maybeReady();
+        }
+        function gisLoaded() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: (resp) => {
+                    if (resp.error !== undefined) { setAuthMsg('ログインに失敗しました', true); return; }
+                    accessToken = resp.access_token;
+                    sessionStorage.setItem('genbaToken', accessToken);
+                    gapi.client.setToken({ access_token: accessToken });
+                    onSignedIn();
+                },
+            });
+            gisInited = true; maybeReady();
+        }
+        function maybeReady() {
+            if (!(gapiInited && gisInited)) return;
+            document.getElementById('signinBtn').disabled = false;
+            setAuthMsg('');
+            const saved = sessionStorage.getItem('genbaToken');
+            if (saved) {
+                accessToken = saved;
+                gapi.client.setToken({ access_token: saved });
+                onSignedIn(true);
+            }
+        }
+        function handleSignin() {
+            if (!tokenClient) return;
+            tokenClient.requestAccessToken({ prompt: accessToken ? '' : 'consent' });
+        }
+        function setAuthMsg(t, err) {
+            const el = document.getElementById('authMsg');
+            if (!el) return;
+            el.textContent = t || '';
+            el.className = 'text-xs mt-3 ' + (err ? 'text-red-600' : 'text-slate-400');
+        }
+
+        async function onSignedIn(silent) {
+            try {
+                await loadManuals();
+                document.getElementById('authGate')?.classList.add('hidden');
+                document.getElementById('reloadBtn').classList.remove('hidden');
+                renderProducts();
+            } catch (e) {
+                console.error(e);
+                sessionStorage.removeItem('genbaToken');
+                accessToken = null;
+                if (!silent) setAuthMsg('読み込みに失敗しました。もう一度ログインしてください', true);
+            }
+        }
+
+        // ===== シート読み込み =====
+        // 列: A製品 / B用途 / Cタイトル / DスライドID / E開始ページ / Fページ数 / G並び順
+        async function loadManuals() {
+            const resp = await gapi.client.sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: `${SHEET_NAME}!A2:G`,
+            });
+            const rows = resp.result.values || [];
+            MANUALS = rows.map((r, i) => ({
+                product: String(r[0] || '').trim(),
+                category: String(r[1] || '').trim(),
+                title: String(r[2] || '').trim(),
+                slideId: extractSlideId(String(r[3] || '').trim()),
+                start: parseInt(r[4], 10) || 1,
+                count: parseInt(r[5], 10) || 1,
+                order: (r[6] !== undefined && r[6] !== '') ? (parseFloat(r[6]) || 0) : (i + 1000),
+            })).filter(m => m.product && m.title && m.slideId);
+        }
+
+        async function reloadManuals() {
+            try { await loadManuals(); renderProducts(); }
+            catch (e) { console.error(e); alert('再読み込みに失敗しました'); }
+        }
+
+        // スライドIDそのものでも、URLを貼っても拾えるようにする
+        function extractSlideId(s) {
+            const m = s.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            return m ? m[1] : s;
+        }
+
+        function buildSlideEmbedUrl(page) {
+            let u = `https://docs.google.com/presentation/d/${refState.slideId}/embed?start=false&loop=false&rm=minimal`;
+            if (page) u += `&slide=${page}`;
+            return u;
+        }
+
+        // ===== 画面 =====
+        function renderProducts() {
+            document.getElementById('backBtn').classList.add('hidden');
+            document.getElementById('crumb').textContent = '製品を選んでください';
+            const products = [...new Set(MANUALS.map(m => m.product))];
+            const app = document.getElementById('app');
+            if (products.length === 0) {
+                app.innerHTML = `<div class="bg-white rounded-xl shadow-sm p-6 text-center text-sm text-slate-500 mt-4">マニュアルがまだ登録されていません。<br>スプレッドシートの「${SHEET_NAME}」に行を追加してください。</div>`;
+                return;
+            }
+            app.innerHTML = `
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    ${products.map(p => {
+                        const count = MANUALS.filter(m => m.product === p).length;
+                        return `
+                        <button onclick="renderManualList(${JSON.stringify(p)})" class="text-left bg-white rounded-xl shadow-sm p-4 min-h-[88px] active:scale-[0.98] transition">
+                            <p class="text-base sm:text-lg font-bold text-slate-900 break-words">${p}</p>
+                            <p class="text-xs text-slate-500 mt-1">${count}件</p>
+                        </button>`;
+                    }).join('')}
+                </div>`;
+        }
+
+        function renderManualList(product) {
+            const back = document.getElementById('backBtn');
+            back.classList.remove('hidden');
+            back.onclick = renderProducts;
+            document.getElementById('crumb').textContent = product;
+            const list = MANUALS.filter(m => m.product === product).sort((a, b) => a.order - b.order);
+            document.getElementById('app').innerHTML = `
+                <div class="space-y-2">
+                    ${list.map(m => {
+                        const gi = MANUALS.indexOf(m);
+                        const color = CAT_COLOR[m.category] || 'bg-slate-100 text-slate-600';
+                        return `
+                        <button onclick="openManual(${gi})" class="w-full text-left bg-white rounded-xl shadow-sm p-4 flex items-center gap-3 active:scale-[0.99] transition">
+                            ${m.category ? `<span class="shrink-0 text-xs px-2 py-1 rounded-full ${color}">${m.category}</span>` : ''}
+                            <span class="flex-1 min-w-0 font-semibold text-slate-800 leading-snug">${m.title}</span>
+                            ${m.count > 1 ? `<span class="shrink-0 text-xs text-blue-600 whitespace-nowrap">📑${m.count}枚</span>` : ''}
+                            <span class="shrink-0 text-slate-300 text-xl">›</span>
+                        </button>`;
+                    }).join('')}
+                </div>`;
+        }
+
+        function openManual(index) {
+            const m = MANUALS[index];
+            if (!m) return;
+            refState = { slideId: m.slideId, start: m.start, count: m.count, pos: 0 };
+            const back = document.getElementById('backBtn');
+            back.classList.remove('hidden');
+            back.onclick = () => renderManualList(m.product);
+            document.getElementById('crumb').textContent = `${m.product}／${m.title}`;
+            document.getElementById('app').innerHTML = `
+                <div class="bg-black rounded-xl overflow-hidden shadow-lg">
+                    <div class="relative w-full" style="aspect-ratio:16/9;">
+                        <iframe id="viewerFrame" src="" class="absolute inset-0 w-full h-full border-0" allowfullscreen></iframe>
+                        <!-- スライド自体のタップめくりを無効化（範囲外に進めないように） -->
+                        <div class="absolute inset-0" style="z-index:5;"></div>
+                        <!-- 左右の大きな丸矢印 -->
+                        <button id="prevBtn" onclick="viewerPrev()" class="hidden absolute left-2 top-1/2 -translate-y-1/2 w-14 h-14 sm:w-20 sm:h-20 flex items-center justify-center rounded-full bg-orange-600 border-4 border-white shadow-2xl active:bg-orange-800" style="z-index:10;" aria-label="前">
+                            <span class="text-white font-bold" style="font-size:2.2rem;line-height:1;">‹</span>
+                        </button>
+                        <button id="nextBtn" onclick="viewerNext()" class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-14 h-14 sm:w-20 sm:h-20 flex items-center justify-center rounded-full bg-orange-600 border-4 border-white shadow-2xl active:bg-orange-800" style="z-index:10;" aria-label="次">
+                            <span class="text-white font-bold" style="font-size:2.2rem;line-height:1;">›</span>
+                        </button>
+                        <div id="pageInd" class="hidden absolute bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-white text-sm sm:text-base font-bold" style="z-index:10;background:rgba(15,23,42,0.85);">1 / 1</div>
+                    </div>
+                </div>
+                <!-- スマホ向け：画面下にも大きい送りボタン（親指で押しやすい位置） -->
+                <div id="bottomNav" class="hidden mt-3 grid grid-cols-2 gap-3 sm:hidden">
+                    <button onclick="viewerPrev()" class="py-4 bg-orange-600 text-white text-xl font-bold rounded-xl active:bg-orange-800">‹ 前</button>
+                    <button onclick="viewerNext()" class="py-4 bg-orange-600 text-white text-xl font-bold rounded-xl active:bg-orange-800">次 ›</button>
+                </div>
+                <div class="mt-3 text-center">
+                    <a href="https://docs.google.com/presentation/d/${m.slideId}/edit" target="_blank" rel="noopener" class="text-sm text-blue-600 active:underline">スライドを別タブで開く ↗</a>
+                </div>`;
+            renderViewer();
+        }
+
+        function viewerPrev() { if (refState.pos > 0) { refState.pos--; renderViewer(); } }
+        function viewerNext() { if (refState.pos < refState.count - 1) { refState.pos++; renderViewer(); } }
+
+        function renderViewer() {
+            const frame = document.getElementById('viewerFrame');
+            if (frame) frame.src = buildSlideEmbedUrl(refState.start + refState.pos);
+            const multi = refState.count > 1;
+            const prev = document.getElementById('prevBtn');
+            const next = document.getElementById('nextBtn');
+            const ind = document.getElementById('pageInd');
+            const bottom = document.getElementById('bottomNav');
+            if (prev) { prev.classList.toggle('hidden', !multi); prev.style.opacity = (refState.pos === 0) ? '0.3' : '1'; }
+            if (next) { next.classList.toggle('hidden', !multi); next.style.opacity = (refState.pos === refState.count - 1) ? '0.3' : '1'; }
+            if (ind) { ind.classList.toggle('hidden', !multi); ind.textContent = `${refState.pos + 1} / ${refState.count}`; }
+            if (bottom) bottom.classList.toggle('hidden', !multi);
+        }
+    </script>
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+</body>
+</html>
