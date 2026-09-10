@@ -52,6 +52,7 @@
 
         let tokenClient, gapiInited = false, gisInited = false, accessToken = null;
         let MANUALS = [];
+        let PRODUCTS = []; // 製品一覧（onclickは番号で参照）
         let refState = { slideId: '', start: 1, count: 1, pos: 0 };
 
         // ===== Google API 初期化・認証 =====
@@ -151,6 +152,7 @@
             document.getElementById('backBtn').classList.add('hidden');
             document.getElementById('crumb').textContent = '製品を選んでください';
             const products = [...new Set(MANUALS.map(m => m.product))];
+            PRODUCTS = products;
             const app = document.getElementById('app');
             if (products.length === 0) {
                 app.innerHTML = `<div class="bg-white rounded-xl shadow-sm p-6 text-center text-sm text-slate-500 mt-4">マニュアルがまだ登録されていません。<br>スプレッドシートの「${SHEET_NAME}」に行を追加してください。</div>`;
@@ -158,16 +160,18 @@
             }
             app.innerHTML = `
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    ${products.map(p => {
+                    ${products.map((p, pi) => {
                         const count = MANUALS.filter(m => m.product === p).length;
                         return `
-                        <button onclick="renderManualList(${JSON.stringify(p)})" class="text-left bg-white rounded-xl shadow-sm p-4 min-h-[88px] active:scale-[0.98] transition">
+                        <button type="button" onclick="renderManualListByIdx(${pi})" class="text-left bg-white rounded-xl shadow-sm p-4 min-h-[88px] active:scale-[0.98] transition">
                             <p class="text-base sm:text-lg font-bold text-slate-900 break-words">${p}</p>
                             <p class="text-xs text-slate-500 mt-1">${count}件</p>
                         </button>`;
                     }).join('')}
                 </div>`;
         }
+
+        function renderManualListByIdx(i) { const p = PRODUCTS[i]; if (p !== undefined) renderManualList(p); }
 
         function renderManualList(product) {
             const back = document.getElementById('backBtn');
@@ -181,7 +185,7 @@
                         const gi = MANUALS.indexOf(m);
                         const color = CAT_COLOR[m.category] || 'bg-slate-100 text-slate-600';
                         return `
-                        <button onclick="openManual(${gi})" class="w-full text-left bg-white rounded-xl shadow-sm p-4 flex items-center gap-3 active:scale-[0.99] transition">
+                        <button type="button" onclick="openManual(${gi})" class="w-full text-left bg-white rounded-xl shadow-sm p-4 flex items-center gap-3 active:scale-[0.99] transition">
                             ${m.category ? `<span class="shrink-0 text-xs px-2 py-1 rounded-full ${color}">${m.category}</span>` : ''}
                             <span class="flex-1 min-w-0 font-semibold text-slate-800 leading-snug">${m.title}</span>
                             ${m.count > 1 ? `<span class="shrink-0 text-xs text-blue-600 whitespace-nowrap">📑${m.count}枚</span>` : ''}
@@ -206,10 +210,10 @@
                         <!-- スライド自体のタップめくりを無効化（範囲外に進めないように） -->
                         <div class="absolute inset-0" style="z-index:5;"></div>
                         <!-- 左右の大きな丸矢印 -->
-                        <button id="prevBtn" onclick="viewerPrev()" class="hidden absolute left-2 top-1/2 -translate-y-1/2 w-14 h-14 sm:w-20 sm:h-20 flex items-center justify-center rounded-full bg-orange-600 border-4 border-white shadow-2xl active:bg-orange-800" style="z-index:10;" aria-label="前">
+                        <button type="button" id="prevBtn" onclick="viewerPrev()" class="hidden absolute left-2 top-1/2 -translate-y-1/2 w-14 h-14 sm:w-20 sm:h-20 flex items-center justify-center rounded-full bg-orange-600 border-4 border-white shadow-2xl active:bg-orange-800" style="z-index:10;" aria-label="前">
                             <span class="text-white font-bold" style="font-size:2.2rem;line-height:1;">‹</span>
                         </button>
-                        <button id="nextBtn" onclick="viewerNext()" class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-14 h-14 sm:w-20 sm:h-20 flex items-center justify-center rounded-full bg-orange-600 border-4 border-white shadow-2xl active:bg-orange-800" style="z-index:10;" aria-label="次">
+                        <button type="button" id="nextBtn" onclick="viewerNext()" class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-14 h-14 sm:w-20 sm:h-20 flex items-center justify-center rounded-full bg-orange-600 border-4 border-white shadow-2xl active:bg-orange-800" style="z-index:10;" aria-label="次">
                             <span class="text-white font-bold" style="font-size:2.2rem;line-height:1;">›</span>
                         </button>
                         <div id="pageInd" class="hidden absolute bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-white text-sm sm:text-base font-bold" style="z-index:10;background:rgba(15,23,42,0.85);">1 / 1</div>
@@ -217,8 +221,8 @@
                 </div>
                 <!-- スマホ向け：画面下にも大きい送りボタン（親指で押しやすい位置） -->
                 <div id="bottomNav" class="hidden mt-3 grid grid-cols-2 gap-3 sm:hidden">
-                    <button onclick="viewerPrev()" class="py-4 bg-orange-600 text-white text-xl font-bold rounded-xl active:bg-orange-800">‹ 前</button>
-                    <button onclick="viewerNext()" class="py-4 bg-orange-600 text-white text-xl font-bold rounded-xl active:bg-orange-800">次 ›</button>
+                    <button type="button" onclick="viewerPrev()" class="py-4 bg-orange-600 text-white text-xl font-bold rounded-xl active:bg-orange-800">‹ 前</button>
+                    <button type="button" onclick="viewerNext()" class="py-4 bg-orange-600 text-white text-xl font-bold rounded-xl active:bg-orange-800">次 ›</button>
                 </div>
                 <div class="mt-3 text-center">
                     <a href="https://docs.google.com/presentation/d/${m.slideId}/edit" target="_blank" rel="noopener" class="text-sm text-blue-600 active:underline">スライドを別タブで開く ↗</a>
