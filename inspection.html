@@ -764,14 +764,14 @@
                             <!-- スライド自体のタップめくりを無効化（項目の範囲外に進めないように） -->
                             <div class="absolute inset-0" style="z-index:5;background:transparent;"></div>
                             <!-- 左右端の大きな三角矢印（複数ページ項目のときだけ表示） -->
-                            <button id="refPrevBtn" onclick="refPrev()" class="hidden absolute left-0 top-0 bottom-0 w-16 sm:w-24 flex items-center justify-center active:bg-black/10" style="z-index:10;background:linear-gradient(to right, rgba(0,0,0,0.30), rgba(0,0,0,0));" aria-label="前のページ">
-                                <span class="text-white font-bold" style="font-size:3rem;text-shadow:0 2px 6px rgba(0,0,0,0.7);">‹</span>
+                            <button id="refPrevBtn" onclick="refPrev()" class="hidden absolute left-2 top-1/2 -translate-y-1/2 w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center rounded-full bg-blue-600 border-4 border-white shadow-2xl active:bg-blue-800" style="z-index:10;" aria-label="前のページ">
+                                <span class="text-white font-bold" style="font-size:2.5rem;line-height:1;">‹</span>
                             </button>
-                            <button id="refNextBtn" onclick="refNext()" class="hidden absolute right-0 top-0 bottom-0 w-16 sm:w-24 flex items-center justify-center active:bg-black/10" style="z-index:10;background:linear-gradient(to left, rgba(0,0,0,0.30), rgba(0,0,0,0));" aria-label="次のページ">
-                                <span class="text-white font-bold" style="font-size:3rem;text-shadow:0 2px 6px rgba(0,0,0,0.7);">›</span>
+                            <button id="refNextBtn" onclick="refNext()" class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center rounded-full bg-blue-600 border-4 border-white shadow-2xl active:bg-blue-800" style="z-index:10;" aria-label="次のページ">
+                                <span class="text-white font-bold" style="font-size:2.5rem;line-height:1;">›</span>
                             </button>
                             <!-- ページ表示 -->
-                            <div id="refIndicator" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full text-white text-lg font-bold" style="z-index:10;background:rgba(15,23,42,0.75);">1 / 1</div>
+                            <div id="refIndicator" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full text-white text-lg font-bold" style="z-index:10;background:rgba(15,23,42,0.85);">1 / 1</div>
                         </div>
                     </div>
                 </div>
