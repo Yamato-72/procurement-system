@@ -15,6 +15,11 @@
         tailwind.config = { darkMode: 'class' }
     </script>
     <style>
+        /* 検品リストで選択中の項目をハイライト（PDF出力時は onclone で外す） */
+        tr.chk-selected > td { background: #dbeafe !important; }
+        tr.chk-selected > td:nth-child(2) { box-shadow: inset 4px 0 0 #2563eb; }
+    </style>
+    <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;900&display=swap');
         * { font-family: 'Noto Sans JP', sans-serif; }
     </style>
@@ -631,8 +636,8 @@
             const bd = 'border:1px solid #94a3b8;';
             const cellPad = 'padding:5px 6px;';
             const checklistRows = INSPECTION_CHECKLIST.map((ci, index) => `
-                <tr>
-                    <td style="${bd}${cellPad}text-align:center;font-size:12px;color:#0f172a;">${index + 1}</td>
+                <tr id="chkrow${index}">
+                    <td style="${bd}${cellPad}text-align:center;font-size:12px;color:#0f172a;cursor:pointer;" onclick="openItemReference(${index})">${index + 1}</td>
                     <td style="${bd}${cellPad}font-size:12px;font-weight:600;color:#0f172a;cursor:pointer;" onclick="openItemReference(${index})">${ci.name}${(ci.pageCount > 1) ? ` <span style="font-size:10px;color:#2563eb;white-space:nowrap;">📑${ci.pageCount}枚</span>` : ''}</td>
                     <td style="${bd}${cellPad}font-size:11px;color:#334155;cursor:pointer;" onclick="openItemReference(${index})">${ci.desc}</td>
                     <td style="${bd}padding:0;width:84px;background:#f8fafc;">
@@ -753,17 +758,20 @@
                             <p class="text-sm font-bold text-slate-700 dark:text-slate-200">📄 参考資料（項目をタップで切替）</p>
                             <a href="https://docs.google.com/presentation/d/${REFERENCE_SLIDES_ID}/edit" target="_blank" rel="noopener" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">別タブ ↗</a>
                         </div>
-                        <!-- ページ送り（複数ページの項目のときだけ表示）。現場・手袋前提で大きく。 -->
-                        <div id="refNav" class="hidden shrink-0 px-3 py-3 flex items-center justify-between gap-3 bg-slate-800">
-                            <button id="refPrevBtn" onclick="refPrev()" class="flex-1 py-4 bg-blue-600 text-white rounded-xl font-bold text-xl shadow-lg hover:bg-blue-700 active:bg-blue-800 disabled:opacity-25">◀ 前</button>
-                            <span id="refIndicator" class="text-2xl font-bold text-white min-w-[80px] text-center">1 / 1</span>
-                            <button id="refNextBtn" onclick="refNext()" class="flex-1 py-4 bg-blue-600 text-white rounded-xl font-bold text-xl shadow-lg hover:bg-blue-700 active:bg-blue-800 disabled:opacity-25">次 ▶</button>
-                        </div>
                         <div id="referenceNote" class="hidden shrink-0 p-3 text-sm text-slate-700 dark:text-slate-200 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 whitespace-pre-wrap"></div>
                         <div class="flex-1 min-h-0 relative">
                             <iframe id="referenceFrame" src="${buildSlideEmbedUrl(null)}" class="w-full h-full border-0" allowfullscreen></iframe>
-                            <!-- スライド自体のタップめくりを無効化（項目の範囲外に進めないように）。送りは下のボタンのみ。 -->
-                            <div class="absolute inset-0" style="z-index:5;background:transparent;" title="ページ送りは下のボタンを使ってください"></div>
+                            <!-- スライド自体のタップめくりを無効化（項目の範囲外に進めないように） -->
+                            <div class="absolute inset-0" style="z-index:5;background:transparent;"></div>
+                            <!-- 左右端の大きな三角矢印（複数ページ項目のときだけ表示） -->
+                            <button id="refPrevBtn" onclick="refPrev()" class="hidden absolute left-0 top-0 bottom-0 w-16 sm:w-24 flex items-center justify-center active:bg-black/10" style="z-index:10;background:linear-gradient(to right, rgba(0,0,0,0.30), rgba(0,0,0,0));" aria-label="前のページ">
+                                <span class="text-white font-bold" style="font-size:3rem;text-shadow:0 2px 6px rgba(0,0,0,0.7);">‹</span>
+                            </button>
+                            <button id="refNextBtn" onclick="refNext()" class="hidden absolute right-0 top-0 bottom-0 w-16 sm:w-24 flex items-center justify-center active:bg-black/10" style="z-index:10;background:linear-gradient(to left, rgba(0,0,0,0.30), rgba(0,0,0,0));" aria-label="次のページ">
+                                <span class="text-white font-bold" style="font-size:3rem;text-shadow:0 2px 6px rgba(0,0,0,0.7);">›</span>
+                            </button>
+                            <!-- ページ表示 -->
+                            <div id="refIndicator" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full text-white text-lg font-bold" style="z-index:10;background:rgba(15,23,42,0.75);">1 / 1</div>
                         </div>
                     </div>
                 </div>
@@ -789,11 +797,16 @@
         // 参考スライドの現在位置（項目タップで設定）
         let refState = { start: 1, count: 1, pos: 0 };
 
-        // 項目クリック → その項目のページ範囲の先頭を右に表示
+        // 項目クリック → その項目のページ範囲の先頭を右に表示＋左リストをハイライト
         function openItemReference(index) {
             const ci = INSPECTION_CHECKLIST[index];
             if (!ci) return;
             refState = { start: ci.startPage || 1, count: ci.pageCount || 1, pos: 0 };
+            // 選択ハイライト
+            INSPECTION_CHECKLIST.forEach((_, i) => {
+                const row = document.getElementById('chkrow' + i);
+                if (row) row.classList.toggle('chk-selected', i === index);
+            });
             renderReference();
             // noteがあれば右上に補足表示
             const note = document.getElementById('referenceNote');
@@ -807,18 +820,18 @@
         function refPrev() { if (refState.pos > 0) { refState.pos--; renderReference(); } }
         function refNext() { if (refState.pos < refState.count - 1) { refState.pos++; renderReference(); } }
 
-        // 現在位置をiframe・ページ送りUIに反映
+        // 現在位置をiframe・矢印・ページ表示に反映
         function renderReference() {
             const frame = document.getElementById('referenceFrame');
             if (frame) frame.src = buildSlideEmbedUrl(refState.start + refState.pos);
-            const nav = document.getElementById('refNav');
-            const ind = document.getElementById('refIndicator');
+            const multi = refState.count > 1;
             const prev = document.getElementById('refPrevBtn');
             const next = document.getElementById('refNextBtn');
-            if (nav) nav.classList.toggle('hidden', refState.count <= 1); // 1枚だけの項目は送りボタン非表示
-            if (ind) ind.textContent = `${refState.pos + 1} / ${refState.count}`;
-            if (prev) prev.disabled = (refState.pos === 0);
-            if (next) next.disabled = (refState.pos === refState.count - 1);
+            const ind = document.getElementById('refIndicator');
+            // 複数ページのときだけ矢印・ページ表示を出す
+            if (prev) { prev.classList.toggle('hidden', !multi); prev.style.opacity = (refState.pos === 0) ? '0.25' : '1'; }
+            if (next) { next.classList.toggle('hidden', !multi); next.style.opacity = (refState.pos === refState.count - 1) ? '0.25' : '1'; }
+            if (ind) { ind.classList.toggle('hidden', !multi); ind.textContent = `${refState.pos + 1} / ${refState.count}`; }
         }
 
         // 1つのcanvasを手書き可能にする
@@ -866,7 +879,7 @@
                 console.warn('PDFライブラリまたは対象要素が見つかりません');
                 return;
             }
-            const shot = await html2canvas(sheet, { backgroundColor: '#ffffff', scale: 2, onclone: (doc) => { doc.documentElement.classList.remove('dark'); } });
+            const shot = await html2canvas(sheet, { backgroundColor: '#ffffff', scale: 2, onclone: (doc) => { doc.documentElement.classList.remove('dark'); doc.querySelectorAll('tr.chk-selected').forEach(el => el.classList.remove('chk-selected')); } });
             const imgData = shot.toDataURL('image/png');
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
