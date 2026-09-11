@@ -189,11 +189,12 @@
 
         // 検索欄＋用途チップ（トップ共通）
         function filterBarHtml() {
-            const chips = ['', ...CATEGORIES].map(c => {
+            const chips = ['', ...CATEGORIES].map((c, ci) => {
                 const on = (filterCat === c);
                 const label = c || 'すべて';
                 const cls = on ? 'bg-orange-600 text-white' : 'bg-white text-slate-700 border border-slate-300';
-                return `<button type="button" onclick="setCat(${JSON.stringify(c)})" class="shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold ${cls} active:scale-95">${label}</button>`;
+                // 属性内にクォートを埋め込まず、番号で参照（0=すべて）
+                return `<button type="button" onclick="setCatIdx(${ci})" class="shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold ${cls} active:scale-95">${label}</button>`;
             }).join('');
             return `
                 <div class="mb-3">
@@ -207,7 +208,7 @@
         }
         function escapeAttr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
         function setText(v) { filterText = v; renderProducts(true); }
-        function setCat(c) { filterCat = c; renderProducts(); }
+        function setCatIdx(i) { filterCat = (i === 0) ? '' : (CATEGORIES[i - 1] || ''); renderProducts(); }
 
         function renderProducts(keepFocus) {
             document.getElementById('backBtn').classList.add('hidden');
