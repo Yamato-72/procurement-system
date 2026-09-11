@@ -391,6 +391,8 @@
                 if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape');
             } catch (e) { console.warn('横向きロック非対応（手動で横にしてください）:', e); }
             updateOrientationHint();
+            setTimeout(updateOrientationHint, 500);   // 回転の反映待ち
+            setTimeout(updateOrientationHint, 1500);
         }
 
         // ビューアを閉じる：ロック解除・全画面解除・一覧へ戻る（縦）
@@ -413,12 +415,15 @@
             }
         });
 
-        // 縦持ちなら「横にしてください」を表示、横なら消す
+        // 縦持ちなら「横にしてください」を表示、横なら消す。表示しても数秒で自動的に消す（邪魔にならないように）
+        let hintTimer = null;
         function updateOrientationHint() {
             const hint = document.getElementById('orientHint');
             if (!hint) return;
             const portrait = window.matchMedia('(orientation: portrait)').matches;
             hint.classList.toggle('hidden', !portrait);
+            clearTimeout(hintTimer);
+            if (portrait) hintTimer = setTimeout(() => hint.classList.add('hidden'), 4000); // 4秒で自動的に消す
         }
         window.addEventListener('resize', updateOrientationHint);
         window.addEventListener('orientationchange', updateOrientationHint);
