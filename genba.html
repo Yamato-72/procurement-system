@@ -234,23 +234,38 @@
                     ? `<p class="text-center text-sm text-slate-500 py-8">該当なし</p>`
                     : `<div class="space-y-2">${list.map(m => manualRowHtml(m, true)).join('')}</div>`;
             } else {
+                // 「共通」は製品ではないので、製品カードとは別の領域（下）に分けて出す
+                const COMMON = '共通';
+                const productsOnly = products.filter(p => p !== COMMON);
+                const hasCommon = products.includes(COMMON);
+
+                const cardHtml = (p, extraCls) => {
+                    const pi = products.indexOf(p);
+                    const mine = list.filter(m => m.product === p);
+                    // 用途内訳（登録がある用途だけ・固定順）
+                    const breakdown = CATEGORIES.filter(c => mine.some(m => m.category === c)).map(c => {
+                        const n = mine.filter(m => m.category === c).length;
+                        return `<span class="inline-block text-[10px] px-1.5 py-0.5 rounded ${CAT_COLOR[c]}">${c}${n}</span>`;
+                    }).join(' ');
+                    return `
+                    <button type="button" onclick="renderManualListByIdx(${pi})" class="text-left rounded-xl shadow-sm p-3 sm:p-4 min-h-[96px] active:scale-[0.98] transition ${extraCls}">
+                        <p class="text-base sm:text-lg font-bold text-slate-900 break-words leading-tight">${p}</p>
+                        <p class="text-xs text-slate-500 mt-1">${mine.length}件</p>
+                        <div class="mt-1.5 flex flex-wrap gap-1">${breakdown}</div>
+                    </button>`;
+                };
+
                 body = `
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    ${products.map((p, pi) => {
-                        const mine = list.filter(m => m.product === p);
-                        // 用途内訳（登録がある用途だけ・固定順）
-                        const breakdown = CATEGORIES.filter(c => mine.some(m => m.category === c)).map(c => {
-                            const n = mine.filter(m => m.category === c).length;
-                            return `<span class="inline-block text-[10px] px-1.5 py-0.5 rounded ${CAT_COLOR[c]}">${c}${n}</span>`;
-                        }).join(' ');
-                        return `
-                        <button type="button" onclick="renderManualListByIdx(${pi})" class="text-left bg-white rounded-xl shadow-sm p-3 sm:p-4 min-h-[96px] active:scale-[0.98] transition">
-                            <p class="text-base sm:text-lg font-bold text-slate-900 break-words leading-tight">${p}</p>
-                            <p class="text-xs text-slate-500 mt-1">${mine.length}件</p>
-                            <div class="mt-1.5 flex flex-wrap gap-1">${breakdown}</div>
-                        </button>`;
-                    }).join('')}
-                </div>`;
+                    ${productsOnly.map(p => cardHtml(p, 'bg-white')).join('')}
+                </div>
+                ${hasCommon ? `
+                <div class="mt-6">
+                    <p class="text-xs font-bold text-slate-500 mb-2 px-1">製品を問わない資料</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        ${cardHtml(COMMON, 'bg-slate-50 border border-dashed border-slate-300')}
+                    </div>
+                </div>` : ''}`;
             }
 
             app.innerHTML = filterBarHtml() + body;
