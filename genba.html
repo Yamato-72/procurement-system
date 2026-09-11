@@ -59,6 +59,16 @@
         // 絞り込み状態（検索語・用途チップ）
         let filterText = '';
         let filterCat = '';   // '' = すべて
+        let ACTIVE_CATS = []; // シートに実際にある用途（チップ生成用）
+
+        // シートのB列にある用途を集める：定義済み(CATEGORIES)は固定順、それ以外は登場順で末尾
+        function computeActiveCategories() {
+            const used = [...new Set(MANUALS.map(m => m.category).filter(Boolean))];
+            const known = CATEGORIES.filter(c => used.includes(c));
+            const unknown = used.filter(c => !CATEGORIES.includes(c));
+            ACTIVE_CATS = [...known, ...unknown];
+            return ACTIVE_CATS;
+        }
 
         let tokenClient, gapiInited = false, gisInited = false, accessToken = null;
         let MANUALS = [];
@@ -191,10 +201,14 @@
 
         // 検索欄＋用途チップ（トップ共通）
         function filterBarHtml() {
-            const chips = ['', ...CATEGORIES].map((c, ci) => {
+            const cats = computeActiveCategories();
+            const chips = ['', ...cats].map((c, ci) => {
                 const on = (filterCat === c);
                 const label = c || 'すべて';
-                const cls = on ? 'bg-orange-600 text-white' : 'bg-white text-slate-700 border border-slate-300';
+                let cls;
+                if (on) cls = 'bg-orange-600 text-white';
+                else if (c && !CATEGORIES.includes(c)) cls = 'bg-slate-100 text-slate-600 border border-slate-300'; // 未定義の用途はグレー
+                else cls = 'bg-white text-slate-700 border border-slate-300';
                 // 属性内にクォートを埋め込まず、番号で参照（0=すべて）
                 return `<button type="button" onclick="setCatIdx(${ci})" class="shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold ${cls} active:scale-95">${label}</button>`;
             }).join('');
@@ -210,7 +224,7 @@
         }
         function escapeAttr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
         function setText(v) { filterText = v; renderProducts(true); }
-        function setCatIdx(i) { filterCat = (i === 0) ? '' : (CATEGORIES[i - 1] || ''); renderProducts(); }
+        function setCatIdx(i) { filterCat = (i === 0) ? '' : (ACTIVE_CATS[i - 1] || ''); renderProducts(); }
 
         function renderProducts(keepFocus) {
             document.getElementById('backBtn').classList.add('hidden');
@@ -243,9 +257,9 @@
                     const pi = products.indexOf(p);
                     const mine = list.filter(m => m.product === p);
                     // 用途内訳（登録がある用途だけ・固定順）
-                    const breakdown = CATEGORIES.filter(c => mine.some(m => m.category === c)).map(c => {
+                    const breakdown = computeActiveCategories().filter(c => mine.some(m => m.category === c)).map(c => {
                         const n = mine.filter(m => m.category === c).length;
-                        return `<span class="inline-block text-[10px] px-1.5 py-0.5 rounded ${CAT_COLOR[c]}">${c}${n}</span>`;
+                        return `<span class="inline-block text-[10px] px-1.5 py-0.5 rounded ${CAT_COLOR[c] || 'bg-slate-100 text-slate-600'}">${c}${n}</span>`;
                     }).join(' ');
                     return `
                     <button type="button" onclick="renderManualListByIdx(${pi})" class="text-left rounded-xl shadow-sm p-3 sm:p-4 min-h-[96px] active:scale-[0.98] transition ${extraCls}">
