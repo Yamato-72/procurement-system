@@ -44,11 +44,19 @@
         const SCOPES = 'https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/presentations.readonly'; // シート・スライドとも読み取りのみ
 
         // 用途の表示色（これ以外はグレー）
+        // 用途（6つ固定）。この順でチップ表示・カード内訳を並べる
+        const CATEGORIES = ['付属品', '初期設定', '設置', '操作', 'メンテ', 'トラブル'];
         const CAT_COLOR = {
-            '設置': 'bg-blue-100 text-blue-700',
-            '操作': 'bg-emerald-100 text-emerald-700',
+            '付属品':   'bg-amber-100 text-amber-800',
+            '初期設定': 'bg-violet-100 text-violet-700',
+            '設置':     'bg-blue-100 text-blue-700',
+            '操作':     'bg-emerald-100 text-emerald-700',
+            'メンテ':   'bg-teal-100 text-teal-700',
             'トラブル': 'bg-red-100 text-red-700',
         };
+        // 絞り込み状態（検索語・用途チップ）
+        let filterText = '';
+        let filterCat = '';   // '' = すべて
 
         let tokenClient, gapiInited = false, gisInited = false, accessToken = null;
         let MANUALS = [];
@@ -170,27 +178,101 @@
         }
 
         // ===== 画面 =====
-        function renderProducts() {
+        // 検索・用途で絞ったマニュアル
+        function filteredManuals() {
+            const q = filterText.trim().toLowerCase();
+            return MANUALS.filter(m =>
+                (!filterCat || m.category === filterCat) &&
+                (!q || m.product.toLowerCase().includes(q) || m.title.toLowerCase().includes(q) || m.category.toLowerCase().includes(q))
+            );
+        }
+
+        // 検索欄＋用途チップ（トップ共通）
+        function filterBarHtml() {
+            const chips = ['', ...CATEGORIES].map(c => {
+                const on = (filterCat === c);
+                const label = c || 'すべて';
+                const cls = on ? 'bg-orange-600 text-white' : 'bg-white text-slate-700 border border-slate-300';
+                return `<button type="button" onclick="setCat(${JSON.stringify(c)})" class="shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold ${cls} active:scale-95">${label}</button>`;
+            }).join('');
+            return `
+                <div class="mb-3">
+                    <div class="relative">
+                        <input id="searchBox" type="search" value="${escapeAttr(filterText)}" placeholder="製品名・マニュアル名で検索"
+                            oninput="setText(this.value)" class="w-full pl-10 pr-3 py-3 rounded-xl border border-slate-300 bg-white text-base">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                    </div>
+                    <div class="flex gap-2 overflow-x-auto mt-2 pb-1 -mx-1 px-1">${chips}</div>
+                </div>`;
+        }
+        function escapeAttr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+        function setText(v) { filterText = v; renderProducts(true); }
+        function setCat(c) { filterCat = c; renderProducts(); }
+
+        function renderProducts(keepFocus) {
             document.getElementById('backBtn').classList.add('hidden');
             document.getElementById('crumb').textContent = '製品を選んでください';
-            const products = [...new Set(MANUALS.map(m => m.product))];
-            PRODUCTS = products;
             const app = document.getElementById('app');
-            if (products.length === 0) {
+
+            if (MANUALS.length === 0) {
                 app.innerHTML = `<div class="bg-white rounded-xl shadow-sm p-6 text-center text-sm text-slate-500 mt-4">マニュアルがまだ登録されていません。<br>スプレッドシートの「${SHEET_NAME}」に行を追加してください。</div>`;
                 return;
             }
-            app.innerHTML = `
+
+            const list = filteredManuals();
+            const products = [...new Set(list.map(m => m.product))];
+            PRODUCTS = products;
+            const searching = filterText.trim() !== '';
+
+            // 検索中はマニュアルを横断で直接並べる（製品をまたいで探せる）
+            let body;
+            if (searching) {
+                body = list.length === 0
+                    ? `<p class="text-center text-sm text-slate-500 py-8">該当なし</p>`
+                    : `<div class="space-y-2">${list.map(m => manualRowHtml(m, true)).join('')}</div>`;
+            } else {
+                body = `
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     ${products.map((p, pi) => {
-                        const count = MANUALS.filter(m => m.product === p).length;
+                        const mine = list.filter(m => m.product === p);
+                        // 用途内訳（登録がある用途だけ・固定順）
+                        const breakdown = CATEGORIES.filter(c => mine.some(m => m.category === c)).map(c => {
+                            const n = mine.filter(m => m.category === c).length;
+                            return `<span class="inline-block text-[10px] px-1.5 py-0.5 rounded ${CAT_COLOR[c]}">${c}${n}</span>`;
+                        }).join(' ');
                         return `
-                        <button type="button" onclick="renderManualListByIdx(${pi})" class="text-left bg-white rounded-xl shadow-sm p-4 min-h-[88px] active:scale-[0.98] transition">
-                            <p class="text-base sm:text-lg font-bold text-slate-900 break-words">${p}</p>
-                            <p class="text-xs text-slate-500 mt-1">${count}件</p>
+                        <button type="button" onclick="renderManualListByIdx(${pi})" class="text-left bg-white rounded-xl shadow-sm p-3 sm:p-4 min-h-[96px] active:scale-[0.98] transition">
+                            <p class="text-base sm:text-lg font-bold text-slate-900 break-words leading-tight">${p}</p>
+                            <p class="text-xs text-slate-500 mt-1">${mine.length}件</p>
+                            <div class="mt-1.5 flex flex-wrap gap-1">${breakdown}</div>
                         </button>`;
                     }).join('')}
                 </div>`;
+            }
+
+            app.innerHTML = filterBarHtml() + body;
+            // 入力中はフォーカスを保つ（再描画で消えないように）
+            if (keepFocus) {
+                const box = document.getElementById('searchBox');
+                if (box) { box.focus(); const v = box.value; box.value = ''; box.value = v; }
+            }
+        }
+
+        // マニュアル1行（showProduct=true なら製品名も出す＝検索結果用）
+        function manualRowHtml(m, showProduct) {
+            const gi = MANUALS.indexOf(m);
+            const color = CAT_COLOR[m.category] || 'bg-slate-100 text-slate-600';
+            const pages = m.count === null ? '📑全ページ' : (m.count > 1 ? `📑${m.count}枚` : '');
+            return `
+            <button type="button" onclick="openManual(${gi})" class="w-full text-left bg-white rounded-xl shadow-sm p-4 flex items-center gap-3 active:scale-[0.99] transition">
+                ${m.category ? `<span class="shrink-0 text-xs px-2 py-1 rounded-full ${color}">${m.category}</span>` : ''}
+                <span class="flex-1 min-w-0">
+                    ${showProduct ? `<span class="block text-[11px] text-slate-500">${m.product}</span>` : ''}
+                    <span class="block font-semibold text-slate-800 leading-snug">${m.title}</span>
+                </span>
+                ${pages ? `<span class="shrink-0 text-xs text-blue-600 whitespace-nowrap">${pages}</span>` : ''}
+                <span class="shrink-0 text-slate-300 text-xl">›</span>
+            </button>`;
         }
 
         function renderManualListByIdx(i) { const p = PRODUCTS[i]; if (p !== undefined) renderManualList(p); }
@@ -198,22 +280,13 @@
         function renderManualList(product) {
             const back = document.getElementById('backBtn');
             back.classList.remove('hidden');
-            back.onclick = renderProducts;
+            back.onclick = () => renderProducts();
             document.getElementById('crumb').textContent = product;
-            const list = MANUALS.filter(m => m.product === product); // シートの行順で表示
+            // シートの行順。用途チップの絞り込みは製品内でも効かせる
+            const list = MANUALS.filter(m => m.product === product && (!filterCat || m.category === filterCat));
             document.getElementById('app').innerHTML = `
                 <div class="space-y-2">
-                    ${list.map(m => {
-                        const gi = MANUALS.indexOf(m);
-                        const color = CAT_COLOR[m.category] || 'bg-slate-100 text-slate-600';
-                        return `
-                        <button type="button" onclick="openManual(${gi})" class="w-full text-left bg-white rounded-xl shadow-sm p-4 flex items-center gap-3 active:scale-[0.99] transition">
-                            ${m.category ? `<span class="shrink-0 text-xs px-2 py-1 rounded-full ${color}">${m.category}</span>` : ''}
-                            <span class="flex-1 min-w-0 font-semibold text-slate-800 leading-snug">${m.title}</span>
-                            ${m.count === null ? `<span class="shrink-0 text-xs text-blue-600 whitespace-nowrap">📑全ページ</span>` : (m.count > 1 ? `<span class="shrink-0 text-xs text-blue-600 whitespace-nowrap">📑${m.count}枚</span>` : '')}
-                            <span class="shrink-0 text-slate-300 text-xl">›</span>
-                        </button>`;
-                    }).join('')}
+                    ${list.length ? list.map(m => manualRowHtml(m, false)).join('') : `<p class="text-center text-sm text-slate-500 py-8">この用途のマニュアルはありません</p>`}
                 </div>`;
         }
 
