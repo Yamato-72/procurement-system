@@ -19,292 +19,15 @@
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;900&display=swap');
-        :root {
-            --ui-bg: #f4f6f8;
-            --ui-surface: #ffffff;
-            --ui-surface-muted: #f8fafc;
-            --ui-text: #172033;
-            --ui-subtle: #64748b;
-            --ui-line: #e2e8f0;
-            --ui-brand: #2457d6;
-            --ui-brand-strong: #1d46ad;
-            --ui-brand-soft: #edf3ff;
-            --ui-warning: #b45309;
-            --ui-warning-soft: #fff7e8;
-            --ui-success: #08775a;
-            --ui-success-soft: #ecfdf5;
-            --ui-danger: #c62828;
-            --ui-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 10px 30px rgba(15, 23, 42, .05);
-        }
-        html.dark {
-            --ui-bg: #0f172a;
-            --ui-surface: #172033;
-            --ui-surface-muted: #1e293b;
-            --ui-text: #f1f5f9;
-            --ui-subtle: #94a3b8;
-            --ui-line: #334155;
-            --ui-brand: #7aa2ff;
-            --ui-brand-strong: #9bb7ff;
-            --ui-brand-soft: #1d2e55;
-            --ui-warning: #fbbf24;
-            --ui-warning-soft: #3b2b13;
-            --ui-success: #5ee0b1;
-            --ui-success-soft: #12352b;
-            --ui-danger: #fb7185;
-            --ui-shadow: 0 14px 34px rgba(0, 0, 0, .2);
-        }
-        * { font-family: 'Noto Sans JP', sans-serif; box-sizing: border-box; }
-        html { scroll-behavior: smooth; }
-        body { margin: 0; background: var(--ui-bg); color: var(--ui-text); }
-        button, a, select, input, textarea { font: inherit; }
-        button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible {
-            outline: 3px solid rgba(37, 99, 235, .28);
-            outline-offset: 2px;
-        }
-        .tabular { font-variant-numeric: tabular-nums; }
-
-        /* Loading / sign in */
-        .auth-shell, .loading-shell {
-            min-height: 100vh;
-            display: grid;
-            place-items: center;
-            padding: 24px;
-            background:
-                radial-gradient(circle at 18% 8%, rgba(37, 99, 235, .09), transparent 31%),
-                radial-gradient(circle at 88% 88%, rgba(14, 165, 233, .07), transparent 28%),
-                var(--ui-bg);
-        }
-        .auth-panel {
-            width: min(100%, 430px);
-            padding: 38px;
-            border: 1px solid var(--ui-line);
-            border-radius: 24px;
-            background: var(--ui-surface);
-            box-shadow: var(--ui-shadow);
-        }
-        .auth-mark, .brand-mark {
-            display: inline-grid;
-            place-items: center;
-            color: white;
-            background: linear-gradient(145deg, #2f67ea, #1944b3);
-            box-shadow: 0 8px 18px rgba(36, 87, 214, .24);
-        }
-        .auth-mark { width: 52px; height: 52px; border-radius: 16px; font-size: 24px; font-weight: 800; }
-        .auth-eyebrow { margin-top: 24px; color: var(--ui-brand); font-size: 11px; font-weight: 800; letter-spacing: .16em; }
-        .auth-title { margin-top: 6px; color: var(--ui-text); font-size: 30px; font-weight: 800; letter-spacing: -.03em; }
-        .auth-copy { margin-top: 10px; color: var(--ui-subtle); font-size: 14px; line-height: 1.8; }
-        .auth-button {
-            width: 100%; margin-top: 28px; padding: 13px 18px; border: 0; border-radius: 12px;
-            background: var(--ui-brand); color: white; font-weight: 700; cursor: pointer;
-            box-shadow: 0 8px 20px rgba(36, 87, 214, .2);
-        }
-        .auth-button:hover { background: var(--ui-brand-strong); transform: translateY(-1px); }
-        .auth-note { margin-top: 14px; color: var(--ui-subtle); font-size: 11px; text-align: center; }
-
-        /* App shell */
-        .payment-shell { min-height: 100vh; background: var(--ui-bg); }
-        .payment-shell-header {
-            position: sticky; top: 0; z-index: 40;
-            border-bottom: 1px solid var(--ui-line);
-            background: color-mix(in srgb, var(--ui-surface) 94%, transparent);
-            backdrop-filter: blur(14px);
-        }
-        .payment-header-inner { width: min(100% - 32px, 1400px); margin: 0 auto; padding: 12px 0 10px; }
-        .payment-header-row { display: flex; align-items: center; gap: 22px; }
-        .brand-lockup { display: flex; align-items: center; gap: 10px; min-width: max-content; text-decoration: none; }
-        .brand-mark { width: 34px; height: 34px; border-radius: 10px; font-size: 16px; font-weight: 900; }
-        .brand-title { color: var(--ui-text); font-size: 16px; font-weight: 800; line-height: 1.2; }
-        .brand-subtitle { color: var(--ui-subtle); font-size: 10px; margin-top: 2px; }
-        .global-nav { display: flex; align-items: center; gap: 4px; }
-        .global-nav a {
-            padding: 8px 11px; border-radius: 9px; color: var(--ui-subtle);
-            font-size: 12px; font-weight: 700; text-decoration: none;
-        }
-        .global-nav a:hover { color: var(--ui-text); background: var(--ui-surface-muted); }
-        .global-nav a.active { color: var(--ui-brand); background: var(--ui-brand-soft); }
-        .header-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
-        .header-status { max-width: 190px; overflow: hidden; color: var(--ui-brand); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-        .shell-icon-button, .shell-tool-button {
-            min-height: 36px; border: 1px solid var(--ui-line); border-radius: 10px;
-            background: var(--ui-surface); color: var(--ui-subtle); cursor: pointer;
-        }
-        .shell-icon-button { min-width: 36px; padding: 7px; }
-        .shell-tool-button { padding: 7px 11px; color: var(--ui-text); font-size: 12px; font-weight: 700; }
-        .shell-icon-button:hover, .shell-tool-button:hover { color: var(--ui-brand); border-color: color-mix(in srgb, var(--ui-brand) 42%, var(--ui-line)); }
-        .shell-menu {
-            position: absolute; right: 0; width: 240px; margin-top: 8px; overflow: hidden;
-            border: 1px solid var(--ui-line); border-radius: 14px; background: var(--ui-surface); box-shadow: var(--ui-shadow);
-        }
-        .shell-menu button { color: var(--ui-text); }
-        .shell-menu button.menu-accent { color: var(--ui-brand); }
-        .shell-menu button.menu-danger { color: var(--ui-danger); }
-        .shell-menu-label { padding: 10px 14px 5px; color: var(--ui-subtle); font-size: 10px; font-weight: 800; letter-spacing: .08em; }
-        .payment-sync-row { display: flex; align-items: center; gap: 8px; margin: 7px 0 0 44px; color: var(--ui-subtle); font-size: 10px; }
-        .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: #16a34a; box-shadow: 0 0 0 3px rgba(22, 163, 74, .12); }
-        .sync-divider { color: var(--ui-line); }
-        .sync-refresh { border: 0; padding: 0; background: transparent; color: var(--ui-brand); cursor: pointer; }
-
-        /* Content order: work first, metrics and settings later */
-        .payment-main {
-            width: min(100% - 32px, 1400px); margin: 0 auto; padding: 26px 0 100px;
-            display: flex; flex-direction: column;
-        }
-        .priority-alerts { order: 0; margin-bottom: 14px; }
-        .priority-heading { width: 100%; margin-bottom: 6px; }
-        .priority-heading strong { display: block; font-size: 18px; letter-spacing: -.02em; }
-        .priority-heading span { color: var(--ui-subtle); font-size: 11px; }
-        .payment-queue { order: 1; margin-bottom: 16px !important; border: 1px solid #f2d59b !important; border-radius: 16px !important; background: var(--ui-surface) !important; box-shadow: var(--ui-shadow); }
-        .payment-queue > button { border-radius: 16px !important; }
-        .queue-title { display: flex; align-items: center; gap: 8px; }
-        .queue-title h2 { color: var(--ui-text); font-size: 15px; font-weight: 800; }
-        .queue-title p { margin-top: 2px; color: var(--ui-subtle); font-size: 10px; }
-        .project-workspace { order: 2; margin-bottom: 22px; border: 1px solid var(--ui-line) !important; border-radius: 18px !important; background: var(--ui-surface) !important; box-shadow: var(--ui-shadow); }
-        .payment-kpis { order: 3; gap: 10px !important; margin-bottom: 10px !important; }
-        .payment-kpis-secondary { order: 4; }
-        .payment-kpis-insights { order: 5; }
-        .supplier-panel { order: 6; margin: 14px 0 0 !important; border: 1px solid var(--ui-line) !important; border-radius: 16px !important; background: var(--ui-surface) !important; box-shadow: none !important; }
-        .metrics-heading { grid-column: 1 / -1; margin: 8px 0 1px; }
-        .metrics-heading strong { font-size: 15px; }
-        .metrics-heading span { margin-left: 8px; color: var(--ui-subtle); font-size: 10px; }
-        .payment-kpis > div:not(.metrics-heading) {
-            min-height: 94px; border: 1px solid var(--ui-line) !important; border-left-width: 1px !important;
-            border-radius: 14px !important; background: var(--ui-surface) !important; box-shadow: none !important;
-        }
-        .payment-kpis > div:not(.metrics-heading) p:first-child { color: var(--ui-subtle) !important; font-weight: 600; }
-        .payment-kpis > div:not(.metrics-heading) p:nth-child(2) { color: var(--ui-text) !important; font-variant-numeric: tabular-nums; }
-        .workspace-tabs {
-            top: 62px !important; margin-top: -8px !important; border-color: var(--ui-line) !important;
-            border-radius: 14px 14px 0 0; background: var(--ui-surface) !important;
-        }
-        .workspace-tabs button { min-width: 120px; }
-        .workspace-title-row h2 { color: var(--ui-text); font-size: 19px; letter-spacing: -.025em; }
-        .workspace-title-row p { margin-top: 3px; color: var(--ui-subtle); font-size: 11px; }
-        .primary-action {
-            border-radius: 10px !important; background: var(--ui-brand) !important; font-weight: 700;
-            box-shadow: 0 5px 14px rgba(36, 87, 214, .18);
-        }
-        .primary-action:hover { background: var(--ui-brand-strong) !important; }
-        .workspace-filters { border: 1px solid var(--ui-line); border-radius: 12px !important; background: var(--ui-surface-muted) !important; }
-        .workspace-filters select { min-height: 34px; border-color: var(--ui-line); border-radius: 8px !important; background: var(--ui-surface); color: var(--ui-text); }
-        .project-card { overflow: hidden; border-width: 1px !important; border-color: var(--ui-line) !important; border-radius: 14px !important; background: var(--ui-surface) !important; box-shadow: 0 1px 2px rgba(15, 23, 42, .03); }
-        .project-card:hover { border-color: color-mix(in srgb, var(--ui-brand) 34%, var(--ui-line)) !important; box-shadow: 0 8px 24px rgba(15, 23, 42, .06); }
-        .project-card.is-due { border-left: 4px solid #e9a23b !important; }
-        .project-card.is-complete { border-left: 4px solid #23a778 !important; }
-        .project-card > div:first-child { background: var(--ui-surface); }
-        .project-card button[title="削除"] { opacity: .62; }
-        .project-card button[title="削除"]:hover { opacity: 1; }
-        .project-product-clamp {
-            display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
-            line-height: 1.55;
-        }
-        .project-action-bar { display: flex; flex-wrap: wrap; gap: 8px; }
-        .project-action-button {
-            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-            min-height: 36px; padding: 7px 11px; border: 1px solid var(--ui-line); border-radius: 9px;
-            background: var(--ui-surface); color: var(--ui-text); font-size: 12px; font-weight: 700; text-decoration: none; cursor: pointer;
-        }
-        .project-action-button:hover { color: var(--ui-brand); border-color: color-mix(in srgb, var(--ui-brand) 45%, var(--ui-line)); background: var(--ui-brand-soft); }
-        .project-action-button.is-danger { color: var(--ui-danger); }
-        .project-action-button.is-danger:hover { border-color: color-mix(in srgb, var(--ui-danger) 45%, var(--ui-line)); background: color-mix(in srgb, var(--ui-danger) 8%, var(--ui-surface)); }
-
-        /* Payment confirmation */
-        .modal-backdrop {
-            position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
-            padding: 18px; background: rgba(15, 23, 42, .58); backdrop-filter: blur(3px);
-        }
-        .modal-panel {
-            width: min(100%, 600px); max-height: 92vh; overflow-y: auto; border: 1px solid var(--ui-line);
-            border-radius: 18px; background: var(--ui-surface); color: var(--ui-text); box-shadow: 0 24px 70px rgba(15, 23, 42, .28);
-        }
-        .modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 22px 15px; border-bottom: 1px solid var(--ui-line); }
-        .modal-eyebrow { color: var(--ui-brand); font-size: 10px; font-weight: 800; letter-spacing: .12em; }
-        .modal-title { margin-top: 3px; font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
-        .modal-copy { margin-top: 5px; color: var(--ui-subtle); font-size: 12px; line-height: 1.6; }
-        .modal-close { width: 34px; height: 34px; border: 1px solid var(--ui-line); border-radius: 9px; background: var(--ui-surface); color: var(--ui-subtle); cursor: pointer; }
-        .modal-body { padding: 18px 22px 22px; }
-        .summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-        .summary-item { padding: 11px 12px; border: 1px solid var(--ui-line); border-radius: 10px; background: var(--ui-surface-muted); }
-        .summary-item dt { color: var(--ui-subtle); font-size: 10px; font-weight: 700; }
-        .summary-item dd { margin-top: 3px; color: var(--ui-text); font-size: 14px; font-weight: 800; }
-        .field-label { display: block; margin-bottom: 5px; color: var(--ui-subtle); font-size: 11px; font-weight: 700; }
-        .form-control { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--ui-line); border-radius: 9px; background: var(--ui-surface); color: var(--ui-text); }
-        .modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 18px; }
-        .button-secondary, .button-primary { min-height: 40px; padding: 9px 16px; border-radius: 10px; font-size: 13px; font-weight: 800; cursor: pointer; }
-        .button-secondary { border: 1px solid var(--ui-line); background: var(--ui-surface); color: var(--ui-text); }
-        .button-primary { border: 1px solid var(--ui-brand); background: var(--ui-brand); color: white; }
-        .button-primary:hover { background: var(--ui-brand-strong); }
-        .button-primary:disabled { opacity: .5; cursor: not-allowed; }
-
-        /* New project form */
-        .project-form-panel { width: min(100%, 720px); }
-        .form-step { margin-bottom: 14px; padding: 15px; border: 1px solid var(--ui-line); border-radius: 13px; background: var(--ui-surface); }
-        .form-step.is-muted { background: var(--ui-surface-muted); }
-        .form-step-heading { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
-        .step-number { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--ui-brand-soft); color: var(--ui-brand); font-size: 11px; font-weight: 900; }
-        .form-step-heading strong { font-size: 13px; }
-        .form-step-heading span:last-child { margin-left: auto; color: var(--ui-subtle); font-size: 10px; }
-        .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
-        .form-grid.is-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-        .project-number-inputs { display: grid; grid-template-columns: 82px 1fr; gap: 6px; }
-        .add-line-button { width: 100%; min-height: 40px; border: 1px solid color-mix(in srgb, var(--ui-brand) 42%, var(--ui-line)); border-radius: 9px; background: var(--ui-brand-soft); color: var(--ui-brand); font-size: 13px; font-weight: 800; cursor: pointer; }
-        .add-line-button:hover { border-color: var(--ui-brand); }
-        .project-form-panel .modal-actions {
-            position: sticky; bottom: -22px; z-index: 2; margin-right: -22px; margin-left: -22px;
-            padding: 13px 22px 22px; border-top: 1px solid var(--ui-line); background: color-mix(in srgb, var(--ui-surface) 96%, transparent);
-            backdrop-filter: blur(10px);
-        }
-        .sales-loading-panel { padding: 46px 20px; text-align: center; }
-        .sales-loading-spinner { width: 30px; height: 30px; margin: 0 auto 12px; border: 3px solid var(--ui-line); border-top-color: var(--ui-brand); border-radius: 50%; animation: spin .8s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .sales-filter-bar { display: grid; grid-template-columns: minmax(180px, 1fr) 150px auto auto; align-items: center; gap: 8px; margin-bottom: 14px; padding: 10px; border: 1px solid var(--ui-line); border-radius: 11px; background: var(--ui-surface-muted); }
-
-        .mobile-nav { display: none; }
-
-        @media (max-width: 920px) {
-            .global-nav { display: none; }
-            .payment-header-row { gap: 10px; }
-            .header-status, .header-tool-label { display: none; }
-        }
-        @media (max-width: 640px) {
-            body { padding-bottom: 70px; }
-            .payment-header-inner, .payment-main { width: min(100% - 20px, 1400px); }
-            .payment-header-inner { padding: 9px 0 8px; }
-            .brand-mark { width: 31px; height: 31px; border-radius: 9px; }
-            .brand-title { font-size: 14px; }
-            .brand-subtitle { display: none; }
-            .header-actions { gap: 4px; }
-            .shell-icon-button, .shell-tool-button { min-width: 34px; min-height: 34px; padding: 6px 8px; }
-            .payment-sync-row { margin-left: 41px; margin-top: 3px; }
-            .payment-main { padding-top: 18px; }
-            .priority-heading strong { font-size: 16px; }
-            .project-workspace { padding: 12px !important; }
-            .workspace-tabs { top: 52px !important; margin-left: -12px !important; margin-right: -12px !important; padding-left: 12px !important; padding-right: 12px !important; }
-            .workspace-tabs button { flex: 1; min-width: 0; }
-            .payment-kpis > div:not(.metrics-heading) { min-height: 82px; }
-            .auth-panel { padding: 30px 24px; border-radius: 20px; }
-            .summary-grid, .form-grid, .form-grid.is-three, .sales-filter-bar { grid-template-columns: 1fr; }
-            .modal-header, .modal-body { padding-left: 16px; padding-right: 16px; }
-            .project-form-panel .modal-actions { bottom: -22px; margin-right: -16px; margin-left: -16px; padding-right: 16px; padding-left: 16px; }
-            .project-action-button { flex: 1 1 calc(50% - 4px); }
-            .mobile-nav {
-                position: fixed; left: 10px; right: 10px; bottom: 9px; z-index: 45;
-                display: grid; grid-template-columns: repeat(4, 1fr); overflow: hidden;
-                border: 1px solid var(--ui-line); border-radius: 16px; background: color-mix(in srgb, var(--ui-surface) 96%, transparent);
-                box-shadow: 0 14px 36px rgba(15, 23, 42, .18); backdrop-filter: blur(14px);
-            }
-            .mobile-nav a { padding: 8px 3px 7px; color: var(--ui-subtle); font-size: 9px; font-weight: 700; text-align: center; text-decoration: none; }
-            .mobile-nav a span { display: block; margin-bottom: 1px; font-size: 16px; }
-            .mobile-nav a.active { color: var(--ui-brand); background: var(--ui-brand-soft); }
-        }
+        * { font-family: 'Noto Sans JP', sans-serif; }
     </style>
 </head>
 <body>
     <div id="app">
-        <div class="loading-shell">
+        <div class="min-h-screen bg-slate-100 flex items-center justify-center">
             <div class="text-center">
-                <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600 mx-auto mb-4"></div>
-                <p class="font-semibold text-slate-800 dark:text-white">支払ナビを準備しています</p>
-                <p class="text-slate-500 text-sm mt-1">Google Sheets と接続中...</p>
+                <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+                <p class="text-slate-600 text-lg">初期化中...</p>
             </div>
         </div>
     </div>
@@ -337,16 +60,7 @@
         let projectTab = 'purchase'; // 'purchase' or 'sales'
         let expandedSalesProjects = {}; // 販売案件の展開状態
         let salesProjectExpenses = {}; // 販売案件の経費（案件番号をキーに）
-        let salesProjectRevenue = {}; // 販売案件の売上（案件番号をキーに）
-        let salesSortMode = 'fiscal'; // 販売案件の並び: 'fiscal'(期でまとめる) or 'project'(案件番号順)
-        let businessTargets = {}; // 経営目標（期ラベルをキーに）: { revenueTarget, marginTarget, updatedDate }
         let inventoryData = []; // 在庫データキャッシュ
-        let salesDataLoading = false; // 販売原価タブの読み込み状態
-        let salesSearchText = ''; // 販売案件の検索語
-        let salesPeriodFilter = 'all'; // 販売案件の会計期フィルタ
-        let salesMissingDeliveryOnly = false; // 納品日未入力のみ表示
-        let showBusinessTargetSettings = false; // 経営目標の編集欄
-        let pendingPaymentConfirmation = null; // 支払確定モーダルの一時データ
         
         // 種別リスト
         const CATEGORIES = [
@@ -822,8 +536,7 @@
                         registeredDate: row[11] || '',
                         expenses: [],
                         receivedComplete: row[13] === 'true' || row[13] === true,
-                        // 通貨（O列）。未設定・空は 'USD' 扱い＝既存案件はこれまで通り。
-                        currency: (row[14] === 'JPY') ? 'JPY' : 'USD'
+                        orderBatch: parseInt(row[14]) || 0  // 発注ロット（0=初回, 1=追加1, ...）
                     };
                     
                     // 諸費用をパース
@@ -968,7 +681,7 @@
                 });
 
                 const projectData = [
-                    ['ID', '接頭辞', '番号', 'サプライヤーID', '製品名', '総額USD', 'デポジット予定', 'Serial', '数量', 'WorkingDays', '集荷予定日', '発注日', '諸費用', '入庫完了', '通貨'],
+                    ['ID', '接頭辞', '番号', 'サプライヤーID', '製品名', '総額USD', 'デポジット予定', 'Serial', '数量', 'WorkingDays', '集荷予定日', '発注日', '諸費用', '入庫完了', '発注ロット'],
                     ...projects.map(p => [
                         p.id, 
                         p.projectPrefix || 'AD', 
@@ -984,7 +697,7 @@
                         p.registeredDate || '',
                         JSON.stringify(p.expenses || []),
                         p.receivedComplete ? 'true' : '',
-                        p.currency === 'JPY' ? 'JPY' : ''   // 空=USD（既存案件と互換）
+                        p.orderBatch || 0
                     ])
                 ];
                 // まずクリアしてから書き込み（削除された行も反映）
@@ -1012,53 +725,51 @@
             saveData();
         }
 
-        async function addProject(projectNumberInput, supplierId, productName, totalAmount, quantity, workingDays, category, patternIndex = 0, currency = 'USD') {
+        // 同じ案件番号の既存製品から、次の追加発注ロット番号を返す（無ければ0=初回）
+        function getNextOrderBatch(prefix, number) {
+            const existing = projects.filter(p =>
+                (p.projectPrefix || 'AD').toUpperCase() === String(prefix).toUpperCase() &&
+                parseInt(p.projectNumber) === parseInt(number)
+            );
+            if (existing.length === 0) return 0;
+            return Math.max(...existing.map(p => p.orderBatch || 0)) + 1;
+        }
+
+        // デポジットの表示ラベル（初回は「第N回」、追加発注は「追加M 第N回」）
+        function depositLabel(dep) {
+            const b = dep.orderBatch || 0;
+            return b > 0 ? `追加${b} 第${dep.depositNumber}回` : `第${dep.depositNumber}回`;
+        }
+
+        async function addProject(projectNumberInput, supplierId, productName, totalAmount, quantity, workingDays, category, patternIndex = 0, orderBatch = 0) {
             // 案件番号を解析（AD-1234 形式または 1234 形式）
             const parsed = parseProjectNumberString(projectNumberInput);
-
-            const isJPY = currency === 'JPY';
-
-            let depositSchedule;
-            if (isJPY) {
-                // 円建て（国内調達）：分割なし。100%を1回で、レート1.0でJPY確定。
-                // amountUSD には円の金額をそのまま入れる（amountJPY = amountUSD × rate の既存計算がそのまま成立）
-                depositSchedule = [{
-                    depositNumber: 1,
-                    percentage: 100,
-                    amountUSD: parseFloat(totalAmount),
-                    paid: false,
-                    paidDate: null,
-                    exchangeRate: null,
-                    amountJPY: null
-                }];
-            } else {
-                const supplier = suppliers.find(s => s.id === parseInt(supplierId));
-                let depositRates = [50, 50]; // デフォルト
-                if (supplier && supplier.paymentPatterns && supplier.paymentPatterns[patternIndex]) {
-                    depositRates = supplier.paymentPatterns[patternIndex].rates;
-                }
-                depositSchedule = depositRates.map((rate, idx) => ({
-                    depositNumber: idx + 1,
-                    percentage: rate,
-                    amountUSD: (parseFloat(totalAmount) * rate / 100),
-                    paid: false,
-                    paidDate: null,
-                    exchangeRate: null,
-                    amountJPY: null
-                }));
+            
+            const supplier = suppliers.find(s => s.id === parseInt(supplierId));
+            let depositRates = [50, 50]; // デフォルト
+            if (supplier && supplier.paymentPatterns && supplier.paymentPatterns[patternIndex]) {
+                depositRates = supplier.paymentPatterns[patternIndex].rates;
             }
-
-            // 円建ては Serial・集荷予定日を使わない
-            const serial = isJPY ? '' : generateSerial(quantity, parsed.prefix, parsed.number);
-
+            const depositSchedule = depositRates.map((rate, idx) => ({
+                depositNumber: idx + 1,
+                percentage: rate,
+                amountUSD: (parseFloat(totalAmount) * rate / 100),
+                paid: false,
+                paidDate: null,
+                exchangeRate: null,
+                amountJPY: null
+            }));
+            
+            const serial = generateSerial(quantity, parsed.prefix, parsed.number);
+            
             // 案件登録日から集荷予定日を計算
             const today = new Date();
             const pickupDate = addWorkingDays(today, workingDays);
-            const pickupDateStr = isJPY ? '' : pickupDate.toISOString().split('T')[0];
+            const pickupDateStr = pickupDate.toISOString().split('T')[0];
             const todayStr = today.toISOString().split('T')[0];
-
+            
             const projectNumberFull = `${parsed.prefix}-${parsed.number}`;
-
+            
             projects.push({
                 id: String(Date.now()),
                 projectPrefix: parsed.prefix,
@@ -1072,8 +783,8 @@
                 workingDays: workingDays,
                 pickupDate: pickupDateStr,
                 registeredDate: todayStr,
-                currency: isJPY ? 'JPY' : 'USD',
-                expenses: [] // 諸費用（国際送料、関税、消費税など）
+                expenses: [], // 諸費用（国際送料、関税、消費税など）
+                orderBatch: orderBatch // 発注ロット
             });
             saveData();
 
@@ -1240,8 +951,7 @@
         }
         
         // 在庫の取得金を更新
-        // silent=true のとき、在庫が見つからなくても確認ダイアログを出さずスキップ（按分など一括処理用）
-        async function updateInventoryCost(project, silent = false) {
+        async function updateInventoryCost(project) {
             try {
                 // 認証トークンが古くなりすぎてないかチェックして、必要なら事前に更新
                 await ensureFreshToken();
@@ -1285,10 +995,6 @@
                 // デバッグ：案件番号は一致したが製品名でハジかれた行を記録
                 const productNameMismatches = [];
 
-                // 製品名の表記揺れ（全角半角・空白・大小文字）を吸収して照合する
-                const normalizeName = (s) => String(s || '').normalize('NFKC').replace(/\s+/g, '').toLowerCase();
-                const productNameNorm = normalizeName(productName);
-
                 rows.forEach((row, idx) => {
                     const rowPrefix = row[4] || '';
                     const rowNumber = String(row[5] || '').padStart(4, '0');
@@ -1297,7 +1003,7 @@
                     const prefixMatch = rowPrefix.toUpperCase() === projectPrefix.toUpperCase();
                     const numberMatch = rowNumber === projectNumber;
                     // 製品名も一致条件に加える（グループ案件で複数製品が同じ案件番号を持つため）
-                    const productMatch = normalizeName(rowProductName) === productNameNorm;
+                    const productMatch = rowProductName === productName;
                     
                     // 案件番号 + 製品名で一致判定
                     if (prefixMatch && numberMatch && productMatch) {
@@ -1344,11 +1050,6 @@
                     showStatus(msg);
                     setTimeout(() => showStatus(''), 3000);
                 } else {
-                    // 静かモード（按分など一括処理）では確認を出さずスキップ
-                    if (silent) {
-                        console.warn(`[updateInventoryCost] 在庫が見つからないためスキップ（${projectPrefix}-${projectNumber} / ${productName}）`);
-                        return;
-                    }
                     // 在庫が見つからない場合は新規追加を提案
                     const confirmAdd = confirm(`在庫が見つかりません（${projectPrefix}-${projectNumber}）\n\n新規追加しますか？\n\n製品名: ${productName}\n数量: ${quantity}台\n取得金: ¥${costPerUnit.toLocaleString()}/台`);
                     
@@ -1482,90 +1183,6 @@
             link.click();
         }
 
-        // 販売案件 損益CSV（明細・1行=1費目／1売上、案件ロールアップ列付き）
-        // 在庫(仕入原価)・経費(外注費ほか)・売上を縦に並べ、各行に案件単位の総原価/売上/粗利/粗利率も持たせる。
-        // 在庫行はあるのに経費行が無い案件＝外注費の入力漏れ、売上が空の案件＝売上未入力として拾える。
-        async function exportSalesPnlCSV() {
-            // 最新の在庫＋経費＋売上を読み直す（どのタブからでも動くように）
-            showStatus('🔄 最新データを取得中...');
-            try {
-                await loadInventoryForSales();
-            } catch (e) {
-                console.error(e);
-            }
-            showStatus('');
-
-            const salesProjects = getSalesProjects();
-            if (salesProjects.length === 0) {
-                alert('引当・出庫済みの販売案件がありません');
-                return;
-            }
-
-            // CSVエスケープ（内部の " を "" に、全体を " で囲む）
-            const esc = (v) => '"' + ((v === null || v === undefined) ? '' : String(v)).replace(/"/g, '""') + '"';
-
-            const headers = [
-                '案件番号', '区分', '費目', '金額(JPY)', '種別', '製品名', 'Serial', '仕入案件', 'ステータス', '支払先', '支払日', 'メモ',
-                '案件_納品日', '案件_期', '案件_総原価', '案件_売上', '案件_粗利', '案件_粗利率(%)'
-            ];
-
-            // 案件番号順
-            const sorted = [...salesProjects].sort((a, b) => a.projectNumber.localeCompare(b.projectNumber));
-
-            const rows = [];
-            sorted.forEach(sp => {
-                // 案件単位のロールアップ（全行に同じ値が入る。集計はSUMでなくMAX/先頭で取ること）
-                const roll = [
-                    sp.deliveryDate || '',
-                    sp.fiscalLabel || '',
-                    sp.totalCost,
-                    sp.revenue > 0 ? sp.revenue : '',
-                    sp.revenue > 0 ? sp.grossProfit : '',
-                    sp.grossMargin != null ? (sp.grossMargin * 100).toFixed(1) : ''
-                ];
-
-                // 在庫アイテム（仕入原価）— 1台1行
-                (sp.items || []).forEach(it => {
-                    const status = it.isArchived ? '完了' : (it.status || '');
-                    rows.push([
-                        sp.projectNumber, '在庫', '仕入原価',
-                        (it.costJPY != null) ? it.costJPY : '',
-                        it.category || '', it.productName || '', it.serial || '', it.orderProject || '', status,
-                        '', '', it.note || '',
-                        ...roll
-                    ]);
-                });
-
-                // 販売案件経費（外注費・工事費ほか）— 1件1行
-                (sp.expenses || []).forEach(exp => {
-                    rows.push([
-                        sp.projectNumber, '経費', exp.type || '',
-                        (exp.amountJPY != null) ? exp.amountJPY : '',
-                        '', '', '', '', '',
-                        exp.payee || '', exp.paidDate || '', exp.note || '',
-                        ...roll
-                    ]);
-                });
-
-                // 売上 — 1案件1行（未入力なら金額空欄。空欄＝売上未入力として拾える）
-                const updatedDate = (salesProjectRevenue[sp.projectNumber] || {}).updatedDate || '';
-                rows.push([
-                    sp.projectNumber, '売上', '売上',
-                    (sp.revenue > 0) ? sp.revenue : '',
-                    '', '', '', '', '',
-                    '', '', updatedDate ? `更新:${updatedDate}` : '',
-                    ...roll
-                ]);
-            });
-
-            const csv = [headers.map(esc).join(','), ...rows.map(r => r.map(esc).join(','))].join('\n');
-            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `sales_pnl_${new Date().toISOString().split('T')[0]}.csv`;
-            link.click();
-        }
-
         function showStatus(msg) {
             const el = document.getElementById('status');
             if (el) el.textContent = msg;
@@ -1609,14 +1226,12 @@
 
         function renderSignIn() {
             document.getElementById('app').innerHTML = `
-                <div class="auth-shell">
-                    <div class="auth-panel">
-                        <div class="auth-mark" aria-hidden="true">¥</div>
-                        <p class="auth-eyebrow">YS OPERATIONS</p>
-                        <h1 class="auth-title">支払ナビ</h1>
-                        <p class="auth-copy">海外調達の支払い、案件進捗、原価を一か所で管理します。</p>
-                        <button onclick="handleAuthClick()" class="auth-button">Googleで続ける</button>
-                        <p class="auth-note">Google Sheets の業務データを利用します</p>
+                <div class="min-h-screen bg-slate-100 dark:bg-slate-900 flex items-center justify-center p-6">
+                    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+                        <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-2">YS支払ナビ</h1>
+                        <p class="text-slate-600 dark:text-slate-400 mb-6">デジタルサイネージ プロジェクト管理</p>
+                        <p class="text-slate-700 dark:text-slate-300 mb-6">Google Sheetsと連携してデータを保存します。<br>Googleアカウントでサインインしてください。</p>
+                        <button onclick="handleAuthClick()" class="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">Googleでサインイン</button>
                     </div>
                 </div>`;
         }
@@ -1712,27 +1327,21 @@
             const yoyChange = lastYearSameMonthJPY > 0 ? ((thisMonthJPY - lastYearSameMonthJPY) / lastYearSameMonthJPY * 100).toFixed(0) : null;
             
             // 今月の発注件数
-            const thisMonthOrders = new Set(projects.filter(p => {
+            const thisMonthOrders = projects.filter(p => {
                 if (!p.registeredDate) return false;
                 const d = new Date(p.registeredDate);
                 return d >= thisMonthStart && d <= thisMonthEnd;
-            }).map(p => formatProjectNumber(p))).size;
+            }).length;
             
             // 未払い総額（USD / JPY）
             let unpaidTotalUSD = 0;
             let unpaidTotalJPY = 0;
             projects.forEach(p => {
-                const isJPY = p.currency === 'JPY';
                 (p.depositSchedule || []).forEach(dep => {
                     if (!dep.paid) {
-                        if (isJPY) {
-                            // 円建て：USD総額には含めない。JPYはそのままの円額。
-                            unpaidTotalJPY += dep.amountUSD || 0;
-                        } else {
-                            unpaidTotalUSD += dep.amountUSD || 0;
-                            // JPYは推定（レートがあれば使う、なければ150で計算）
-                            unpaidTotalJPY += dep.amountJPY || (dep.amountUSD || 0) * 150;
-                        }
+                        unpaidTotalUSD += dep.amountUSD || 0;
+                        // JPYは推定（レートがあれば使う、なければ150で計算）
+                        unpaidTotalJPY += dep.amountJPY || (dep.amountUSD || 0) * 150;
                     }
                 });
             });
@@ -1746,12 +1355,9 @@
 
             // === 為替関連 ===
             // 今期の加重平均レート（合計JPY ÷ 合計USD）
-            // 円建て案件（国内調達）はUSD取引ではないため除外する。
-            // ※円建てはレート1.0・amountUSDに円額が入る仕様のため、混ぜると平均が壊れる。
             let fiscalPaidUSD = 0;
             let fiscalPaidJPY = 0;
             fiscalPayments.forEach(dep => {
-                if (dep.project && dep.project.currency === 'JPY') return; // 円建ては対象外
                 if (dep.amountUSD && dep.amountJPY) {
                     fiscalPaidUSD += dep.amountUSD;
                     fiscalPaidJPY += dep.amountJPY;
@@ -1760,148 +1366,107 @@
             const avgRateThisFY = fiscalPaidUSD > 0 ? fiscalPaidJPY / fiscalPaidUSD : null;
 
             const lastUpdatedText = lastUpdated ? lastUpdated.toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'}) : '-';
-            const totalProjectCount = new Set(projects.map(p => formatProjectNumber(p))).size;
             
             // アラート計算
-            const pendingPaymentProjects = new Set(
-                projects
-                    .filter(p => (p.depositSchedule || []).some(d => !d.paid))
-                    .map(p => formatProjectNumber(p))
-            );
-            const pendingPayments = pendingPaymentProjects.size;
-            const upcomingPickups = new Set(projects.filter(p => {
+            const pendingPayments = projects.filter(p => (p.depositSchedule || []).some(d => !d.paid)).length;
+            const upcomingPickups = projects.filter(p => {
                 if (!p.pickupDate) return false;
                 const pickup = new Date(p.pickupDate);
                 const today = new Date();
                 const diff = (pickup - today) / (1000 * 60 * 60 * 24);
                 return diff >= 0 && diff <= 7;
-            }).map(p => formatProjectNumber(p))).size;
+            }).length;
             
             // 未払いデポジット一覧を計算
-            const unpaidDepositMap = {};
+            const unpaidDeposits = [];
             projects.forEach(p => {
                 const supplier = suppliers.find(s => s.id === p.supplierId);
                 (p.depositSchedule || []).forEach((dep, idx) => {
                     if (!dep.paid) {
-                        const projectNumber = formatProjectNumber(p);
-                        const depositNumber = dep.depositNumber || idx + 1;
-                        const key = `${projectNumber}-${depositNumber}`;
-                        const sourceOrderDate = p.orderDate || p.registeredDate;
-                        const orderDate = sourceOrderDate ? new Date(sourceOrderDate) : null;
+                        const orderDate = p.orderDate ? new Date(p.orderDate) : null;
                         const today = new Date();
                         const daysSinceOrder = orderDate ? Math.floor((today - orderDate) / (1000 * 60 * 60 * 24)) : null;
-                        if (!unpaidDepositMap[key]) {
-                            unpaidDepositMap[key] = {
-                                project: p,
-                                projectNumber,
-                                supplier,
-                                deposit: {
-                                    ...dep,
-                                    depositNumber,
-                                    amountUSD: 0,
-                                    amountJPY: 0
-                                },
-                                depositIndex: idx,
-                                daysSinceOrder,
-                                itemCount: 0,
-                                isJPY: p.currency === 'JPY'
-                            };
-                        }
-                        unpaidDepositMap[key].deposit.amountUSD += dep.amountUSD || 0;
-                        unpaidDepositMap[key].deposit.amountJPY += dep.amountJPY || 0;
-                        unpaidDepositMap[key].itemCount += 1;
-                        if (daysSinceOrder !== null && (unpaidDepositMap[key].daysSinceOrder === null || daysSinceOrder > unpaidDepositMap[key].daysSinceOrder)) {
-                            unpaidDepositMap[key].daysSinceOrder = daysSinceOrder;
-                        }
+                        unpaidDeposits.push({
+                            project: p,
+                            supplier: supplier,
+                            deposit: dep,
+                            depositIndex: idx,
+                            daysSinceOrder: daysSinceOrder
+                        });
                     }
                 });
             });
-            const unpaidDeposits = Object.values(unpaidDepositMap).map(item => ({
-                ...item,
-                estimatedJPY: item.isJPY
-                    ? item.deposit.amountUSD
-                    : (item.deposit.amountJPY || item.deposit.amountUSD * 150)
-            }));
             // 発注日が古い順にソート
             unpaidDeposits.sort((a, b) => (b.daysSinceOrder || 0) - (a.daysSinceOrder || 0));
+            const unpaidTotal = unpaidDeposits.reduce((sum, u) => sum + (u.deposit.amountJPY || 0), 0);
             
             document.getElementById('app').innerHTML = `
-                <div class="payment-shell">
-                    <header class="payment-shell-header">
-                        <div class="payment-header-inner">
-                            <div class="payment-header-row">
-                                <a href="index.html" class="brand-lockup" aria-label="YS支払ナビ ホーム">
-                                    <span class="brand-mark" aria-hidden="true">¥</span>
-                                    <span>
-                                        <span class="brand-title block">YS支払ナビ</span>
-                                        <span class="brand-subtitle block">調達・支払管理</span>
-                                    </span>
-                                </a>
-                                <nav class="global-nav" aria-label="メインナビゲーション">
-                                    <a href="dashboard.html">概要</a>
-                                    <a href="index.html" class="active" aria-current="page">支払</a>
-                                    <a href="inventory.html">在庫</a>
-                                    <a href="inspection.html">検品</a>
-                                </nav>
-                                <div class="header-actions">
-                                    <span id="status" class="header-status" aria-live="polite"></span>
-                                    <button onclick="loadData()" class="shell-icon-button" title="最新データに更新" aria-label="最新データに更新">
-                                        <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                                    </button>
-                                    <div class="relative">
-                                        <button onclick="toggleToolsMenu()" class="shell-tool-button" aria-haspopup="true" aria-controls="toolsMenu">
-                                            <span class="header-tool-label">その他</span><span class="sm:hidden" aria-hidden="true">•••</span>
-                                        </button>
-                                        <div id="toolsMenu" class="shell-menu hidden z-50">
-                                            <p class="shell-menu-label">データ連携</p>
-                                            <button onclick="syncInvoices()" class="menu-accent w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold">📄 海外請求書を同期</button>
-                                            <button onclick="syncImportPermits()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold text-orange-600 dark:text-orange-400">↻ 輸入許可書を同期</button>
-                                            <p class="shell-menu-label border-t border-slate-200 dark:border-slate-700 mt-1">集計・出力</p>
-                                            <button onclick="showAllocateExpenseModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">費用を按分</button>
-                                            <button onclick="showSupplierSummary()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">サプライヤー別集計</button>
-                                            <button onclick="showExchangeSimulator()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">為替計算</button>
-                                            <button onclick="exportCSV()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">支払CSV出力</button>
-                                            <p class="shell-menu-label border-t border-slate-200 dark:border-slate-700 mt-1">管理</p>
-                                            <button onclick="repairInventorySupplierIds()" class="menu-danger w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">在庫サプライヤー復旧</button>
-                                        </div>
-                                    </div>
-                                    <button onclick="toggleDarkMode()" class="shell-icon-button" title="表示テーマを切り替え" aria-label="表示テーマを切り替え">
+                <div class="min-h-screen bg-slate-100 dark:bg-slate-900">
+                    <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm sticky top-0 z-40">
+                        <div class="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h1 class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">YS支払ナビ</h1>
+                                    <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">デジタルサイネージ</p>
+                                </div>
+                                <div class="flex items-center gap-1 sm:gap-3">
+                                    <span id="status" class="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hidden sm:inline"></span>
+                                    <button onclick="toggleDarkMode()" class="p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" title="ダークモード切替">
                                         ${isDarkMode ? '☀️' : '🌙'}
                                     </button>
-                                    <button onclick="handleSignoutClick()" class="shell-icon-button" title="サインアウト" aria-label="サインアウト">↪</button>
+                                    <div class="relative">
+                                        <button onclick="toggleToolsMenu()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-blue-600 text-white text-xs sm:text-sm rounded-lg hover:bg-blue-700">
+                                            <span class="hidden sm:inline">🛠️ ツール</span>
+                                            <span class="sm:hidden">🛠️</span>
+                                        </button>
+                                        <div id="toolsMenu" class="hidden absolute right-0 mt-2 w-52 bg-white dark:bg-slate-800 rounded-lg shadow-lg border dark:border-slate-700 z-50">
+                                            <button onclick="syncInvoices()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white rounded-t-lg font-semibold text-blue-600 dark:text-blue-400">📄 海外請求書を同期</button>
+                                            <button onclick="syncImportPermits()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white font-semibold text-orange-600 dark:text-orange-400">🔄 輸入許可書を同期</button>
+                                            <hr class="border-slate-200 dark:border-slate-700">
+                                            <button onclick="showAllocateExpenseModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white font-semibold text-purple-600 dark:text-purple-400">📊 費用を按分</button>
+                                            <hr class="border-slate-200 dark:border-slate-700">
+                                            <button onclick="showSupplierSummary()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📊 サプライヤー別集計</button>
+                                            <button onclick="showExchangeSimulator()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">💱 為替計算</button>
+                                            <button onclick="exportCSV()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white">📥 CSV出力</button>
+                                            <hr class="border-slate-200 dark:border-slate-700">
+                                            <button onclick="repairInventorySupplierIds()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 text-red-600 dark:text-red-400 rounded-b-lg">🔧 在庫サプライヤー復旧</button>
+                                        </div>
+                                    </div>
+                                    <a href="inventory.html" class="p-1.5 sm:px-3 sm:py-2 border border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 text-xs sm:text-sm rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30" title="在庫ナビ">
+                                        <span class="sm:hidden">📦</span>
+                                        <span class="hidden sm:inline">在庫</span>
+                                    </a>
+                                    <a href="inspection.html" class="p-1.5 sm:px-3 sm:py-2 border border-green-600 text-green-600 dark:text-green-400 dark:border-green-400 text-xs sm:text-sm rounded-lg hover:bg-green-50 dark:hover:bg-green-900/30" title="検品ナビ">
+                                        <span class="sm:hidden">✓</span>
+                                        <span class="hidden sm:inline">検品</span>
+                                    </a>
+                                    <button onclick="handleSignoutClick()" class="px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-600 text-white text-xs sm:text-sm rounded-lg hover:bg-slate-700">
+                                        <span class="hidden sm:inline">サインアウト</span>
+                                        <span class="sm:hidden">↪</span>
+                                    </button>
                                 </div>
                             </div>
-                            <div class="payment-sync-row">
-                                <span class="sync-dot" aria-hidden="true"></span>
-                                <span>Google Sheets と同期</span>
-                                <span class="sync-divider">・</span>
-                                <span>最終更新 ${lastUpdatedText}</span>
-                                <button onclick="loadData()" class="sync-refresh">今すぐ更新</button>
+                            <div class="flex items-center justify-between mt-2 text-xs text-slate-500 dark:text-slate-400">
+                                <span>最終更新: ${lastUpdatedText}</span>
+                                <button onclick="loadData()" class="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                    更新
+                                </button>
                             </div>
                         </div>
                     </header>
-                    <nav class="mobile-nav" aria-label="モバイルナビゲーション">
-                        <a href="dashboard.html"><span aria-hidden="true">⌂</span>概要</a>
-                        <a href="index.html" class="active" aria-current="page"><span aria-hidden="true">¥</span>支払</a>
-                        <a href="inventory.html"><span aria-hidden="true">□</span>在庫</a>
-                        <a href="inspection.html"><span aria-hidden="true">✓</span>検品</a>
-                    </nav>
-                    <main class="payment-main">
+                    <main class="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
                         <!-- アラート -->
                         ${(pendingPayments > 0 || upcomingPickups > 0) ? `
-                            <div class="priority-alerts flex flex-wrap gap-2">
-                                <div class="priority-heading">
-                                    <strong>今日の確認</strong>
-                                    <span>対応が必要な項目を先に確認できます</span>
-                                </div>
+                            <div class="flex flex-wrap gap-2 mb-4">
                                 ${pendingPayments > 0 ? `
-                                    <button onclick="if(!showUnpaidSection) toggleUnpaidSection()" class="flex items-center gap-1 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 text-xs sm:text-sm rounded-lg border border-amber-300 dark:border-amber-700 hover:bg-amber-200 dark:hover:bg-amber-900/70">
-                                        💰 支払待ち ${pendingPayments}案件・${unpaidDeposits.length}回分
-                                    </button>
+                                    <span class="flex items-center gap-1 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 text-xs sm:text-sm rounded-lg border border-amber-300 dark:border-amber-700">
+                                        💰 支払待ち ${pendingPayments}件
+                                    </span>
                                 ` : ''}
                                 ${upcomingPickups > 0 ? `
                                     <span class="flex items-center gap-1 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs sm:text-sm rounded-lg border border-blue-300 dark:border-blue-700">
-                                        🚚 集荷予定（7日以内） ${upcomingPickups}案件
+                                        🚚 集荷予定（7日以内） ${upcomingPickups}件
                                     </span>
                                 ` : ''}
                             </div>
@@ -1909,21 +1474,15 @@
                         
                         <!-- 未払いデポジット一覧 -->
                         ${unpaidDeposits.length > 0 ? `
-                            <div class="payment-queue bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl shadow-sm border dark:border-slate-700 mb-4 sm:mb-6">
+                            <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl shadow-sm border dark:border-slate-700 mb-4 sm:mb-6">
                                 <button onclick="toggleUnpaidSection()" class="w-full p-3 sm:p-4 flex justify-between items-center text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg sm:rounded-xl">
-                                    <div class="queue-title">
+                                    <div class="flex items-center gap-2">
                                         <span class="text-lg">💰</span>
-                                        <div>
-                                            <h2>支払待ちリスト</h2>
-                                            <p>案件ごと・支払回ごとに集約して表示</p>
-                                        </div>
-                                        <span class="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 text-xs rounded-full">${pendingPayments}案件 / ${unpaidDeposits.length}回分</span>
+                                        <h2 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white">未払いデポジット</h2>
+                                        <span class="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 text-xs rounded-full">${unpaidDeposits.length}件</span>
                                     </div>
                                     <div class="flex items-center gap-3">
-                                        <span class="text-right">
-                                            <span class="block text-sm font-semibold text-slate-700 dark:text-slate-200">$${unpaidTotalUSD.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                                            <span class="block text-[10px] text-slate-500 dark:text-slate-400">概算 ${formatJPY(unpaidTotalJPY)}</span>
-                                        </span>
+                                        <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">${formatJPY(unpaidTotal)}</span>
                                         <span class="text-slate-400">${showUnpaidSection ? '▼' : '▶'}</span>
                                     </div>
                                 </button>
@@ -1936,25 +1495,24 @@
                                                         <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-300">案件</th>
                                                         <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-300">サプライヤー</th>
                                                         <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-300">デポジット</th>
-                                                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 dark:text-slate-300">支払額</th>
+                                                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 dark:text-slate-300">金額(税別)</th>
                                                         <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 dark:text-slate-300">経過日数</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody class="divide-y dark:divide-slate-700">
                                                     ${unpaidDeposits.map(u => `
-                                                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer" onclick="scrollToProject('${u.projectNumber}')" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();scrollToProject('${u.projectNumber}')}">
+                                                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer" onclick="scrollToProject(${u.project.id})">
                                                             <td class="px-3 py-2">
-                                                                <span class="font-mono font-semibold text-sm text-blue-600 dark:text-blue-400">${u.projectNumber}</span>
+                                                                <span class="font-mono font-semibold text-sm text-blue-600 dark:text-blue-400">${formatProjectNumber(u.project)}</span>
                                                                 <p class="text-xs text-slate-500 dark:text-slate-400 truncate max-w-32">${u.project.productName || ''}</p>
                                                             </td>
                                                             <td class="px-3 py-2 text-sm dark:text-slate-300">${u.supplier?.name || '-'}</td>
                                                             <td class="px-3 py-2 text-sm dark:text-slate-300">
                                                                 ${u.deposit.percentage}%
-                                                                <span class="text-xs text-slate-400">(${u.depositIndex + 1}回目)</span>
+                                                                <span class="text-xs text-slate-400">(${(u.project.orderBatch || 0) > 0 ? `追加${u.project.orderBatch} ` : ''}${u.depositIndex + 1}回目)</span>
                                                             </td>
                                                             <td class="px-3 py-2 text-sm text-right font-semibold dark:text-white">
-                                                                <span class="block">${u.isJPY ? formatJPY(u.deposit.amountUSD) : '$' + u.deposit.amountUSD.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                                                                ${u.isJPY ? '' : `<span class="block text-[10px] font-normal text-slate-400">概算 ${formatJPY(u.estimatedJPY)}</span>`}
+                                                                ${u.deposit.amountJPY ? formatJPY(u.deposit.amountJPY) : '-'}
                                                             </td>
                                                             <td class="px-3 py-2 text-sm text-right ${u.daysSinceOrder > 60 ? 'text-red-600 dark:text-red-400 font-semibold' : u.daysSinceOrder > 30 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-400'}">
                                                                 ${u.daysSinceOrder !== null ? u.daysSinceOrder + '日' : '-'}
@@ -1969,8 +1527,7 @@
                             </div>
                         ` : ''}
                         
-                        <div class="payment-kpis payment-kpis-primary grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-4">
-                            <div class="metrics-heading"><strong>支払サマリー</strong><span>全体状況を確認</span></div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-4">
                             <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-slate-500">
                                 <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">今期支払</p>
                                 <p class="text-sm sm:text-xl font-bold text-slate-900 dark:text-white truncate">${formatJPY(totalJPY)}</p>
@@ -1983,7 +1540,7 @@
                             </div>
                             <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-blue-500">
                                 <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">案件数</p>
-                                <p class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">${totalProjectCount}</p>
+                                <p class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">${projects.length}</p>
                             </div>
                             <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-blue-400">
                                 <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">サプライヤー</p>
@@ -1992,7 +1549,7 @@
                         </div>
                         
                         <!-- 2段目：今月の詳細 -->
-                        <div class="payment-kpis payment-kpis-secondary grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
                             <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-blue-500">
                                 <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">📅 今月支払</p>
                                 <p class="text-sm sm:text-xl font-bold text-slate-900 dark:text-white truncate">${formatJPY(thisMonthJPY)}</p>
@@ -2006,7 +1563,7 @@
                             <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-emerald-500">
                                 <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">📦 今月発注</p>
                                 <p class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">${thisMonthOrders}</p>
-                                <p class="text-xs text-slate-400">案件</p>
+                                <p class="text-xs text-slate-400">件</p>
                             </div>
                             <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-slate-400">
                                 <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">📊 前月/前年比</p>
@@ -2026,7 +1583,7 @@
                         </div>
 
                         <!-- 3段目：ペース予測 & 為替平均 -->
-                        <div class="payment-kpis payment-kpis-insights grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
                             <div class="bg-white dark:bg-slate-800 rounded-lg p-3 sm:p-4 shadow-sm border-l-4 border-indigo-500">
                                 <p class="text-slate-500 dark:text-slate-400 text-xs mb-1">📈 ${currentPeriodLabel} ペース予測</p>
                                 <p class="text-sm sm:text-xl font-bold text-slate-900 dark:text-white truncate">${formatJPY(annualForecastJPY)}</p>
@@ -2039,12 +1596,9 @@
                             </div>
                         </div>
 
-                        <div class="supplier-panel bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border dark:border-slate-700 mb-4 sm:mb-8">
+                        <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border dark:border-slate-700 mb-4 sm:mb-8">
                             <button onclick="toggleSupplierSection()" class="w-full flex justify-between items-center text-left">
-                                <div>
-                                    <h2 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white">サプライヤー設定</h2>
-                                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">支払条件と取引先情報</p>
-                                </div>
+                                <h2 class="text-base sm:text-xl font-bold text-slate-900 dark:text-white">サプライヤー管理</h2>
                                 <span class="text-slate-400">${showSupplierSection ? '▼' : '▶'}</span>
                             </button>
                             ${showSupplierSection ? `
@@ -2079,29 +1633,26 @@
                                 <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">${suppliers.length}件のサプライヤー</p>
                             `}
                         </div>
-                        <div class="project-workspace bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border dark:border-slate-700">
+                        <div class="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border dark:border-slate-700">
                             <!-- タブUI（スクロールしても画面上部に固定） -->
-                            <div class="workspace-tabs flex border-b dark:border-slate-600 mb-4 sticky top-14 sm:top-16 z-30 bg-white dark:bg-slate-800 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-2 -mt-2">
+                            <div class="flex border-b dark:border-slate-600 mb-4 sticky top-14 sm:top-16 z-30 bg-white dark:bg-slate-800 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-2 -mt-2">
                                 <button onclick="switchProjectTab('purchase')" id="tabPurchase" class="px-4 py-2 text-sm font-semibold border-b-2 ${projectTab === 'purchase' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}">
-                                    支払い案件
+                                    📥 仕入案件
                                 </button>
                                 <button onclick="switchProjectTab('sales')" id="tabSales" class="px-4 py-2 text-sm font-semibold border-b-2 ${projectTab === 'sales' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}">
-                                    販売原価
+                                    📤 販売案件
                                 </button>
                             </div>
                             
                             ${projectTab === 'purchase' ? `
                             <!-- 仕入案件タブ（既存） -->
-                            <div class="workspace-title-row flex flex-wrap justify-between items-center gap-2 mb-3 sm:mb-4">
-                                <div>
-                                    <h2>支払い案件</h2>
-                                    <p>案件を選ぶと、支払予定・履歴・原価を確認できます</p>
-                                </div>
-                                <button onclick="showAddProjectForm()" class="primary-action px-3 sm:px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">+ 新規案件</button>
+                            <div class="flex flex-wrap justify-between items-center gap-2 mb-3 sm:mb-4">
+                                <h2 class="text-base sm:text-xl font-bold text-slate-900 dark:text-white">仕入案件管理</h2>
+                                <button onclick="showAddProjectForm()" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">+ 新規案件</button>
                             </div>
                             
                             <!-- フィルタ -->
-                            <div class="workspace-filters flex flex-wrap gap-2 mb-4 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                            <div class="flex flex-wrap gap-2 mb-4 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
                                 <select id="filterStatus" onchange="applyProjectFilter()" class="px-2 py-1 text-sm border rounded dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                                     <option value="all">全ステータス</option>
                                     <option value="未着手">📝 未着手</option>
@@ -2131,9 +1682,6 @@
                                     
                                     // グループ全体の合計
                                     const totalUSD = g.items.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
-                                    // 通貨記号（JPY案件は¥。currency未設定の既存案件はUSD=$で従来通り）
-                                    const isJPYGroup = g.items.some(p => p.currency === 'JPY');
-                                    const cur = isJPYGroup ? '¥' : '$';
                                     const totalQuantity = g.items.reduce((sum, p) => sum + (p.quantity || 1), 0);
                                     
                                     // 集荷予定日
@@ -2141,13 +1689,12 @@
                                     const isExpanded = expandedProjects[g.projectNumber];
                                     
                                     // ステータス（代表行から）
-                                    const representativeProject = g.items.find(p => p.id === g.representativeId) || g.items[0];
-                                    const projectStatus = getProjectStatus(representativeProject);
+                                    const projectStatus = getGroupStatus(g.items);
                                     
                                     // 複数製品かどうか
                                     const isMultiProduct = g.items.length > 1;
                                     
-                                    return `<div id="project-${g.projectNumber}" class="project-card ${nextPayment ? 'is-due' : 'is-complete'} border-2 rounded-lg transition-all ${nextPayment ? 'border-amber-300 bg-amber-50 dark:bg-amber-900/30 dark:border-amber-600' : 'border-green-300 bg-green-50 dark:bg-green-900/30 dark:border-green-600'}">
+                                    return `<div id="project-${g.projectNumber}" class="border-2 rounded-lg transition-all ${nextPayment ? 'border-amber-300 bg-amber-50 dark:bg-amber-900/30 dark:border-amber-600' : 'border-green-300 bg-green-50 dark:bg-green-900/30 dark:border-green-600'}">
                                         <div class="p-3 sm:p-5 cursor-pointer" onclick="toggleProject('${g.projectNumber}')">
                                             <div class="flex justify-between items-start">
                                                 <div class="flex-1">
@@ -2156,14 +1703,31 @@
                                                         <h3 class="font-bold text-base sm:text-xl text-slate-900 dark:text-white">${g.projectNumber}</h3>
                                                         ${isMultiProduct ? `<span class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">${g.items.length}製品</span>` : ''}
                                                         <span class="px-2 py-0.5 text-xs rounded-full ${projectStatus.color}">${projectStatus.icon} ${projectStatus.status}</span>
+                                                        <button onclick="event.stopPropagation();editGroupDetails('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-blue-600" title="グループ編集">
+                                                            <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                        </button>
+                                                        <button onclick="event.stopPropagation();copyGroupInvoiceText('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-purple-600" title="インボイス情報をコピー">
+                                                            <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+                                                        </button>
+                                                        <button onclick="event.stopPropagation();openInventoryForProject('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-emerald-600" title="在庫を見る">
+                                                            <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                                                        </button>
+                                                        <button onclick="event.stopPropagation();deleteProjectGroup('${g.projectNumber}')" class="p-1 text-slate-400 hover:text-red-600" title="削除">
+                                                            <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        </button>
+                                                        ${folderCache[g.projectNumber] ? `
+                                                            <a href="${folderCache[g.projectNumber]}" target="_blank" onclick="event.stopPropagation()" class="text-blue-600 hover:text-blue-800" title="Driveを開く">
+                                                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2z"/></svg>
+                                                            </a>
+                                                        ` : ''}
                                                     </div>
                                                     ${isMultiProduct ? `
-                                                        <p class="text-xs sm:text-sm text-slate-700 dark:text-slate-300 ml-6 ${isExpanded ? '' : 'project-product-clamp'}">${g.items.map(p => p.productName).join(', ')}</p>
+                                                        <p class="text-xs sm:text-sm text-slate-700 dark:text-slate-300 ml-6">${g.items.map(p => p.productName).join(', ')}</p>
                                                     ` : `
-                                                        <p class="text-xs sm:text-sm text-slate-700 dark:text-slate-300 ml-6 ${isExpanded ? '' : 'project-product-clamp'}">${g.items[0].productName}</p>
+                                                        <p class="text-xs sm:text-sm text-slate-700 dark:text-slate-300 ml-6">${g.items[0].productName}</p>
                                                     `}
                                                     ${!isExpanded ? `
-                                                        <p class="text-xs text-slate-500 dark:text-slate-400 ml-6">${supplier?.name || ''} / ${cur}${totalUSD.toLocaleString()}${isJPYGroup ? '' : ` / 集荷: ${pickupDateDisplay}`}</p>
+                                                        <p class="text-xs text-slate-500 dark:text-slate-400 ml-6">${supplier?.name || ''} / $${totalUSD.toLocaleString()} / 集荷: ${pickupDateDisplay}</p>
                                                     ` : ''}
                                                 </div>
                                                 <div class="text-right">
@@ -2180,7 +1744,7 @@
                                                 <div class="pt-3 sm:pt-4 mb-3 sm:mb-4">
                                                     <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs sm:text-sm text-slate-600 mb-2">
                                                         <span>サプライヤー: ${supplier?.name || 'Unknown'}</span>
-                                                        <span>総額: ${cur}${totalUSD.toLocaleString()}</span>
+                                                        <span>総額: $${totalUSD.toLocaleString()}</span>
                                                         <span>総数量: ${totalQuantity}</span>
                                                     </div>
                                                     <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs sm:text-sm text-slate-600">
@@ -2194,13 +1758,16 @@
                                                         <p class="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">📦 製品明細</p>
                                                         <div class="space-y-2">
                                                             ${g.items.map((p, idx) => {
-                                                                const itemPaidJPY = allPaid ? (p.totalAmount || 0) * (depositSchedule.find(d => d.paid && d.exchangeRate)?.exchangeRate || 0) : 0;
-                                                                const itemUnitPrice = allPaid && (p.quantity || 1) > 0 ? Math.round(itemPaidJPY / (p.quantity || 1)) : null;
+                                                                const itemDeps = p.depositSchedule || [];
+                                                                const itemAllPaid = itemDeps.length > 0 && itemDeps.every(d => d.paid);
+                                                                const itemPaidJPY = itemDeps.filter(d => d.paid).reduce((sum, d) => sum + (d.amountJPY || 0), 0);
+                                                                const itemUnitPrice = itemAllPaid && (p.quantity || 1) > 0 ? Math.round(itemPaidJPY / (p.quantity || 1)) : null;
                                                                 return `
                                                                     <div class="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-600 rounded text-sm">
                                                                         <div class="flex-1">
                                                                             <span class="font-semibold text-slate-900 dark:text-white">${p.productName}</span>
-                                                                            <span class="text-slate-500 dark:text-slate-400 ml-2">${p.quantity || 1}台 / ${cur}${(p.totalAmount || 0).toLocaleString()}</span>
+                                                                            <span class="text-slate-500 dark:text-slate-400 ml-2">${p.quantity || 1}台 / $${(p.totalAmount || 0).toLocaleString()}</span>
+                                                                            ${(p.orderBatch || 0) > 0 ? `<span class="ml-1 px-1.5 py-0.5 text-xs rounded bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">追加${p.orderBatch}</span>` : ''}
                                                                         </div>
                                                                         <div class="text-right">
                                                                             ${itemUnitPrice ? `<span class="text-green-600 dark:text-green-400 font-semibold">${formatJPY(itemUnitPrice)}/台</span>` : ''}
@@ -2229,10 +1796,10 @@
                                                         <p class="text-xs sm:text-sm font-semibold text-amber-700 dark:text-amber-300 mb-2">📋 次回支払予定</p>
                                                         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                                                             <div>
-                                                                <p class="font-bold text-sm sm:text-lg text-slate-900 dark:text-white">第${nextPayment.depositNumber}回: ${cur}${(nextPayment.amountUSD || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                                                                <p class="font-bold text-sm sm:text-lg text-slate-900 dark:text-white">${depositLabel(nextPayment)}: $${(nextPayment.amountUSD || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                                                                 <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400">(${nextPayment.percentage}%)</p>
                                                             </div>
-                                                            <button onclick="event.stopPropagation();markGroupPaymentComplete('${g.projectNumber}', ${nextPayment.depositNumber})" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-blue-700">
+                                                            <button onclick="event.stopPropagation();markGroupPaymentComplete('${g.projectNumber}', ${nextPayment.depositNumber}, ${nextPayment.orderBatch || 0})" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-blue-700">
                                                                 支払完了
                                                             </button>
                                                         </div>
@@ -2254,8 +1821,8 @@
                                                         ${depositSchedule.map(dep => `
                                                             <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 sm:p-3 ${dep.paid ? 'bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700' : 'bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500'} rounded">
                                                                 <div class="flex-1">
-                                                                    <span class="font-semibold text-xs sm:text-sm text-slate-900 dark:text-white">第${dep.depositNumber}回</span>
-                                                                    <span class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 ml-2 sm:ml-3">${cur}${(dep.amountUSD || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${dep.percentage}%)</span>
+                                                                    <span class="font-semibold text-xs sm:text-sm text-slate-900 dark:text-white">${depositLabel(dep)}</span>
+                                                                    <span class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 ml-2 sm:ml-3">$${(dep.amountUSD || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${dep.percentage}%)</span>
                                                                     ${dep.paid ? `
                                                                         <div class="text-xs text-slate-600 dark:text-slate-400 mt-1">
                                                                             ${dep.paidDate || ''} | ¥${dep.exchangeRate ? dep.exchangeRate.toFixed(2) : '-'} | ${dep.amountJPY ? formatJPY(dep.amountJPY) : '¥-'}
@@ -2264,7 +1831,7 @@
                                                                 </div>
                                                                 <div class="flex items-center gap-2">
                                                                     ${dep.paid ? `
-                                                                        <button onclick="event.stopPropagation();editGroupPaymentRate('${g.projectNumber}', ${dep.depositNumber})" 
+                                                                        <button onclick="event.stopPropagation();editGroupPaymentRate('${g.projectNumber}', ${dep.depositNumber}, ${dep.orderBatch || 0})" 
                                                                                 class="p-1 text-slate-400 hover:text-blue-600" title="為替レート修正">
                                                                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                                                         </button>
@@ -2287,9 +1854,8 @@
                                                     ${g.expenses.length > 0 ? `
                                                         <div class="space-y-2">
                                                             ${g.expenses.map((exp, idx) => {
+                                                                const isInCost = exp.includeInCost !== false;
                                                                 const isInventoryItem = exp.isInventoryItem || exp.type === '付帯品';
-                                                                // 付帯品（在庫化される物品）は在庫側で原価計上されるため、諸費用の原価には含めない
-                                                                const isInCost = exp.includeInCost !== false && !isInventoryItem;
                                                                 return `
                                                                 <div class="flex justify-between items-center p-2 bg-white dark:bg-slate-700 rounded border ${isInventoryItem ? 'border-green-200 dark:border-green-700' : isInCost ? 'border-orange-200 dark:border-orange-700' : 'border-slate-200 dark:border-slate-600'}">
                                                                     <div class="flex-1 min-w-0 cursor-pointer" onclick="event.stopPropagation();showEditExpenseModal('${g.representativeId}', ${idx})">
@@ -2297,7 +1863,7 @@
                                                                             <span class="font-semibold text-sm text-slate-900 dark:text-white">${isInventoryItem && exp.itemName ? exp.itemName : (exp.type || '諸費用')}</span>
                                                                             <span class="text-sm font-bold ${isInCost ? 'text-orange-600 dark:text-orange-400' : 'text-slate-500 dark:text-slate-400'}">${formatJPY(exp.amountJPY || 0)}</span>
                                                                             ${isInventoryItem ? '<span class="text-xs px-1.5 py-0.5 bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 rounded">在庫</span>' : ''}
-                                                                            ${isInventoryItem ? '' : (isInCost ? '<span class="text-xs px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded">原価</span>' : '<span class="text-xs px-1.5 py-0.5 bg-slate-100 dark:bg-slate-600 text-slate-500 dark:text-slate-400 rounded">経費</span>')}
+                                                                            ${isInCost ? '<span class="text-xs px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded">原価</span>' : '<span class="text-xs px-1.5 py-0.5 bg-slate-100 dark:bg-slate-600 text-slate-500 dark:text-slate-400 rounded">経費</span>'}
                                                                         </div>
                                                                         <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                                                                             ${isInventoryItem && exp.itemQuantity ? `<span class="text-green-600 dark:text-green-400">${exp.itemQuantity}点</span>` : ''}
@@ -2317,10 +1883,10 @@
                                                         </div>
                                                         <div class="mt-2 pt-2 border-t border-orange-200 dark:border-orange-700 flex flex-wrap gap-x-4 gap-y-1 text-sm">
                                                             <span class="text-orange-700 dark:text-orange-400">
-                                                                原価算入: <span class="font-semibold">${formatJPY(g.expenses.filter(e => e.includeInCost !== false && !(e.isInventoryItem || e.type === '付帯品')).reduce((sum, e) => sum + (e.amountJPY || 0), 0))}</span>
+                                                                原価算入: <span class="font-semibold">${formatJPY(g.expenses.filter(e => e.includeInCost !== false).reduce((sum, e) => sum + (e.amountJPY || 0), 0))}</span>
                                                             </span>
                                                             <span class="text-slate-500 dark:text-slate-400">
-                                                                経費のみ: <span class="font-semibold">${formatJPY(g.expenses.filter(e => e.includeInCost === false && !(e.isInventoryItem || e.type === '付帯品')).reduce((sum, e) => sum + (e.amountJPY || 0), 0))}</span>
+                                                                経費のみ: <span class="font-semibold">${formatJPY(g.expenses.filter(e => e.includeInCost === false).reduce((sum, e) => sum + (e.amountJPY || 0), 0))}</span>
                                                             </span>
                                                         </div>
                                                     ` : `
@@ -2338,135 +1904,77 @@
                                                         </div>
                                                         <div>
                                                             <span class="text-slate-500 dark:text-slate-400">諸費用（原価）</span>
-                                                            <span class="font-bold text-orange-600 ml-1">${formatJPY(g.expenses.filter(e => e.includeInCost !== false && !(e.isInventoryItem || e.type === '付帯品')).reduce((sum, e) => sum + (e.amountJPY || 0), 0))}</span>
+                                                            <span class="font-bold text-orange-600 ml-1">${formatJPY(g.expenses.filter(e => e.includeInCost !== false).reduce((sum, e) => sum + (e.amountJPY || 0), 0))}</span>
                                                         </div>
                                                     </div>
                                                     <div class="mt-2 pt-2 border-t border-slate-300 dark:border-slate-500 space-y-1">
                                                         <div class="flex justify-between items-center">
                                                             <span class="text-sm text-slate-600 dark:text-slate-400">📦 製品原価（在庫取得金）</span>
                                                             <span class="text-base font-bold text-blue-600 dark:text-blue-400">
-                                                                ${formatJPY(totalPaidJPY + g.expenses.filter(e => e.includeInCost !== false && !(e.isInventoryItem || e.type === '付帯品')).reduce((sum, e) => sum + (e.amountJPY || 0), 0))}
+                                                                ${formatJPY(totalPaidJPY + g.expenses.filter(e => e.includeInCost !== false).reduce((sum, e) => sum + (e.amountJPY || 0), 0))}
                                                             </span>
                                                         </div>
-                                                        ${g.expenses.filter(e => e.includeInCost === false && !(e.isInventoryItem || e.type === '付帯品')).length > 0 ? `
+                                                        ${g.expenses.filter(e => e.includeInCost === false).length > 0 ? `
                                                         <div class="flex justify-between items-center">
                                                             <span class="text-sm text-slate-600 dark:text-slate-400">📋 案件総費用（経費含む）</span>
                                                             <span class="text-base font-bold text-slate-700 dark:text-white">
-                                                                ${formatJPY(totalPaidJPY + g.expenses.filter(e => !(e.isInventoryItem || e.type === '付帯品')).reduce((sum, e) => sum + (e.amountJPY || 0), 0))}
+                                                                ${formatJPY(totalPaidJPY + g.expenses.reduce((sum, e) => sum + (e.amountJPY || 0), 0))}
                                                             </span>
                                                         </div>
                                                         ` : ''}
                                                         ${allPaid && totalQuantity > 0 ? `
                                                         <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                                            平均単価: ${formatJPY(Math.round((totalPaidJPY + g.expenses.filter(e => e.includeInCost !== false && !(e.isInventoryItem || e.type === '付帯品')).reduce((sum, e) => sum + (e.amountJPY || 0), 0)) / totalQuantity))} / 個
+                                                            平均単価: ${formatJPY(Math.round((totalPaidJPY + g.expenses.filter(e => e.includeInCost !== false).reduce((sum, e) => sum + (e.amountJPY || 0), 0)) / totalQuantity))} / 個
                                                         </div>
                                                         ` : ''}
                                                     </div>
                                                 </div>
                                                 
-                                                <!-- 案件操作 -->
+                                                <!-- 削除ボタン -->
                                                 <div class="mt-4 pt-3 border-t border-slate-200 dark:border-slate-600">
-                                                    <p class="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">案件操作</p>
-                                                    <div class="project-action-bar">
-                                                        <button onclick="event.stopPropagation();editGroupDetails('${g.projectNumber}')" class="project-action-button">✎ 案件を編集</button>
-                                                        ${isJPYGroup ? '' : `<button onclick="event.stopPropagation();copyGroupInvoiceText('${g.projectNumber}')" class="project-action-button">⧉ インボイス情報をコピー</button>`}
-                                                        <button onclick="event.stopPropagation();openInventoryForProject('${g.projectNumber}')" class="project-action-button">□ 在庫を見る</button>
-                                                        ${folderCache[g.projectNumber] ? `<a href="${folderCache[g.projectNumber]}" target="_blank" onclick="event.stopPropagation()" class="project-action-button">▰ Driveを開く</a>` : ''}
-                                                        <button onclick="event.stopPropagation();deleteProjectGroup('${g.projectNumber}')" class="project-action-button is-danger">案件を削除</button>
-                                                    </div>
+                                                    <button onclick="event.stopPropagation();deleteProjectGroup('${g.projectNumber}')" class="w-full px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 flex items-center justify-center gap-2">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        この案件を削除
+                                                    </button>
                                                 </div>
                                             </div>
                                         ` : ''}
                                     </div>`;
                                 }).join('')}
                             </div>
-                            ` : salesDataLoading ? `
-                            <div class="sales-loading-panel" role="status" aria-live="polite">
-                                <div class="sales-loading-spinner" aria-hidden="true"></div>
-                                <p class="font-bold text-slate-800 dark:text-white">販売原価を読み込んでいます</p>
-                                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">在庫・売上・経費データを集計中です</p>
-                            </div>
                             ` : `
                             <!-- 販売案件タブ -->
                             <div class="flex flex-wrap justify-between items-center gap-2 mb-3 sm:mb-4">
                                 <h2 class="text-base sm:text-xl font-bold text-slate-900 dark:text-white">販売案件コスト</h2>
-                                <div class="flex items-center gap-2">
-                                    <select onchange="salesSortMode=this.value;renderMain()" class="px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm dark:bg-slate-700 dark:text-white">
-                                        <option value="fiscal" ${salesSortMode === 'fiscal' ? 'selected' : ''}>期でまとめる</option>
-                                        <option value="project" ${salesSortMode === 'project' ? 'selected' : ''}>案件番号順</option>
-                                    </select>
-                                    <button onclick="exportSalesPnlCSV()" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700">📥 損益CSV</button>
-                                    <button onclick="refreshSalesProjects()" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-500 text-white text-sm rounded-lg hover:bg-slate-600">🔄 更新</button>
-                                </div>
+                                <button onclick="refreshSalesProjects()" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-500 text-white text-sm rounded-lg hover:bg-slate-600">🔄 更新</button>
                             </div>
                             <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
                                 在庫ナビで引当・出庫先に設定された案件の原価を集計しています
                             </p>
-
-                            ${renderSalesFilterControls()}
-
-                            ${renderBusinessTargetsCard()}
-
-                            ${(() => {
-                                const sm = getSalesSummary();
-                                if (sm.totalProjects === 0) return '';
-                                const gpColor = sm.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
-                                return `
-                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-3">
-                                    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
-                                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-0.5">合計売上（税抜）</p>
-                                        <p class="text-base sm:text-lg font-bold text-slate-900 dark:text-white">${formatJPY(sm.sumRevenue)}</p>
+                            
+                            <div class="space-y-3 sm:space-y-4">
+                                ${getSalesProjects().length === 0 ? `
+                                    <div class="text-center py-8 text-slate-500 dark:text-slate-400">
+                                        <p class="mb-2">引当・出庫済みの案件がありません</p>
+                                        <p class="text-xs">在庫ナビで出庫先案件を設定すると、ここに表示されます</p>
                                     </div>
-                                    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
-                                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-0.5">合計原価（売上計上分）</p>
-                                        <p class="text-base sm:text-lg font-bold text-purple-600 dark:text-purple-400">${formatJPY(sm.sumCostRev)}</p>
-                                    </div>
-                                    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
-                                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-0.5">合計粗利</p>
-                                        <p class="text-base sm:text-lg font-bold ${gpColor}">${formatJPY(sm.grossProfit)}</p>
-                                    </div>
-                                    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
-                                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-0.5">粗利率</p>
-                                        <p class="text-base sm:text-lg font-bold ${gpColor}">${sm.grossMargin != null ? (sm.grossMargin * 100).toFixed(1) + '%' : '-'}</p>
-                                    </div>
-                                </div>
-                                <p class="text-xs text-slate-400 dark:text-slate-500 mb-4">
-                                    売上入力済 ${sm.revenueProjects}件 / 全${sm.totalProjects}件${sm.missingRevenue > 0 ? `（未入力 ${sm.missingRevenue}件）` : ''}。粗利・粗利率は売上入力済の案件のみで集計しています。
-                                </p>
-                                `;
-                            })()}
-
-                            <div id="salesProjectList" class="space-y-3 sm:space-y-4">
-                                ${renderSalesProjectGroups()}
-                            </div>
-                            `}
-                        </div>
-                    </main>
-                </div>`;
-        }
-
-        // 販売案件カード1枚分のHTML
-        function salesProjectCardHTML(sp) {
-            return `
+                                ` : getSalesProjects().map(sp => `
                                     <div class="border-2 rounded-lg border-purple-300 bg-purple-50 dark:bg-purple-900/30 dark:border-purple-600">
                                         <div class="p-3 sm:p-5 cursor-pointer" onclick="toggleSalesProject('${sp.projectNumber}')">
                                             <div class="flex justify-between items-start">
-                                                <div class="flex-1 min-w-0">
+                                                <div class="flex-1">
                                                     <div class="flex items-center gap-2 mb-1 flex-wrap">
                                                         <span class="text-slate-400">${expandedSalesProjects[sp.projectNumber] ? '▼' : '▶'}</span>
                                                         <h3 class="font-bold text-base sm:text-xl text-slate-900 dark:text-white">${sp.projectNumber}</h3>
-                                                        ${sp.fiscalLabel ? `<span class="px-2 py-0.5 text-xs bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 rounded-full">${sp.fiscalLabel}</span>` : ''}
                                                         <span class="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full">${sp.items.length}品目</span>
                                                         ${sp.allocatedCount > 0 ? `<span class="px-2 py-0.5 text-xs bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300 rounded-full">引当${sp.allocatedCount}</span>` : ''}
                                                         ${sp.shippedCount > 0 ? `<span class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 rounded-full">出庫${sp.shippedCount}</span>` : ''}
                                                         ${sp.archivedCount > 0 ? `<span class="px-2 py-0.5 text-xs bg-slate-200 text-slate-600 dark:bg-slate-600 dark:text-slate-300 rounded-full">完了${sp.archivedCount}</span>` : ''}
                                                     </div>
-                                                    ${(() => { const notes = [...new Set(sp.items.filter(i => i.note).map(i => i.note))]; if (!notes.length) return ''; const full = notes.join(' / '); let text = full; if (text.length > 50) text = text.slice(0, 50) + '…'; return `<p class="text-xs text-slate-600 dark:text-slate-300 truncate" title="${full}">📝 ${text}</p>`; })()}
                                                 </div>
                                                 <div class="text-right">
                                                     <p class="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">${formatJPY(sp.totalCost)}</p>
                                                     <p class="text-xs text-slate-500 dark:text-slate-400">原価合計</p>
-                                                    ${sp.revenue > 0 ? `<p class="text-xs mt-0.5 font-semibold ${sp.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}">粗利 ${formatJPY(sp.grossProfit)}${sp.grossMargin != null ? `（${(sp.grossMargin * 100).toFixed(1)}%）` : ''}</p>` : ''}
                                                 </div>
                                             </div>
                                         </div>
@@ -2496,7 +2004,6 @@
                                                                         ${item.category || ''} 
                                                                         ${item.orderProject ? `← 仕入: ${item.orderProject}` : ''}
                                                                     </p>
-                                                                    ${item.note ? `<p class="text-xs text-slate-600 dark:text-slate-300 mt-0.5">📝 ${item.note}</p>` : ''}
                                                                 </div>
                                                                 <div class="text-right">
                                                                     <span class="font-bold text-slate-900 dark:text-white">${formatJPY(item.costJPY || 0)}</span>
@@ -2527,7 +2034,6 @@
                                                                             ${exp.payee ? `<span>${exp.payee}</span>` : ''}
                                                                             ${exp.paidDate ? `<span class="ml-2">${exp.paidDate}</span>` : ''}
                                                                         </div>
-                                                                        ${exp.note ? `<div class="text-xs text-slate-600 dark:text-slate-300 mt-0.5">📝 ${exp.note}</div>` : ''}
                                                                     </div>
                                                                     <button onclick="event.stopPropagation();deleteSalesExpense('${sp.projectNumber}', ${idx})" 
                                                                         class="ml-2 p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400" title="削除">
@@ -2566,238 +2072,16 @@
                                                             <span class="text-lg font-bold text-purple-600 dark:text-purple-400">${formatJPY(sp.totalCost)}</span>
                                                         </div>
                                                     </div>
-
-                                                    <!-- 売上・納品日の手入力 -->
-                                                    <div class="mt-3 pt-3 border-t border-slate-300 dark:border-slate-500">
-                                                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">売上（税抜）・納品日 ${sp.fiscalLabel ? `<span class="ml-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 rounded">${sp.fiscalLabel}</span>` : ''}</label>
-                                                        <div class="flex items-center gap-2 flex-wrap">
-                                                            <div class="flex items-center gap-1 flex-1 min-w-[120px]">
-                                                                <span class="text-slate-500 dark:text-slate-400">¥</span>
-                                                                <input type="number" id="sales-revenue-input-${sp.projectNumber}" value="${sp.revenue > 0 ? sp.revenue : ''}" placeholder="売上"
-                                                                    onkeydown="if(event.key==='Enter'){event.preventDefault();saveSalesProjectInfo('${sp.projectNumber}')}"
-                                                                    class="flex-1 min-w-0 px-3 py-1.5 border rounded-lg dark:bg-slate-700 dark:border-slate-500 dark:text-white text-right">
-                                                            </div>
-                                                            <input type="date" id="sales-delivery-input-${sp.projectNumber}" value="${sp.deliveryDate || ''}" title="納品日"
-                                                                class="px-2 py-1.5 border rounded-lg dark:bg-slate-700 dark:border-slate-500 dark:text-white text-sm">
-                                                            <button onclick="event.stopPropagation();saveSalesProjectInfo('${sp.projectNumber}')" class="px-3 py-1.5 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 whitespace-nowrap">保存</button>
-                                                        </div>
-                                                        ${(salesProjectRevenue[sp.projectNumber] && salesProjectRevenue[sp.projectNumber].updatedDate) ? `<p class="text-[10px] text-slate-400 dark:text-slate-500 mt-1 text-right">更新: ${salesProjectRevenue[sp.projectNumber].updatedDate}</p>` : ''}
-                                                    </div>
-
-                                                    <!-- 粗利 -->
-                                                    <div class="mt-2 pt-2 border-t border-slate-300 dark:border-slate-500">
-                                                        ${sp.revenue > 0 ? `
-                                                            <div class="flex justify-between items-center">
-                                                                <span class="text-sm text-slate-600 dark:text-slate-400">📈 粗利（売上 − 総原価）</span>
-                                                                <span class="text-lg font-bold ${sp.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}">${formatJPY(sp.grossProfit)}</span>
-                                                            </div>
-                                                            <div class="flex justify-between items-center mt-1">
-                                                                <span class="text-xs text-slate-500 dark:text-slate-400">粗利率</span>
-                                                                <span class="text-sm font-bold ${sp.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}">${sp.grossMargin != null ? (sp.grossMargin * 100).toFixed(1) + '%' : '-'}</span>
-                                                            </div>
-                                                        ` : `
-                                                            <p class="text-xs text-slate-400 dark:text-slate-500 text-center">売上を入力すると粗利が表示されます</p>
-                                                        `}
-                                                    </div>
                                                 </div>
                                             </div>
                                         ` : ''}
                                     </div>
-                                `;
-        }
-
-        // 経営目標カード（各期を縦に並べて 目標 vs 実績 vs 達成率）
-        function renderBusinessTargetsCard() {
-            const sps = getSalesProjects();
-            const periodNum = (label) => { const n = parseInt(String(label).replace(/[^0-9]/g, ''), 10); return isNaN(n) ? -1 : n; };
-
-            // 表示する期：目標あり ∪ 実績あり
-            const periodSet = new Set(Object.keys(businessTargets));
-            sps.forEach(sp => { if (sp.fiscalLabel && sp.revenue > 0) periodSet.add(sp.fiscalLabel); });
-            const periods = Array.from(periodSet).sort((a, b) => periodNum(b) - periodNum(a));
-
-            const cur = getCurrentFiscalPeriodNumber();
-            const currentPeriod = `第${cur}期`;
-
-            // 設定欄の期セレクタ：今期-1〜今期+3 ∪ 既存
-            const optSet = new Set(periods);
-            for (let n = cur - 1; n <= cur + 3; n++) optSet.add(`第${n}期`);
-            const optPeriods = Array.from(optSet).sort((a, b) => periodNum(b) - periodNum(a));
-            const defTarget = businessTargets[currentPeriod] || {};
-
-            const rowsHtml = periods.length === 0 ? `
-                <p class="text-xs text-slate-400 dark:text-slate-500 text-center py-2">まだ目標も実績もありません。「目標を編集」から設定できます。</p>
-            ` : periods.map(p => {
-                const t = businessTargets[p] || {};
-                const act = getPeriodActuals(p);
-                const revTarget = t.revenueTarget || 0;
-                const revRate = revTarget > 0 ? (act.revenue / revTarget * 100) : null;
-                const marginTarget = t.marginTarget || 0;
-                const actMargin = act.grossMargin != null ? act.grossMargin * 100 : null;
-                const isCurrent = p === currentPeriod;
-                const revRateColor = revRate == null ? 'text-slate-400'
-                    : (revRate >= 100 ? 'text-emerald-600 dark:text-emerald-400' : (revRate >= 80 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-300'));
-                const marginColor = (actMargin != null && marginTarget > 0)
-                    ? (actMargin >= marginTarget ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')
-                    : 'text-slate-700 dark:text-slate-200';
-                return `
-                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 py-2 border-b border-slate-100 dark:border-slate-700 last:border-0">
-                    <div class="w-14 font-bold text-sm ${isCurrent ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-300'}">${p}${isCurrent ? '<span class="block text-[10px] font-normal text-indigo-400">今期</span>' : ''}</div>
-                    <div class="flex-1 min-w-[150px]">
-                        <p class="text-[11px] text-slate-400 dark:text-slate-500">売上（実績 / 目標）</p>
-                        <p class="text-sm"><span class="font-bold text-slate-900 dark:text-white">${formatJPY(act.revenue)}</span> <span class="text-slate-400">/</span> ${revTarget > 0 ? formatJPY(revTarget) : '<span class="text-slate-400">未設定</span>'}${revRate != null ? ` <span class="ml-1 text-xs font-semibold ${revRateColor}">達成${revRate.toFixed(0)}%</span>` : ''}</p>
-                    </div>
-                    <div class="flex-1 min-w-[120px]">
-                        <p class="text-[11px] text-slate-400 dark:text-slate-500">粗利率（実績 / 目標）</p>
-                        <p class="text-sm"><span class="font-bold ${marginColor}">${actMargin != null ? actMargin.toFixed(1) + '%' : '-'}</span> <span class="text-slate-400">/</span> ${marginTarget > 0 ? marginTarget.toFixed(1) + '%' : '<span class="text-slate-400">未設定</span>'}</p>
-                    </div>
+                                `).join('')}
+                            </div>
+                            `}
+                        </div>
+                    </main>
                 </div>`;
-            }).join('');
-
-            return `
-            <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 sm:p-4 mb-3">
-                <div class="flex items-center justify-between gap-3 mb-2">
-                    <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">🎯 経営目標 vs 実績</p>
-                    <button onclick="showBusinessTargetSettings=!showBusinessTargetSettings;renderMain()" class="px-2.5 py-1 border border-slate-200 dark:border-slate-600 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600">
-                        ${showBusinessTargetSettings ? '設定を閉じる' : '目標を編集'}
-                    </button>
-                </div>
-                <div class="mb-1">${rowsHtml}</div>
-                ${showBusinessTargetSettings ? `
-                <div class="pt-3 mt-2 border-t border-slate-200 dark:border-slate-600">
-                    <p class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">目標を設定 / 更新</p>
-                    <div class="flex flex-wrap items-end gap-2">
-                        <div>
-                            <label class="block text-[11px] text-slate-400 mb-0.5">期</label>
-                            <select id="target-period-select" onchange="onTargetPeriodChange()" class="px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm dark:bg-slate-700 dark:text-white">
-                                ${optPeriods.map(p => `<option value="${p}" ${p === currentPeriod ? 'selected' : ''}>${p}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[11px] text-slate-400 mb-0.5">売上目標(¥)</label>
-                            <input type="number" id="target-revenue-input" value="${defTarget.revenueTarget || ''}" placeholder="例: 50000000" class="w-36 px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm dark:bg-slate-700 dark:text-white text-right">
-                        </div>
-                        <div>
-                            <label class="block text-[11px] text-slate-400 mb-0.5">粗利率目標(%)</label>
-                            <input type="number" id="target-margin-input" value="${defTarget.marginTarget || ''}" step="0.1" placeholder="例: 45" class="w-24 px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm dark:bg-slate-700 dark:text-white text-right">
-                        </div>
-                        <button onclick="saveBusinessTarget()" class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">保存</button>
-                    </div>
-                </div>
-                ` : ''}
-            </div>`;
-        }
-
-        // 設定欄の期を切り替えたら、その期の既存目標を入力欄に反映
-        function onTargetPeriodChange() {
-            const period = document.getElementById('target-period-select').value;
-            const t = businessTargets[period] || {};
-            const rev = document.getElementById('target-revenue-input');
-            const mar = document.getElementById('target-margin-input');
-            if (rev) rev.value = t.revenueTarget || '';
-            if (mar) mar.value = t.marginTarget || '';
-        }
-
-        function getFilteredSalesProjects() {
-            const query = salesSearchText.trim().toLocaleLowerCase('ja-JP');
-            return getSalesProjects().filter(sp => {
-                if (salesPeriodFilter !== 'all' && sp.fiscalLabel !== salesPeriodFilter) return false;
-                if (salesMissingDeliveryOnly && sp.deliveryDate) return false;
-                if (!query) return true;
-                const searchable = [
-                    sp.projectNumber,
-                    ...sp.items.flatMap(item => [item.productName, item.serial, item.orderProject])
-                ].filter(Boolean).join(' ').toLocaleLowerCase('ja-JP');
-                return searchable.includes(query);
-            });
-        }
-
-        function renderSalesFilterControls() {
-            const allProjects = getSalesProjects();
-            const visibleProjects = getFilteredSalesProjects();
-            const periods = Array.from(new Set(allProjects.map(sp => sp.fiscalLabel).filter(Boolean)))
-                .sort((a, b) => parseInt(String(b).replace(/[^0-9]/g, ''), 10) - parseInt(String(a).replace(/[^0-9]/g, ''), 10));
-            const safeSearch = String(salesSearchText).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            return `
-                <div class="sales-filter-bar">
-                    <label class="sr-only" for="salesSearchInput">案件を検索</label>
-                    <input id="salesSearchInput" type="search" value="${safeSearch}" placeholder="案件番号・製品名・Serialで検索" oninput="salesSearchText=this.value;refreshSalesProjectList()" class="form-control">
-                    <select onchange="salesPeriodFilter=this.value;refreshSalesProjectList()" class="form-control" aria-label="会計期で絞り込み">
-                        <option value="all">すべての期</option>
-                        ${periods.map(period => `<option value="${period}" ${salesPeriodFilter === period ? 'selected' : ''}>${period}</option>`).join('')}
-                    </select>
-                    <label class="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                        <input type="checkbox" ${salesMissingDeliveryOnly ? 'checked' : ''} onchange="salesMissingDeliveryOnly=this.checked;refreshSalesProjectList()"> 納品日未入力のみ
-                    </label>
-                    <span id="salesVisibleCount" class="text-xs text-slate-500 dark:text-slate-400 text-right">表示 ${visibleProjects.length} / ${allProjects.length}件</span>
-                </div>`;
-        }
-
-        function refreshSalesProjectList() {
-            const list = document.getElementById('salesProjectList');
-            const count = document.getElementById('salesVisibleCount');
-            if (list) list.innerHTML = renderSalesProjectGroups();
-            if (count) count.textContent = `表示 ${getFilteredSalesProjects().length} / ${getSalesProjects().length}件`;
-        }
-
-        // 販売案件リストの描画（期でグループ化 or 案件番号順）
-        function renderSalesProjectGroups() {
-            const allProjects = getSalesProjects();
-            const sps = getFilteredSalesProjects();
-            if (allProjects.length === 0) {
-                return `
-                                    <div class="text-center py-8 text-slate-500 dark:text-slate-400">
-                                        <p class="mb-2">引当・出庫済みの案件がありません</p>
-                                        <p class="text-xs">在庫ナビで出庫先案件を設定すると、ここに表示されます</p>
-                                    </div>
-                                `;
-            }
-            if (sps.length === 0) {
-                return `
-                    <div class="text-center py-10 text-slate-500 dark:text-slate-400">
-                        <p class="font-semibold">条件に一致する案件がありません</p>
-                        <p class="mt-1 text-xs">検索語または絞り込み条件を変更してください</p>
-                    </div>`;
-            }
-            const sortMode = (typeof salesSortMode !== 'undefined') ? salesSortMode : 'fiscal';
-            if (sortMode === 'project') {
-                return sps.slice().sort((a, b) => b.projectNumber.localeCompare(a.projectNumber)).map(salesProjectCardHTML).join('');
-            }
-            const groups = {};
-            sps.forEach(sp => {
-                const key = sp.fiscalLabel || '__none__';
-                (groups[key] = groups[key] || []).push(sp);
-            });
-            const periodNum = (label) => {
-                if (!label) return -1;
-                const n = parseInt(String(label).replace(/[^0-9]/g, ''), 10);
-                return isNaN(n) ? -1 : n;
-            };
-            const keys = Object.keys(groups).sort((a, b) => {
-                if (a === '__none__') return 1;
-                if (b === '__none__') return -1;
-                return periodNum(b) - periodNum(a);
-            });
-            return keys.map(key => {
-                const list = groups[key].slice().sort((a, b) =>
-                    (b.deliveryDate || '').localeCompare(a.deliveryDate || '') || b.projectNumber.localeCompare(a.projectNumber));
-                const withRev = list.filter(sp => sp.revenue > 0);
-                const subRev = withRev.reduce((s, sp) => s + sp.revenue, 0);
-                const subCost = withRev.reduce((s, sp) => s + sp.totalCost, 0);
-                const subGP = subRev - subCost;
-                const subGM = subRev > 0 ? (subGP / subRev * 100).toFixed(1) + '%' : '-';
-                const gpColor = subGP >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
-                const title = key === '__none__' ? '納品日未入力' : key;
-                const header = `
-                    <div class="flex flex-wrap items-center justify-between gap-2 mt-4 mb-1 px-1">
-                        <div class="flex items-center gap-2">
-                            <span class="text-sm font-bold text-indigo-700 dark:text-indigo-300">${title}</span>
-                            <span class="text-xs text-slate-500 dark:text-slate-400">${list.length}件</span>
-                        </div>
-                        ${key === '__none__' ? '' : `<div class="text-xs text-slate-600 dark:text-slate-400">売上 ${formatJPY(subRev)} ／ 粗利 <span class="font-semibold ${gpColor}">${formatJPY(subGP)}（${subGM}）</span></div>`}
-                    </div>`;
-                return header + `<div class="space-y-3 sm:space-y-4">` + list.map(salesProjectCardHTML).join('') + `</div>`;
-            }).join('');
         }
 
         // ==================== 販売案件（タブ）関連 ====================
@@ -2812,8 +2096,6 @@
         }
         
         async function loadInventoryForSales() {
-            salesDataLoading = true;
-            renderMain();
             try {
                 showStatus('在庫データを読み込み中...');
                 
@@ -2880,18 +2162,11 @@
                 
                 // 販売案件経費も読み込む
                 await loadSalesExpenses();
-                // 販売案件売上も読み込む
-                await loadSalesRevenue();
-                // 経営目標も読み込む
-                await loadBusinessTargets();
                 
-                salesDataLoading = false;
-                renderMain();
                 showStatus('');
+                renderMain();
             } catch (e) {
                 console.error('在庫データ読み込みエラー:', e);
-                salesDataLoading = false;
-                renderMain();
                 showStatus('在庫データの読み込みに失敗しました');
             }
         }
@@ -2954,270 +2229,11 @@
                 console.error('販売案件経費シート作成エラー:', e);
             }
         }
-
-        async function loadSalesRevenue() {
-            try {
-                const response = await gapi.client.sheets.spreadsheets.values.get({
-                    spreadsheetId: SPREADSHEET_ID,
-                    range: '販売案件売上!A2:E',
-                });
-                const rows = response.result.values || [];
-                salesProjectRevenue = {};
-                rows.forEach(row => {
-                    const projectNumber = row[0] || '';
-                    if (!projectNumber) return;
-                    salesProjectRevenue[projectNumber] = {
-                        amount: parseFloat(row[1]) || 0,
-                        updatedDate: row[2] || '',
-                        note: row[3] || '',
-                        deliveryDate: row[4] || ''
-                    };
-                });
-            } catch (e) {
-                // シートがない場合は作成
-                if (e.result?.error?.code === 400 || e.status === 400) {
-                    await createSalesRevenueSheet();
-                } else {
-                    console.error('販売案件売上読み込みエラー:', e);
-                }
-            }
-        }
-
-        async function createSalesRevenueSheet() {
-            try {
-                await gapi.client.sheets.spreadsheets.batchUpdate({
-                    spreadsheetId: SPREADSHEET_ID,
-                    resource: {
-                        requests: [{
-                            addSheet: {
-                                properties: { title: '販売案件売上' }
-                            }
-                        }]
-                    }
-                });
-                await gapi.client.sheets.spreadsheets.values.update({
-                    spreadsheetId: SPREADSHEET_ID,
-                    range: '販売案件売上!A1:E1',
-                    valueInputOption: 'RAW',
-                    resource: {
-                        values: [['案件番号', '売上', '更新日', 'メモ', '納品日']]
-                    }
-                });
-                console.log('販売案件売上シートを作成しました');
-            } catch (e) {
-                console.error('販売案件売上シート作成エラー:', e);
-            }
-        }
-
-        // 売上・納品日の手入力を保存（案件ごとに1行をupsert）
-        async function saveSalesProjectInfo(projectNumber) {
-            const revInput = document.getElementById(`sales-revenue-input-${projectNumber}`);
-            const dateInput = document.getElementById(`sales-delivery-input-${projectNumber}`);
-            if (!revInput) return;
-
-            // 売上：空欄は0扱い（納品日だけ入れたいケースを許容）
-            const raw = revInput.value.trim();
-            const amount = raw === '' ? 0 : parseFloat(raw);
-            if (isNaN(amount) || amount < 0) {
-                alert('売上を正しく入力してください');
-                return;
-            }
-            const deliveryDate = dateInput ? dateInput.value : '';
-            const today = new Date().toISOString().split('T')[0];
-            const existingNote = (salesProjectRevenue[projectNumber] || {}).note || '';
-
-            try {
-                // 既存行を探す
-                let rows = [];
-                try {
-                    const resp = await gapi.client.sheets.spreadsheets.values.get({
-                        spreadsheetId: SPREADSHEET_ID,
-                        range: '販売案件売上!A2:E',
-                    });
-                    rows = resp.result.values || [];
-                } catch (e) {
-                    if (e.result?.error?.code === 400 || e.status === 400) {
-                        await createSalesRevenueSheet();
-                    } else { throw e; }
-                }
-
-                let rowIndex = -1;
-                rows.forEach((row, idx) => {
-                    if (row[0] === projectNumber) rowIndex = idx + 2; // ヘッダー考慮
-                });
-
-                const values = [[projectNumber, amount, today, existingNote, deliveryDate]];
-                if (rowIndex > 0) {
-                    // 既存行を更新
-                    await gapi.client.sheets.spreadsheets.values.update({
-                        spreadsheetId: SPREADSHEET_ID,
-                        range: `販売案件売上!A${rowIndex}:E${rowIndex}`,
-                        valueInputOption: 'RAW',
-                        resource: { values }
-                    });
-                } else {
-                    // 新規追加
-                    await gapi.client.sheets.spreadsheets.values.append({
-                        spreadsheetId: SPREADSHEET_ID,
-                        range: '販売案件売上!A:E',
-                        valueInputOption: 'RAW',
-                        resource: { values }
-                    });
-                }
-
-                salesProjectRevenue[projectNumber] = { amount, updatedDate: today, note: existingNote, deliveryDate };
-                renderMain();
-                showStatus('✅ 保存しました');
-                setTimeout(() => showStatus(''), 3000);
-            } catch (e) {
-                console.error('売上・納品日保存エラー:', e);
-                alert('保存に失敗しました');
-            }
-        }
         
-        // 今日が属する会計期の番号（第1期=2019/7〜）
-        function getCurrentFiscalPeriodNumber() {
-            const d = new Date();
-            const startYear = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1;
-            return startYear - 2019 + 1;
-        }
-
-        async function loadBusinessTargets() {
-            try {
-                const response = await gapi.client.sheets.spreadsheets.values.get({
-                    spreadsheetId: SPREADSHEET_ID,
-                    range: '経営目標!A2:D',
-                });
-                const rows = response.result.values || [];
-                businessTargets = {};
-                rows.forEach(row => {
-                    const period = row[0] || '';
-                    if (!period) return;
-                    businessTargets[period] = {
-                        revenueTarget: parseFloat(row[1]) || 0,
-                        marginTarget: parseFloat(row[2]) || 0, // 粗利率(%)
-                        updatedDate: row[3] || ''
-                    };
-                });
-            } catch (e) {
-                if (e.result?.error?.code === 400 || e.status === 400) {
-                    await createBusinessTargetsSheet();
-                } else {
-                    console.error('経営目標読み込みエラー:', e);
-                }
-            }
-        }
-
-        async function createBusinessTargetsSheet() {
-            try {
-                await gapi.client.sheets.spreadsheets.batchUpdate({
-                    spreadsheetId: SPREADSHEET_ID,
-                    resource: {
-                        requests: [{ addSheet: { properties: { title: '経営目標' } } }]
-                    }
-                });
-                await gapi.client.sheets.spreadsheets.values.update({
-                    spreadsheetId: SPREADSHEET_ID,
-                    range: '経営目標!A1:D1',
-                    valueInputOption: 'RAW',
-                    resource: { values: [['期', '売上目標', '粗利率目標(%)', '更新日']] }
-                });
-                console.log('経営目標シートを作成しました');
-            } catch (e) {
-                console.error('経営目標シート作成エラー:', e);
-            }
-        }
-
-        // 経営目標の保存（期ごとに1行をupsert）
-        async function saveBusinessTarget() {
-            const period = document.getElementById('target-period-select').value;
-            const revRaw = document.getElementById('target-revenue-input').value.trim();
-            const marginRaw = document.getElementById('target-margin-input').value.trim();
-            if (!period) { alert('期を選んでください'); return; }
-
-            const revenueTarget = revRaw === '' ? 0 : parseFloat(revRaw);
-            const marginTarget = marginRaw === '' ? 0 : parseFloat(marginRaw);
-            if (isNaN(revenueTarget) || revenueTarget < 0 || isNaN(marginTarget) || marginTarget < 0) {
-                alert('目標を正しく入力してください');
-                return;
-            }
-            const today = new Date().toISOString().split('T')[0];
-
-            try {
-                let rows = [];
-                try {
-                    const resp = await gapi.client.sheets.spreadsheets.values.get({
-                        spreadsheetId: SPREADSHEET_ID,
-                        range: '経営目標!A2:D',
-                    });
-                    rows = resp.result.values || [];
-                } catch (e) {
-                    if (e.result?.error?.code === 400 || e.status === 400) {
-                        await createBusinessTargetsSheet();
-                    } else { throw e; }
-                }
-
-                let rowIndex = -1;
-                rows.forEach((row, idx) => { if (row[0] === period) rowIndex = idx + 2; });
-                const values = [[period, revenueTarget, marginTarget, today]];
-
-                if (rowIndex > 0) {
-                    await gapi.client.sheets.spreadsheets.values.update({
-                        spreadsheetId: SPREADSHEET_ID,
-                        range: `経営目標!A${rowIndex}:D${rowIndex}`,
-                        valueInputOption: 'RAW',
-                        resource: { values }
-                    });
-                } else {
-                    await gapi.client.sheets.spreadsheets.values.append({
-                        spreadsheetId: SPREADSHEET_ID,
-                        range: '経営目標!A:D',
-                        valueInputOption: 'RAW',
-                        resource: { values }
-                    });
-                }
-
-                businessTargets[period] = { revenueTarget, marginTarget, updatedDate: today };
-                renderMain();
-                showStatus('✅ 目標を保存しました');
-                setTimeout(() => showStatus(''), 3000);
-            } catch (e) {
-                console.error('目標保存エラー:', e);
-                alert('目標の保存に失敗しました');
-            }
-        }
-
-        // 指定した期の実績（売上入力済の販売案件を集計）
-        function getPeriodActuals(periodLabel) {
-            const sps = getSalesProjects().filter(sp => sp.fiscalLabel === periodLabel && sp.revenue > 0);
-            const revenue = sps.reduce((s, sp) => s + sp.revenue, 0);
-            const cost = sps.reduce((s, sp) => s + sp.totalCost, 0);
-            const grossProfit = revenue - cost;
-            return {
-                count: sps.length,
-                revenue,
-                cost,
-                grossProfit,
-                grossMargin: revenue > 0 ? (grossProfit / revenue) : null
-            };
-        }
-
-        // 会計期ラベル：第1期=2019/7〜2020/6、7月始まり（既存のgetFiscalYearInfoと同一基準）
-        function getFiscalPeriodLabel(dateStr) {
-            if (!dateStr) return '';
-            const d = new Date(dateStr);
-            if (isNaN(d.getTime())) return '';
-            const startYear = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1; // 7月以降は当年
-            return `第${startYear - 2019 + 1}期`;
-        }
-
         function getSalesProjects() {
             // 出庫先が設定されている在庫をグループ化（引当済 + 出庫済 + アーカイブ済み）
-            // ただしRS（リザーブ＝販売可能在庫としての仮押さえ）は実売ではないため除外する。
-            // RSは最終的にAD/TSなどへ割り当て直される。
             const allocated = inventoryData.filter(item => 
                 item.shipPrefix && item.shipNumber && 
-                String(item.shipPrefix).toUpperCase() !== 'RS' &&
                 (item.status === '出庫済' || item.status === '出庫済み' || item.status === '引当済' || item.isArchived)
             );
             
@@ -3232,7 +2248,6 @@
                         itemsCost: 0,
                         expensesCost: 0,
                         totalCost: 0,
-                        revenue: 0,
                         allocatedCount: 0,
                         shippedCount: 0,
                         archivedCount: 0
@@ -3258,37 +2273,9 @@
             Object.values(grouped).forEach(sp => {
                 sp.expensesCost = sp.expenses.reduce((sum, e) => sum + (e.amountJPY || 0), 0);
                 sp.totalCost = sp.itemsCost + sp.expensesCost;
-                // 売上・粗利（売上は手入力、税抜想定）
-                const rev = salesProjectRevenue[sp.projectNumber];
-                sp.revenue = rev ? (rev.amount || 0) : 0;
-                sp.grossProfit = sp.revenue - sp.totalCost;
-                sp.grossMargin = sp.revenue > 0 ? (sp.grossProfit / sp.revenue) : null;
-                // 納品日・会計期（手入力の納品日ベース）
-                sp.deliveryDate = rev ? (rev.deliveryDate || '') : '';
-                sp.fiscalLabel = getFiscalPeriodLabel(sp.deliveryDate);
             });
             
             return Object.values(grouped).sort((a, b) => b.projectNumber.localeCompare(a.projectNumber));
-        }
-
-        // 販売案件の全体集計（トップカード用）
-        // 粗利・粗利率は「売上が入力済みの案件のみ」で集計する（売上ゼロの案件で歪まないように）
-        function getSalesSummary() {
-            const sps = getSalesProjects();
-            const withRev = sps.filter(sp => sp.revenue > 0);
-            const sumRevenue = withRev.reduce((s, sp) => s + sp.revenue, 0);
-            const sumCostRev = withRev.reduce((s, sp) => s + sp.totalCost, 0);
-            const grossProfit = sumRevenue - sumCostRev;
-            return {
-                totalProjects: sps.length,
-                revenueProjects: withRev.length,
-                missingRevenue: sps.length - withRev.length,
-                sumRevenue: sumRevenue,
-                sumCostRev: sumCostRev,
-                grossProfit: grossProfit,
-                grossMargin: sumRevenue > 0 ? (grossProfit / sumRevenue) : null,
-                sumCostAll: sps.reduce((s, sp) => s + sp.totalCost, 0)
-            };
         }
         
         function toggleSalesProject(projectNumber) {
@@ -3303,7 +2290,7 @@
         // 販売案件経費の追加モーダル
         function showAddSalesExpenseModal(projectNumber) {
             const expenseTypes = [
-                '施工外注費', '設置工事費', '国内配送料', '加工費', '周辺機器', 'その他'
+                '施工外注費', '設置工事費', '国内配送料', '加工費', 'その他'
             ];
             
             const modal = document.createElement('div');
@@ -3472,15 +2459,7 @@
         async function markPaymentComplete(projectId, depositNumber) {
             const paidDate = prompt('支払日 (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
             if (!paidDate) return;
-
-            // 円建て案件（国内調達）は為替不要。レート1.0でそのまま円確定。
-            const proj = projects.find(p => String(p.id) === String(projectId));
-            if (proj && proj.currency === 'JPY') {
-                await markPaymentPaid(projectId, depositNumber, paidDate, 1);
-                renderMain();
-                return;
-            }
-
+            
             showStatus('為替レート取得中...');
             const autoRate = await getExchangeRate(paidDate);
             
@@ -3503,177 +2482,41 @@
         }
         
         // グループ全体の支払い完了（同一案件番号の全製品に適用）
-        async function markGroupPaymentComplete(projectNumber, depositNumber) {
-            const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
-            if (groupProjects.length === 0) {
-                showStatus('案件が見つかりません');
-                return;
-            }
-
-            const deposits = groupProjects
-                .map(p => (p.depositSchedule || []).find(d => d.depositNumber === depositNumber))
-                .filter(Boolean);
-            if (deposits.length === 0) {
-                showStatus('支払情報が見つかりません');
-                return;
-            }
-
-            const isJPYGroup = groupProjects.some(p => p.currency === 'JPY');
-            const amount = deposits.reduce((sum, dep) => sum + (dep.amountUSD || 0), 0);
-            const percentage = deposits[0]?.percentage || 0;
-            const today = new Date().toISOString().split('T')[0];
-            closePaymentConfirmationModal();
-            pendingPaymentConfirmation = { projectNumber, depositNumber, groupProjects, isJPYGroup, amount };
-
-            const modal = document.createElement('div');
-            modal.id = 'paymentConfirmationModal';
-            modal.innerHTML = `
-                <div class="modal-backdrop" role="presentation">
-                    <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="paymentConfirmationTitle">
-                        <div class="modal-header">
-                            <div>
-                                <p class="modal-eyebrow">PAYMENT CONFIRMATION</p>
-                                <h3 id="paymentConfirmationTitle" class="modal-title">支払いを完了しますか？</h3>
-                                <p class="modal-copy">内容を確認してから確定してください。確定後、Google Sheetsの対象行が更新されます。</p>
-                            </div>
-                            <button onclick="closePaymentConfirmationModal()" class="modal-close" aria-label="閉じる">×</button>
-                        </div>
-                        <div class="modal-body">
-                            <dl class="summary-grid">
-                                <div class="summary-item"><dt>案件</dt><dd>${projectNumber}</dd></div>
-                                <div class="summary-item"><dt>支払回</dt><dd>第${depositNumber}回（${percentage}%）</dd></div>
-                                <div class="summary-item"><dt>支払額</dt><dd>${isJPYGroup ? formatJPY(amount) : '$' + amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</dd></div>
-                                <div class="summary-item"><dt>更新対象</dt><dd>${groupProjects.length}製品</dd></div>
-                            </dl>
-
-                            <div class="form-grid mt-4">
-                                <div>
-                                    <label class="field-label" for="paymentPaidDate">支払日</label>
-                                    <input type="date" id="paymentPaidDate" value="${today}" onchange="${isJPYGroup ? 'updatePaymentConfirmationAmount()' : 'refreshPaymentConfirmationRate()'}" class="form-control">
-                                </div>
-                                ${isJPYGroup ? `
-                                    <div>
-                                        <span class="field-label">通貨</span>
-                                        <div class="form-control flex items-center bg-slate-50 dark:bg-slate-700">JPY（円建て・為替換算なし）</div>
-                                    </div>
-                                ` : `
-                                    <div>
-                                        <label class="field-label" for="paymentExchangeRate">為替レート（JPY / USD）</label>
-                                        <div class="flex gap-2">
-                                            <input type="number" id="paymentExchangeRate" step="0.01" min="0.01" placeholder="取得中..." oninput="updatePaymentConfirmationAmount()" class="form-control">
-                                            <button onclick="refreshPaymentConfirmationRate()" type="button" class="button-secondary whitespace-nowrap">再取得</button>
-                                        </div>
-                                    </div>
-                                `}
-                            </div>
-
-                            <div class="mt-4 p-3 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
-                                <div class="flex items-center justify-between gap-3">
-                                    <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">円換算の確定額</span>
-                                    <strong id="paymentEstimatedJPY" class="text-lg text-blue-700 dark:text-blue-300">${isJPYGroup ? formatJPY(amount) : 'レート取得中...'}</strong>
-                                </div>
-                                <p id="paymentRateStatus" class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">${isJPYGroup ? '円建て案件のため、そのままの金額で確定します。' : '支払日の参考レートを取得しています。必要に応じて修正できます。'}</p>
-                            </div>
-
-                            <div class="modal-actions">
-                                <button onclick="closePaymentConfirmationModal()" class="button-secondary">キャンセル</button>
-                                <button onclick="confirmGroupPaymentComplete()" id="confirmPaymentButton" class="button-primary">この内容で支払完了</button>
-                            </div>
-                        </div>
-                    </section>
-                </div>`;
-            document.body.appendChild(modal);
-            document.getElementById('paymentPaidDate')?.focus();
-            if (!isJPYGroup) await refreshPaymentConfirmationRate();
-        }
-
-        function closePaymentConfirmationModal() {
-            const modal = document.getElementById('paymentConfirmationModal');
-            if (modal) modal.remove();
-            pendingPaymentConfirmation = null;
-        }
-
-        async function refreshPaymentConfirmationRate() {
-            if (!pendingPaymentConfirmation || pendingPaymentConfirmation.isJPYGroup) return;
-            const dateInput = document.getElementById('paymentPaidDate');
-            const rateInput = document.getElementById('paymentExchangeRate');
-            const status = document.getElementById('paymentRateStatus');
-            if (!dateInput?.value || !rateInput) return;
-
-            const requestedDate = dateInput.value;
-            rateInput.disabled = true;
-            rateInput.placeholder = '取得中...';
-            if (status) status.textContent = '支払日の参考レートを取得しています...';
-            const autoRate = await getExchangeRate(requestedDate);
-            if (!document.getElementById('paymentConfirmationModal') || dateInput.value !== requestedDate) return;
-
-            rateInput.disabled = false;
+        async function markGroupPaymentComplete(projectNumber, depositNumber, orderBatch = 0) {
+            const paidDate = prompt('支払日 (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+            if (!paidDate) return;
+            
+            showStatus('為替レート取得中...');
+            const autoRate = await getExchangeRate(paidDate);
+            
+            let exchangeRate;
             if (autoRate) {
-                rateInput.value = autoRate.toFixed(2);
-                if (status) status.textContent = '参考レートを入力しました。実際の決済レートに合わせて修正できます。';
+                const useAutoRate = confirm(`${paidDate}のレート: ¥${autoRate.toFixed(2)}\n\nこのレートを使用しますか？\n（キャンセルすると手動入力になります）`);
+                if (useAutoRate) {
+                    exchangeRate = autoRate;
+                } else {
+                    exchangeRate = parseFloat(prompt('為替レート (JPY/USD):', autoRate.toFixed(2)));
+                }
             } else {
-                rateInput.value = '';
-                rateInput.placeholder = '手動で入力';
-                if (status) status.textContent = '参考レートを取得できませんでした。実際の決済レートを入力してください。';
+                exchangeRate = parseFloat(prompt('為替レート (JPY/USD):'));
             }
-            updatePaymentConfirmationAmount();
-        }
-
-        function updatePaymentConfirmationAmount() {
-            if (!pendingPaymentConfirmation) return;
-            const amountEl = document.getElementById('paymentEstimatedJPY');
-            if (!amountEl) return;
-            if (pendingPaymentConfirmation.isJPYGroup) {
-                amountEl.textContent = formatJPY(pendingPaymentConfirmation.amount);
-                return;
+            
+            if (!exchangeRate) return;
+            
+            // 同じ案件番号・同じ発注ロットの製品だけに適用（他の発注の支払い記録を上書きしない）
+            const groupProjects = projects.filter(p =>
+                formatProjectNumber(p) === projectNumber && (p.orderBatch || 0) === orderBatch
+            );
+            
+            showStatus(`${groupProjects.length}製品の支払いを更新中...`);
+            
+            for (const p of groupProjects) {
+                await markPaymentPaid(p.id, depositNumber, paidDate, exchangeRate);
             }
-            const rate = parseFloat(document.getElementById('paymentExchangeRate')?.value);
-            amountEl.textContent = rate > 0
-                ? formatJPY(Math.round(pendingPaymentConfirmation.amount * rate))
-                : 'レートを入力してください';
-        }
-
-        async function confirmGroupPaymentComplete() {
-            if (!pendingPaymentConfirmation) return;
-            const paidDate = document.getElementById('paymentPaidDate')?.value;
-            const exchangeRate = pendingPaymentConfirmation.isJPYGroup
-                ? 1
-                : parseFloat(document.getElementById('paymentExchangeRate')?.value);
-            const status = document.getElementById('paymentRateStatus');
-            const button = document.getElementById('confirmPaymentButton');
-
-            if (!paidDate) {
-                if (status) status.textContent = '支払日を入力してください。';
-                return;
-            }
-            if (!exchangeRate || exchangeRate <= 0) {
-                if (status) status.textContent = '正しい為替レートを入力してください。';
-                return;
-            }
-
-            const { projectNumber, depositNumber, groupProjects } = pendingPaymentConfirmation;
-            if (button) {
-                button.disabled = true;
-                button.textContent = '更新中...';
-            }
-            if (status) status.textContent = `${groupProjects.length}製品の支払情報を更新しています...`;
-
-            try {
-                for (const p of groupProjects) {
-                    await markPaymentPaid(p.id, depositNumber, paidDate, exchangeRate);
-                }
-                closePaymentConfirmationModal();
-                renderMain();
-                showStatus(`✅ ${projectNumber} の支払いを完了しました`);
-                setTimeout(() => showStatus(''), 3000);
-            } catch (error) {
-                console.error('グループ支払い更新エラー:', error);
-                if (button) {
-                    button.disabled = false;
-                    button.textContent = 'この内容で支払完了';
-                }
-                if (status) status.textContent = '更新に失敗しました。通信状態を確認して、もう一度お試しください。';
-            }
+            
+            showStatus(`✅ ${groupProjects.length}製品の支払いを完了`);
+            setTimeout(() => showStatus(''), 3000);
+            renderMain();
         }
         
         // グループ全体の在庫反映
@@ -3700,8 +2543,10 @@
         }
         
         // グループの為替レート編集
-        async function editGroupPaymentRate(projectNumber, depositNumber) {
-            const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
+        async function editGroupPaymentRate(projectNumber, depositNumber, orderBatch = 0) {
+            const groupProjects = projects.filter(p =>
+                formatProjectNumber(p) === projectNumber && (p.orderBatch || 0) === orderBatch
+            );
             const representative = groupProjects[0];
             
             if (!representative) return;
@@ -3709,7 +2554,7 @@
             const dep = (representative.depositSchedule || []).find(d => d.depositNumber === depositNumber);
             if (!dep) return;
             
-            const newRate = parseFloat(prompt(`第${depositNumber}回の為替レートを修正:`, dep.exchangeRate || ''));
+            const newRate = parseFloat(prompt(`${depositLabel({ depositNumber, orderBatch })}の為替レートを修正:`, dep.exchangeRate || ''));
             if (!newRate) return;
             
             // 全製品に適用
@@ -3737,19 +2582,15 @@
             renderMain();
         }
         
-        function scrollToProject(projectNumber) {
+        function scrollToProject(projectId) {
             // 未払いパネルを閉じる
             showUnpaidSection = false;
-            projectTab = 'purchase';
-            // 一覧側の絞り込みで対象案件が隠れている場合に備える
-            projectFilter.status = 'all';
-            projectFilter.supplier = 'all';
             // 該当案件を展開状態にする
-            expandedProjects[projectNumber] = true;
+            expandedProjects[projectId] = true;
             renderMain();
             // 少し待ってからスクロール
             setTimeout(() => {
-                const el = document.getElementById('project-' + projectNumber);
+                const el = document.getElementById('project-' + projectId);
                 if (el) {
                     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     el.classList.add('ring-2', 'ring-blue-500');
@@ -3758,8 +2599,8 @@
             }, 100);
         }
 
-        function toggleProject(projectNumber) {
-            expandedProjects[projectNumber] = !expandedProjects[projectNumber];
+        function toggleProject(projectId) {
+            expandedProjects[projectId] = !expandedProjects[projectId];
             renderMain();
         }
 
@@ -4030,94 +2871,113 @@
             const modal = document.createElement('div');
             modal.id = 'projectModal';
             modal.innerHTML = `
-                <div class="modal-backdrop" role="presentation">
-                    <section class="modal-panel project-form-panel" role="dialog" aria-modal="true" aria-labelledby="projectFormTitle">
-                        <div class="modal-header">
-                            <div>
-                                <p class="modal-eyebrow">NEW PROCUREMENT</p>
-                                <h3 id="projectFormTitle" class="modal-title">新規案件を登録</h3>
-                                <p class="modal-copy">同じ案件番号に複数の製品を続けて追加できます。</p>
-                            </div>
-                            <button onclick="closeProjectModal()" class="modal-close" aria-label="閉じる">×</button>
-                        </div>
-                        <div class="modal-body">
-                            <!-- 1. 案件情報 -->
-                            <section class="form-step is-muted">
-                                <div class="form-step-heading"><span class="step-number">1</span><strong>案件情報</strong><span>すべての製品に共通</span></div>
-                                <div class="form-grid">
-                                    <div>
-                                        <label class="field-label">案件番号</label>
-                                        <div class="project-number-inputs">
-                                            <select id="modalProjectPrefix" class="form-control">
-                                                <option value="AD">AD</option><option value="SP">SP</option><option value="TS">TS</option>
-                                            </select>
-                                            <input type="text" id="modalProjectNumber" placeholder="0001" class="form-control">
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label class="field-label">サプライヤー</label>
-                                        <select id="modalSupplierId" onchange="onSupplierChange()" class="form-control">
-                                            <option value="">-- 選択 --</option>
-                                            ${suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                <div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;">
+                    <div style="background:white;padding:24px;border-radius:12px;width:550px;max-width:95%;max-height:90vh;overflow-y:auto;">
+                        <h3 style="font-size:18px;font-weight:bold;margin-bottom:16px;">新規案件登録（連続登録モード）</h3>
+                        
+                        <!-- 案件基本情報（固定） -->
+                        <div style="background:#f8fafc;padding:12px;border-radius:8px;margin-bottom:16px;">
+                            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                                <div style="flex:1;min-width:150px;">
+                                    <label style="display:block;font-size:12px;color:#666;margin-bottom:4px;">案件番号</label>
+                                    <div style="display:flex;gap:4px;">
+                                        <select id="modalProjectPrefix" style="width:70px;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:14px;">
+                                            <option value="AD">AD</option>
+                                            <option value="SP">SP</option>
+                                            <option value="TS">TS</option>
                                         </select>
-                                    </div>
-                                    <div>
-                                        <label class="field-label">通貨</label>
-                                        <select id="modalCurrency" onchange="onCurrencyChange()" class="form-control">
-                                            <option value="USD">USD（輸入）</option><option value="JPY">JPY（国内調達）</option>
-                                        </select>
-                                    </div>
-                                    <div id="modalPaymentPatternWrap">
-                                        <label class="field-label">支払条件</label>
-                                        <select id="modalPaymentPattern" class="form-control"><option value="0">-- サプライヤー選択後 --</option></select>
-                                    </div>
-                                    <div id="modalWorkingDaysWrap">
-                                        <label class="field-label">製造リードタイム（日）</label>
-                                        <input type="number" id="modalWorkingDays" value="30" min="1" class="form-control">
+                                        <input type="text" id="modalProjectNumber" placeholder="0001" style="width:80px;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:14px;">
                                     </div>
                                 </div>
-                            </section>
-
-                            <!-- 2. 製品を追加 -->
-                            <section class="form-step">
-                                <div class="form-step-heading"><span class="step-number">2</span><strong>製品を追加</strong><span>繰り返し追加できます</span></div>
-                                <div class="form-grid is-three mb-3">
-                                    <div>
-                                        <label class="field-label">種別</label>
-                                        <select id="modalCategory" onchange="filterProductByCategory()" class="form-control">
-                                            <option value="">-- 選択 --</option><option value="屋内">屋内</option><option value="屋外">屋外</option><option value="マルチディスプレイ">マルチディスプレイ</option><option value="LEDビジョン">LEDビジョン</option><option value="STUDIA">STUDIA</option><option value="マトリクス">マトリクス</option><option value="OPS">OPS</option><option value="メディアプレーヤー">メディアプレーヤー</option><option value="スタンド/金具">スタンド/金具</option><option value="周辺機器">周辺機器</option>
-                                        </select>
-                                    </div>
-                                    <div><label class="field-label">数量</label><input type="number" id="modalQuantity" value="1" min="1" class="form-control"></div>
-                                    <div><label id="modalAmountLabel" class="field-label">金額（USD）</label><input type="number" id="modalTotalAmount" placeholder="0" class="form-control"></div>
+                                <div style="flex:1;min-width:150px;">
+                                    <label style="display:block;font-size:12px;color:#666;margin-bottom:4px;">サプライヤー</label>
+                                    <select id="modalSupplierId" onchange="onSupplierChange()" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:14px;">
+                                        <option value="">-- 選択 --</option>
+                                        ${suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                                    </select>
                                 </div>
-                                <div class="mb-3">
-                                    <label class="field-label">型式を検索</label>
-                                    <input type="text" id="modalProductSearch" placeholder="型番を入力" oninput="filterProductList()" class="form-control">
+                                <div style="flex:1;min-width:120px;">
+                                    <label style="display:block;font-size:12px;color:#666;margin-bottom:4px;">支払条件</label>
+                                    <select id="modalPaymentPattern" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:14px;">
+                                        <option value="0">-- サプライヤー選択後 --</option>
+                                    </select>
                                 </div>
-                                <div class="mb-3">
-                                    <select id="modalProductSelect" onchange="onProductSelect(this.value)" class="form-control" size="4"><option value="">-- 型式を選択 --</option></select>
-                                    <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400" id="productMasterCount">サプライヤー・種別で絞り込み可能</p>
+                                <div style="flex:1;min-width:100px;">
+                                    <label style="display:block;font-size:12px;color:#666;margin-bottom:4px;">Working Days</label>
+                                    <input type="number" id="modalWorkingDays" value="30" min="1" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:14px;">
                                 </div>
-                                <div class="mb-3"><label class="field-label">製品名（手動入力可）</label><input type="text" id="modalProductName" placeholder="型式を選択すると自動入力されます" class="form-control"></div>
-                                <button onclick="addPendingItem()" class="add-line-button">＋ この製品を明細へ追加</button>
-                            </section>
-
-                            <!-- 3. 確認して登録 -->
-                            <section class="form-step is-muted">
-                                <div class="form-step-heading"><span class="step-number">3</span><strong>登録内容を確認</strong><span id="pendingItemCount">0製品</span></div>
-                                <div id="pendingItemsList" class="mb-3"><p class="py-3 text-xs text-slate-500 dark:text-slate-400 text-center">製品を追加すると、ここに明細が表示されます</p></div>
-                                <div id="pendingTotal" class="hidden p-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800">
-                                    <div class="flex justify-between items-center"><span class="text-xs font-semibold text-slate-500 dark:text-slate-400">案件合計</span><strong id="pendingTotalAmount">$0</strong></div>
-                                </div>
-                            </section>
-
-                            <div class="modal-actions">
-                                <button onclick="closeProjectModal()" class="button-secondary">キャンセル</button>
-                                <button onclick="submitProjectForm()" id="submitBtn" class="button-primary" disabled>案件を登録（0製品）</button>
                             </div>
                         </div>
-                    </section>
+                        
+                        <!-- 製品入力エリア -->
+                        <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:12px;">
+                            <div style="display:flex;gap:8px;margin-bottom:8px;">
+                                <div style="flex:1;">
+                                    <label style="display:block;font-size:12px;color:#666;margin-bottom:2px;">種別</label>
+                                    <select id="modalCategory" onchange="filterProductByCategory()" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px;">
+                                        <option value="">-- 選択 --</option>
+                                        <option value="屋内">屋内</option>
+                                        <option value="屋外">屋外</option>
+                                        <option value="マルチディスプレイ">マルチディスプレイ</option>
+                                        <option value="LEDビジョン">LEDビジョン</option>
+                                        <option value="STUDIA">STUDIA</option>
+                                        <option value="マトリクス">マトリクス</option>
+                                        <option value="OPS">OPS</option>
+                                        <option value="メディアプレーヤー">メディアプレーヤー</option>
+                                        <option value="スタンド/金具">スタンド/金具</option>
+                                        <option value="周辺機器">周辺機器</option>
+                                    </select>
+                                </div>
+                                <div style="flex:1;">
+                                    <label style="display:block;font-size:12px;color:#666;margin-bottom:2px;">数量</label>
+                                    <input type="number" id="modalQuantity" value="1" min="1" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px;">
+                                </div>
+                                <div style="flex:1;">
+                                    <label style="display:block;font-size:12px;color:#666;margin-bottom:2px;">金額(USD)</label>
+                                    <input type="number" id="modalTotalAmount" placeholder="0" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px;">
+                                </div>
+                            </div>
+                            
+                            <div style="margin-bottom:8px;">
+                                <label style="display:block;font-size:12px;color:#666;margin-bottom:2px;">型式検索</label>
+                                <input type="text" id="modalProductSearch" placeholder="型番で検索..." 
+                                       oninput="filterProductList()"
+                                       style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px;">
+                            </div>
+                            
+                            <div style="margin-bottom:8px;">
+                                <select id="modalProductSelect" onchange="onProductSelect(this.value)" 
+                                        style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px;" size="4">
+                                    <option value="">-- 型式を選択 --</option>
+                                </select>
+                                <p style="font-size:11px;color:#666;margin-top:2px;" id="productMasterCount">サプライヤー・種別で絞り込み可能</p>
+                            </div>
+                            
+                            <div style="margin-bottom:8px;">
+                                <label style="display:block;font-size:12px;color:#666;margin-bottom:2px;">製品名（手動入力可）</label>
+                                <input type="text" id="modalProductName" placeholder="型式選択で自動入力" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:13px;">
+                            </div>
+                            
+                            <button onclick="addPendingItem()" style="width:100%;padding:8px;border:none;border-radius:4px;background:#10b981;color:white;cursor:pointer;font-size:14px;">
+                                ＋ この製品を追加
+                            </button>
+                        </div>
+                        
+                        <!-- 追加済み明細一覧 -->
+                        <div id="pendingItemsList" style="margin-bottom:16px;">
+                            <p style="font-size:12px;color:#666;text-align:center;">製品を追加してください</p>
+                        </div>
+                        
+                        <!-- 合計表示 -->
+                        <div id="pendingTotal" style="background:#f1f5f9;padding:8px 12px;border-radius:4px;margin-bottom:16px;display:none;">
+                            <span style="font-weight:bold;">合計:</span> <span id="pendingTotalAmount">$0</span>
+                        </div>
+                        
+                        <div style="display:flex;gap:8px;justify-content:flex-end;">
+                            <button onclick="closeProjectModal()" style="padding:8px 16px;border:1px solid #ccc;border-radius:6px;background:white;cursor:pointer;">キャンセル</button>
+                            <button onclick="submitProjectForm()" id="submitBtn" style="padding:8px 16px;border:none;border-radius:6px;background:#2563eb;color:white;cursor:pointer;" disabled>登録（0件）</button>
+                        </div>
+                    </div>
                 </div>
             `;
             document.body.appendChild(modal);
@@ -4175,16 +3035,12 @@
             const totalEl = document.getElementById('pendingTotal');
             const totalAmountEl = document.getElementById('pendingTotalAmount');
             const submitBtn = document.getElementById('submitBtn');
-            const itemCountEl = document.getElementById('pendingItemCount');
-            const isJPY = document.getElementById('modalCurrency')?.value === 'JPY';
-            const currencySymbol = isJPY ? '¥' : '$';
-            if (itemCountEl) itemCountEl.textContent = `${pendingItems.length}製品`;
             
             if (pendingItems.length === 0) {
-                listEl.innerHTML = '<p class="py-3 text-xs text-slate-500 dark:text-slate-400 text-center">製品を追加すると、ここに明細が表示されます</p>';
-                totalEl.classList.add('hidden');
+                listEl.innerHTML = '<p style="font-size:12px;color:#666;text-align:center;">製品を追加してください</p>';
+                totalEl.style.display = 'none';
                 submitBtn.disabled = true;
-                submitBtn.textContent = '案件を登録（0製品）';
+                submitBtn.textContent = '登録（0件）';
                 return;
             }
             
@@ -4192,23 +3048,23 @@
             listEl.innerHTML = pendingItems.map((item, i) => {
                 total += item.totalAmount;
                 return `
-                    <div class="flex items-center justify-between gap-3 p-2.5 mb-1.5 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800">
-                        <div class="flex-1 min-w-0">
-                            <p class="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">${item.productName}</p>
-                            <p class="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">${item.category} × ${item.quantity}</p>
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px;background:#f8fafc;border-radius:4px;margin-bottom:4px;">
+                        <div style="flex:1;">
+                            <span style="font-size:13px;font-weight:500;">${item.productName}</span>
+                            <span style="font-size:12px;color:#666;margin-left:8px;">${item.category} × ${item.quantity}</span>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs font-bold tabular">${currencySymbol}${item.totalAmount.toLocaleString()}</span>
-                            <button onclick="removePendingItem(${i})" class="w-7 h-7 border border-red-200 dark:border-red-800 rounded-md text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30" aria-label="${item.productName}を削除">×</button>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="font-size:13px;font-weight:500;">$${item.totalAmount.toLocaleString()}</span>
+                            <button onclick="removePendingItem(${i})" style="padding:2px 6px;border:none;background:#ef4444;color:white;border-radius:4px;cursor:pointer;font-size:12px;">×</button>
                         </div>
                     </div>
                 `;
             }).join('');
             
-            totalEl.classList.remove('hidden');
-            totalAmountEl.textContent = `${currencySymbol}${total.toLocaleString()}`;
+            totalEl.style.display = 'block';
+            totalAmountEl.textContent = `$${total.toLocaleString()}`;
             submitBtn.disabled = false;
-            submitBtn.textContent = `案件を登録（${pendingItems.length}製品）`;
+            submitBtn.textContent = `登録（${pendingItems.length}件）`;
         }
         
         // サプライヤー・種別で製品リストをフィルタ
@@ -4343,18 +3199,6 @@
             document.getElementById('modalProductName').value = pnFull;
         }
 
-        // 通貨切替：JPY（国内調達）は分割なし・為替なし・集荷/Serialなし
-        function onCurrencyChange() {
-            const isJPY = document.getElementById('modalCurrency')?.value === 'JPY';
-            const label = document.getElementById('modalAmountLabel');
-            const patternWrap = document.getElementById('modalPaymentPatternWrap');
-            const wdWrap = document.getElementById('modalWorkingDaysWrap');
-            if (label) label.textContent = isJPY ? '金額(JPY)' : '金額(USD)';
-            if (patternWrap) patternWrap.style.display = isJPY ? 'none' : '';
-            if (wdWrap) wdWrap.style.display = isJPY ? 'none' : '';
-            renderPendingItems();
-        }
-
         function closeProjectModal() {
             const modal = document.getElementById('projectModal');
             if (modal) modal.remove();
@@ -4367,7 +3211,6 @@
             const supplierId = document.getElementById('modalSupplierId').value;
             const workingDays = parseInt(document.getElementById('modalWorkingDays').value) || 30;
             const patternIndex = parseInt(document.getElementById('modalPaymentPattern').value) || 0;
-            const currency = document.getElementById('modalCurrency')?.value === 'JPY' ? 'JPY' : 'USD';
             
             if (!projectNumber) {
                 alert('案件番号を入力してください');
@@ -4386,6 +3229,21 @@
             
             // 接頭辞と番号を結合
             const projectNumberFull = `${projectPrefix}-${projectNumber}`;
+
+            // 既存案件番号なら「追加発注」として別ロットで登録（支払いを初回と分ける）
+            const parsedForBatch = parseProjectNumberString(projectNumberFull);
+            const orderBatch = getNextOrderBatch(parsedForBatch.prefix, parsedForBatch.number);
+            if (orderBatch > 0) {
+                const ok = confirm(
+                    `${projectNumberFull} はすでに登録されています。\n\n` +
+                    `「追加${orderBatch}」として、初回とは別の支払予定で登録しますか？\n` +
+                    `（今までの支払い記録はそのまま残ります）`
+                );
+                if (!ok) {
+                    showStatus('');
+                    return;
+                }
+            }
             
             // 各製品を順番に登録
             for (let i = 0; i < pendingItems.length; i++) {
@@ -4400,7 +3258,7 @@
                     workingDays, 
                     item.category,
                     patternIndex,
-                    currency
+                    orderBatch
                 );
             }
             
@@ -4496,24 +3354,22 @@
         function generateGroupInvoiceText(projectNumber) {
             const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
             if (groupProjects.length === 0) return '';
-
+            
             const representative = groupProjects[0];
             const pickupDateDisplay = representative.pickupDate ? representative.pickupDate.replace(/-/g, '/') : '未設定';
             const serialDisplay = formatGroupSerials(groupProjects);
-
+            
             let text = `PJ番号：${projectNumber}\n`;
             text += `Serial：${serialDisplay}\n`;
             text += `集荷予定日：${pickupDateDisplay}\n\n`;
-
-            // デポジット情報：グループ全製品を合計したもの（カード表示と同じ集計）を使う。
-            // 以前は代表1製品(groupProjects[0])分しか出ておらず、複数製品の案件で金額が過少だった。
-            const grouped = getGroupedProjects().find(g => g.projectNumber === projectNumber);
-            const depositSchedule = (grouped && grouped.depositSchedule) || representative.depositSchedule || [];
+            
+            // デポジット情報（代表から取得）
+            const depositSchedule = representative.depositSchedule || [];
             depositSchedule.forEach(dep => {
                 const status = dep.paid ? '✓済' : '未';
                 text += `${dep.percentage}%  $${(dep.amountUSD || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} [${status}]\n`;
             });
-
+            
             return text.trim();
         }
 
@@ -4582,7 +3438,7 @@
                                 <input type="date" id="editGroupPickupDate" value="${representative.pickupDate || ''}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">製造リードタイム（日）</label>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">Working Days</label>
                                 <input type="number" id="editGroupWorkingDays" value="${representative.workingDays || 30}" min="1" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                             </div>
                         </div>
@@ -4743,7 +3599,9 @@
                 pickupDate: representative.pickupDate || '',
                 workingDays: representative.workingDays || 30,
                 status: representative.status || '発注済',
-                depositSchedule: []
+                depositSchedule: [],
+                // グループ編集から足した製品は、いちばん新しい発注ロットに入れる
+                orderBatch: existingProjects.length > 0 ? Math.max(...existingProjects.map(p => p.orderBatch || 0)) : 0
             };
             
             // プロジェクトに追加
@@ -5019,15 +3877,21 @@
                 p.serial = productSerials[p.id] || '';
                 p.productName = productNames[p.id] || p.productName;
                 
-                // デポジットは各製品の金額に応じて按分
-                if (depositSchedule.length > 0 && totalUSD > 0) {
-                    const ratio = (productAmounts[p.id] || 0) / totalUSD;
-                    p.depositSchedule = depositSchedule.map(d => ({
+                // デポジット：支払い済みの記録がある製品は作り直さない（支払日・レート・円額を守る）
+                const existingDeps = p.depositSchedule || [];
+                const hasPaid = existingDeps.some(d => d.paid);
+                if (hasPaid) {
+                    // 支払い済みの回はそのまま、未払いの回だけ金額を再計算
+                    p.depositSchedule = existingDeps.map(d => d.paid ? d : ({
                         ...d,
-                        amountUSD: Math.round(d.amountUSD * ratio * 100) / 100
+                        amountUSD: Math.round((p.totalAmount || 0) * (d.percentage || 0) / 100 * 100) / 100
                     }));
                 } else if (depositSchedule.length > 0) {
-                    p.depositSchedule = depositSchedule.map(d => ({ ...d }));
+                    // 未払いの製品だけ、選んだパターンで作り直す（製品自身の金額 × 比率）
+                    p.depositSchedule = depositSchedule.map(d => ({
+                        ...d,
+                        amountUSD: Math.round((p.totalAmount || 0) * d.percentage / 100 * 100) / 100
+                    }));
                 }
             });
             
@@ -5110,7 +3974,7 @@
                                 <input type="date" id="editRegisteredDate" value="${project.registeredDate || ''}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">製造リードタイム（日）</label>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">Working Days</label>
                                 <input type="number" id="editWorkingDays" value="${project.workingDays || 30}" min="1" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                             </div>
                             <div class="col-span-2">
@@ -5653,8 +4517,9 @@
             // 接頭辞と番号を結合
             const projectNumberFull = `${projectPrefix}-${projectNumber}`;
 
-            // 元の案件と同じサプライヤー・製造リードタイムで新規作成
-            await addProject(projectNumberFull, original.supplierId, productName, totalAmount, quantity, original.workingDays || 30, null);
+            // 元の案件と同じサプライヤー・Working Daysで新規作成
+            const dupParsed = parseProjectNumberString(projectNumberFull);
+            await addProject(projectNumberFull, original.supplierId, productName, totalAmount, quantity, original.workingDays || 30, null, 0, getNextOrderBatch(dupParsed.prefix, dupParsed.number));
             
             closeModal('templateModal');
             renderMain();
@@ -5680,21 +4545,16 @@
             projects.forEach(p => {
                 const summary = summaryBySupplier[p.supplierId];
                 if (!summary) return;
-
-                const isJPY = p.currency === 'JPY';
+                
                 summary.projectCount++;
-                if (!isJPY) summary.totalUSD += p.totalAmount || 0; // 円建てはUSD総額に含めない
-
+                summary.totalUSD += p.totalAmount || 0;
+                
                 (p.depositSchedule || []).forEach(dep => {
                     if (dep.paid) {
-                        if (isJPY) {
-                            summary.paidJPY += dep.amountJPY || dep.amountUSD || 0; // 円建ては円額をそのまま
-                        } else {
-                            summary.paidUSD += dep.amountUSD || 0;
-                            summary.paidJPY += dep.amountJPY || 0;
-                        }
-                    } else if (!isJPY) {
-                        summary.unpaidUSD += dep.amountUSD || 0; // 円建てはUSD未払いに含めない
+                        summary.paidUSD += dep.amountUSD || 0;
+                        summary.paidJPY += dep.amountJPY || 0;
+                    } else {
+                        summary.unpaidUSD += dep.amountUSD || 0;
                     }
                 });
             });
@@ -5845,9 +4705,33 @@
         }
 
         // 5. フィルタ機能
+        // 案件（同一番号）全体のステータス：未払いの製品があればそれを優先
+        function getGroupStatus(items) {
+            const statuses = items.map(p => getProjectStatus(p));
+            const unfinished = statuses.find(st => st.status !== '支払済' && st.status !== '入庫完了');
+            if (!unfinished) return statuses[0];
+            // 一部でも支払い済みの製品があれば、案件全体は「支払中」
+            const anyPaid = items.some(p => (p.depositSchedule || []).some(d => d.paid));
+            if (anyPaid) {
+                return { status: '支払中', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300', icon: '💰' };
+            }
+            return unfinished;
+        }
+
         function getFilteredProjects() {
+            // 案件番号ごとのステータスを先に計算
+            const groupStatusMap = {};
+            const byKey = {};
+            projects.forEach(p => {
+                const key = formatProjectNumber(p);
+                (byKey[key] = byKey[key] || []).push(p);
+            });
+            Object.keys(byKey).forEach(key => {
+                groupStatusMap[key] = getGroupStatus(byKey[key]).status;
+            });
+
             return projects.filter(p => {
-                const status = getProjectStatus(p).status;
+                const status = groupStatusMap[formatProjectNumber(p)];
                 
                 // ステータスフィルタ
                 if (projectFilter.status !== 'all' && status !== projectFilter.status) {
@@ -5910,10 +4794,14 @@
                 let hasDeposit = false;
                 
                 g.items.forEach(p => {
+                    const batch = p.orderBatch || 0;
                     (p.depositSchedule || []).forEach(dep => {
                         hasDeposit = true;
-                        if (!allDeposits[dep.depositNumber]) {
-                            allDeposits[dep.depositNumber] = {
+                        // 発注ロットごとに分けて合算（初回の第1回と追加発注の第1回を混ぜない）
+                        const key = `${batch}-${dep.depositNumber}`;
+                        if (!allDeposits[key]) {
+                            allDeposits[key] = {
+                                orderBatch: batch,
                                 depositNumber: dep.depositNumber,
                                 percentage: dep.percentage,
                                 amountUSD: 0,
@@ -5923,19 +4811,19 @@
                                 exchangeRate: dep.exchangeRate
                             };
                         }
-                        allDeposits[dep.depositNumber].amountUSD += dep.amountUSD || 0;
-                        allDeposits[dep.depositNumber].amountJPY += dep.amountJPY || 0;
-                        // 支払い済みステータスは全製品で同期（1つでも支払い済みなら支払い済み）
+                        allDeposits[key].amountUSD += dep.amountUSD || 0;
+                        allDeposits[key].amountJPY += dep.amountJPY || 0;
+                        // 同じロット内の製品で支払いステータスを同期
                         if (dep.paid) {
-                            allDeposits[dep.depositNumber].paid = true;
-                            allDeposits[dep.depositNumber].paidDate = dep.paidDate;
-                            allDeposits[dep.depositNumber].exchangeRate = dep.exchangeRate;
+                            allDeposits[key].paid = true;
+                            allDeposits[key].paidDate = dep.paidDate;
+                            allDeposits[key].exchangeRate = dep.exchangeRate;
                         }
                     });
                 });
                 
                 g.depositSchedule = hasDeposit 
-                    ? Object.values(allDeposits).sort((a, b) => a.depositNumber - b.depositNumber)
+                    ? Object.values(allDeposits).sort((a, b) => (a.orderBatch - b.orderBatch) || (a.depositNumber - b.depositNumber))
                     : [];
                 g.representativeId = g.items[0]?.id;
             });
@@ -5979,10 +4867,10 @@
                     if (project) {
                         // 案件カードを展開してスクロール
                         setTimeout(() => {
-                            expandedProjects[formatProjectNumber(project)] = true;
+                            expandedProjects[project.id] = true;
                             renderMain();
                             setTimeout(() => {
-                                scrollToProject(formatProjectNumber(project));
+                                scrollToProject(project.id);
                             }, 100);
                         }, 300);
                     } else {
@@ -6209,9 +5097,6 @@
                                         <option value="設置工事費">設置工事費</option>
                                         <option value="加工費">加工費</option>
                                     </optgroup>
-                                    <optgroup label="物品">
-                                        <option value="周辺機器">周辺機器</option>
-                                    </optgroup>
                                     <optgroup label="付帯品（国内調達）">
                                         <option value="付帯品">付帯品（Amazon等）</option>
                                     </optgroup>
@@ -6257,14 +5142,7 @@
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">支払先</label>
                                 <select id="expensePayeeSelect" onchange="updateExpensePayeeUI()" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white mb-2">
                                     <option value="">-- 選択してください --</option>
-                                    <optgroup label="小売店（国内調達）">
-                                        <option value="__retail__Amazon">Amazon</option>
-                                        <option value="__retail__サウンドハウス">サウンドハウス</option>
-                                        <option value="__retail__モノタロウ">モノタロウ</option>
-                                    </optgroup>
-                                    <optgroup label="サプライヤー">
-                                        ${suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
-                                    </optgroup>
+                                    ${suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
                                     <option value="__other__">その他（手動入力）</option>
                                 </select>
                                 <input type="text" id="expensePayee" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white hidden" placeholder="Amazon、モノタロウなど">
@@ -6343,9 +5221,6 @@
             if (payeeSelectValue === '__other__') {
                 // 手動入力
                 payee = document.getElementById('expensePayee').value.trim();
-            } else if (payeeSelectValue.startsWith('__retail__')) {
-                // 小売店（Amazon/サウンドハウス/モノタロウ）：サプライヤーではなく店名を支払先に
-                payee = payeeSelectValue.replace('__retail__', '');
             } else if (payeeSelectValue) {
                 // 既存suppliersから選択
                 const selectedSupplier = suppliers.find(s => String(s.id) === String(payeeSelectValue));
@@ -6483,7 +5358,6 @@
                 '国際送料', '国内配送料', '倉庫保管料',
                 '関税', '輸入消費税', '通関手数料',
                 '施工外注費', '設置工事費', '加工費',
-                '周辺機器',
                 'その他'
             ];
             // 既存データにincludeInCostがない場合はデフォルトtrue（後方互換）
@@ -6596,7 +5470,6 @@
                 '国際送料', '国内配送料', '倉庫保管料',
                 '関税', '輸入消費税', '通関手数料',
                 '施工外注費', '設置工事費', '加工費',
-                '周辺機器',
                 'その他'
             ];
             
@@ -6916,22 +5789,10 @@
             });
 
             await saveData();
-
-            // 按分先それぞれの在庫取得金を再計算（原価算入諸費用＝送料等を単価に反映）
-            // silent=true で在庫未検出の確認は出さない
-            showStatus('在庫取得金を再計算中...');
-            for (const p of selectedProjects) {
-                try {
-                    await updateInventoryCost(p, true);
-                } catch (e) {
-                    console.error('按分後の取得金更新エラー:', formatProjectNumber(p), e);
-                }
-            }
-
             closeModal('allocateExpenseModal');
             renderMain();
             
-            showStatus(`✅ ${selectedProjects.length}件に諸費用を按分し、在庫取得金に反映しました`);
+            showStatus(`✅ ${selectedProjects.length}件に諸費用を按分しました`);
             setTimeout(() => showStatus(''), 3000);
         }
 
@@ -7199,6 +6060,7 @@
                     
                     // 案件登録（新形式：projectPrefix + projectNumber）
                     const projectNumberFull = `${parsed.prefix}-${parsed.number}`;
+                    const pdfOrderBatch = getNextOrderBatch(parsed.prefix, parsed.number);
                     projects.push({
                         id: String(Date.now()) + String(Math.random()).slice(2, 8),
                         projectPrefix: parsed.prefix,
@@ -7214,7 +6076,8 @@
                         registeredDate: todayStr,
                         expenses: [],
                         invoiceNo: invoiceData.invoiceNo || '',
-                        sourceFile: file.name
+                        sourceFile: file.name,
+                        orderBatch: pdfOrderBatch
                     });
                     
                     // 在庫シートにも追加（カテゴリがなくても「その他」で追加）
@@ -7866,7 +6729,7 @@
             renderMain();
             
             // 対象案件を展開
-            expandedProjects[formatProjectNumber(project)] = true;
+            expandedProjects[project.id] = true;
             renderMain();
         }
 
