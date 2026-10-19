@@ -349,7 +349,15 @@
         let projectTab = 'purchase'; // 'purchase' or 'sales'
         let expandedSalesProjects = {}; // 販売案件の展開状態
         let salesProjectExpenses = {}; // 販売案件の経費（案件番号をキーに）
+        let salesProjectRevenue = {}; // 販売案件の売上（案件番号をキーに）
+        let salesSortMode = 'fiscal'; // 'fiscal'（期別）または 'project'（案件番号順）
+        let businessTargets = {}; // 経営目標（期ラベルをキーに）
         let inventoryData = []; // 在庫データキャッシュ
+        let salesDataLoading = false;
+        let salesSearchText = '';
+        let salesPeriodFilter = 'all';
+        let salesMissingDeliveryOnly = false;
+        let showBusinessTargetSettings = false;
         
         // 種別リスト
         const CATEGORIES = [
@@ -1477,6 +1485,90 @@
             link.click();
         }
 
+        // 販売案件 損益CSV（明細・1行=1費目／1売上、案件ロールアップ列付き）
+        // 在庫(仕入原価)・経費(外注費ほか)・売上を縦に並べ、各行に案件単位の総原価/売上/粗利/粗利率も持たせる。
+        // 在庫行はあるのに経費行が無い案件＝外注費の入力漏れ、売上が空の案件＝売上未入力として拾える。
+        async function exportSalesPnlCSV() {
+            // 最新の在庫＋経費＋売上を読み直す（どのタブからでも動くように）
+            showStatus('🔄 最新データを取得中...');
+            try {
+                await loadInventoryForSales();
+            } catch (e) {
+                console.error(e);
+            }
+            showStatus('');
+
+            const salesProjects = getSalesProjects();
+            if (salesProjects.length === 0) {
+                alert('引当・出庫済みの販売案件がありません');
+                return;
+            }
+
+            // CSVエスケープ（内部の " を "" に、全体を " で囲む）
+            const esc = (v) => '"' + ((v === null || v === undefined) ? '' : String(v)).replace(/"/g, '""') + '"';
+
+            const headers = [
+                '案件番号', '区分', '費目', '金額(JPY)', '種別', '製品名', 'Serial', '仕入案件', 'ステータス', '支払先', '支払日', 'メモ',
+                '案件_納品日', '案件_期', '案件_総原価', '案件_売上', '案件_粗利', '案件_粗利率(%)'
+            ];
+
+            // 案件番号順
+            const sorted = [...salesProjects].sort((a, b) => a.projectNumber.localeCompare(b.projectNumber));
+
+            const rows = [];
+            sorted.forEach(sp => {
+                // 案件単位のロールアップ（全行に同じ値が入る。集計はSUMでなくMAX/先頭で取ること）
+                const roll = [
+                    sp.deliveryDate || '',
+                    sp.fiscalLabel || '',
+                    sp.totalCost,
+                    sp.revenue > 0 ? sp.revenue : '',
+                    sp.revenue > 0 ? sp.grossProfit : '',
+                    sp.grossMargin != null ? (sp.grossMargin * 100).toFixed(1) : ''
+                ];
+
+                // 在庫アイテム（仕入原価）— 1台1行
+                (sp.items || []).forEach(it => {
+                    const status = it.isArchived ? '完了' : (it.status || '');
+                    rows.push([
+                        sp.projectNumber, '在庫', '仕入原価',
+                        (it.costJPY != null) ? it.costJPY : '',
+                        it.category || '', it.productName || '', it.serial || '', it.orderProject || '', status,
+                        '', '', it.note || '',
+                        ...roll
+                    ]);
+                });
+
+                // 販売案件経費（外注費・工事費ほか）— 1件1行
+                (sp.expenses || []).forEach(exp => {
+                    rows.push([
+                        sp.projectNumber, '経費', exp.type || '',
+                        (exp.amountJPY != null) ? exp.amountJPY : '',
+                        '', '', '', '', '',
+                        exp.payee || '', exp.paidDate || '', exp.note || '',
+                        ...roll
+                    ]);
+                });
+
+                // 売上 — 1案件1行（未入力なら金額空欄。空欄＝売上未入力として拾える）
+                const updatedDate = (salesProjectRevenue[sp.projectNumber] || {}).updatedDate || '';
+                rows.push([
+                    sp.projectNumber, '売上', '売上',
+                    (sp.revenue > 0) ? sp.revenue : '',
+                    '', '', '', '', '',
+                    '', '', updatedDate ? `更新:${updatedDate}` : '',
+                    ...roll
+                ]);
+            });
+
+            const csv = [headers.map(esc).join(','), ...rows.map(r => r.map(esc).join(','))].join('\n');
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `sales_pnl_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
         function showStatus(msg) {
             const el = document.getElementById('status');
             if (el) el.textContent = msg;
@@ -1956,7 +2048,7 @@
                                     支払い案件
                                 </button>
                                 <button onclick="switchProjectTab('sales')" id="tabSales" class="px-4 py-2 text-sm font-semibold border-b-2 ${projectTab === 'sales' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}">
-                                    販売原価
+                                    販売・粗利
                                 </button>
                             </div>
                             
@@ -2258,39 +2350,98 @@
                                     </div>`;
                                 }).join('')}
                             </div>
+                            ` : salesDataLoading ? `
+                            <div class="sales-loading-panel" role="status" aria-live="polite">
+                                <div class="sales-loading-spinner" aria-hidden="true"></div>
+                                <p class="font-bold text-slate-800 dark:text-white">販売粗利を集計しています</p>
+                                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">在庫・売上・経費データを集計中です</p>
+                            </div>
                             ` : `
                             <!-- 販売案件タブ -->
-                            <div class="workspace-title-row flex flex-wrap justify-between items-center gap-2 mb-3 sm:mb-4">
-                                <h2>販売案件コスト</h2>
-                                <button onclick="refreshSalesProjects()" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-500 text-white text-sm rounded-lg hover:bg-slate-600">🔄 更新</button>
+                            <div class="flex flex-wrap justify-between items-start gap-3 mb-3 sm:mb-4">
+                                <div>
+                                    <h2 class="text-base sm:text-xl font-bold text-slate-900 dark:text-white">販売案件 粗利管理</h2>
+                                    <p class="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">売上・製品原価・経費から、案件別の粗利額と粗利率を確認します</p>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <select onchange="salesSortMode=this.value;renderMain()" class="px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm dark:bg-slate-700 dark:text-white">
+                                        <option value="fiscal" ${salesSortMode === 'fiscal' ? 'selected' : ''}>期でまとめる</option>
+                                        <option value="project" ${salesSortMode === 'project' ? 'selected' : ''}>案件番号順</option>
+                                    </select>
+                                    <button onclick="exportSalesPnlCSV()" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700">📥 損益CSV</button>
+                                    <button onclick="refreshSalesProjects()" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-500 text-white text-sm rounded-lg hover:bg-slate-600">🔄 更新</button>
+                                </div>
                             </div>
-                            <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
-                                在庫ナビで引当・出庫先に設定された案件の原価を集計しています
-                            </p>
-                            
-                            <div class="space-y-3 sm:space-y-4">
-                                ${getSalesProjects().length === 0 ? `
-                                    <div class="text-center py-8 text-slate-500 dark:text-slate-400">
-                                        <p class="mb-2">引当・出庫済みの案件がありません</p>
-                                        <p class="text-xs">在庫ナビで出庫先案件を設定すると、ここに表示されます</p>
+                            ${renderSalesFilterControls()}
+
+                            ${renderBusinessTargetsCard()}
+
+                            ${(() => {
+                                const sm = getSalesSummary();
+                                if (sm.totalProjects === 0) return '';
+                                const gpColor = sm.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
+                                return `
+                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-3">
+                                    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
+                                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-0.5">合計売上（税抜）</p>
+                                        <p class="text-base sm:text-lg font-bold text-slate-900 dark:text-white">${formatJPY(sm.sumRevenue)}</p>
                                     </div>
-                                ` : getSalesProjects().map(sp => `
-                                    <div class="project-card border-2 rounded-lg border-purple-300 bg-purple-50 dark:bg-purple-900/30 dark:border-purple-600">
+                                    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
+                                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-0.5">合計原価（売上計上分）</p>
+                                        <p class="text-base sm:text-lg font-bold text-purple-600 dark:text-purple-400">${formatJPY(sm.sumCostRev)}</p>
+                                    </div>
+                                    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
+                                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-0.5">合計粗利</p>
+                                        <p class="text-base sm:text-lg font-bold ${gpColor}">${formatJPY(sm.grossProfit)}</p>
+                                    </div>
+                                    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
+                                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-0.5">粗利率</p>
+                                        <p class="text-base sm:text-lg font-bold ${gpColor}">${sm.grossMargin != null ? (sm.grossMargin * 100).toFixed(1) + '%' : '-'}</p>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-slate-400 dark:text-slate-500 mb-4">
+                                    売上入力済 ${sm.revenueProjects}件 / 全${sm.totalProjects}件${sm.missingRevenue > 0 ? `（未入力 ${sm.missingRevenue}件）` : ''}。粗利・粗利率は売上入力済の案件のみで集計しています。
+                                </p>
+                                `;
+                            })()}
+
+                            <div id="salesProjectList" class="space-y-3 sm:space-y-4">
+                                ${renderSalesProjectGroups()}
+                            </div>
+                            `}
+                        </div>
+                    </main>
+                </div>`;
+        }
+
+        // 販売案件カード1枚分のHTML
+        function salesProjectCardHTML(sp) {
+            return `
+                                    <div class="border-2 rounded-lg border-purple-300 bg-purple-50 dark:bg-purple-900/30 dark:border-purple-600">
                                         <div class="p-3 sm:p-5 cursor-pointer" onclick="toggleSalesProject('${sp.projectNumber}')">
                                             <div class="flex justify-between items-start">
-                                                <div class="flex-1">
+                                                <div class="flex-1 min-w-0">
                                                     <div class="flex items-center gap-2 mb-1 flex-wrap">
                                                         <span class="text-slate-400">${expandedSalesProjects[sp.projectNumber] ? '▼' : '▶'}</span>
                                                         <h3 class="font-bold text-base sm:text-xl text-slate-900 dark:text-white">${sp.projectNumber}</h3>
+                                                        ${sp.fiscalLabel ? `<span class="px-2 py-0.5 text-xs bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 rounded-full">${sp.fiscalLabel}</span>` : ''}
                                                         <span class="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full">${sp.items.length}品目</span>
                                                         ${sp.allocatedCount > 0 ? `<span class="px-2 py-0.5 text-xs bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300 rounded-full">引当${sp.allocatedCount}</span>` : ''}
                                                         ${sp.shippedCount > 0 ? `<span class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 rounded-full">出庫${sp.shippedCount}</span>` : ''}
                                                         ${sp.archivedCount > 0 ? `<span class="px-2 py-0.5 text-xs bg-slate-200 text-slate-600 dark:bg-slate-600 dark:text-slate-300 rounded-full">完了${sp.archivedCount}</span>` : ''}
                                                     </div>
+                                                    ${(() => { const notes = [...new Set(sp.items.filter(i => i.note).map(i => i.note))]; if (!notes.length) return ''; const full = notes.join(' / '); let text = full; if (text.length > 50) text = text.slice(0, 50) + '…'; return `<p class="text-xs text-slate-600 dark:text-slate-300 truncate" title="${full}">📝 ${text}</p>`; })()}
                                                 </div>
-                                                <div class="text-right">
-                                                    <p class="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">${formatJPY(sp.totalCost)}</p>
-                                                    <p class="text-xs text-slate-500 dark:text-slate-400">原価合計</p>
+                                                <div class="text-right min-w-[132px] sm:min-w-[156px]">
+                                                    ${sp.revenue > 0 ? `
+                                                        <p class="text-xl sm:text-2xl font-black leading-none ${sp.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}">${sp.grossMargin != null ? (sp.grossMargin * 100).toFixed(1) + '%' : '-'}</p>
+                                                        <p class="mt-1 text-xs font-bold ${sp.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}">粗利 ${formatJPY(sp.grossProfit)}</p>
+                                                        <p class="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">売上 ${formatJPY(sp.revenue)}</p>
+                                                    ` : `
+                                                        <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">売上未入力</span>
+                                                        <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">開いて売上を入力</p>
+                                                        <p class="mt-0.5 text-[10px] text-slate-400 dark:text-slate-500">原価 ${formatJPY(sp.totalCost)}</p>
+                                                    `}
                                                 </div>
                                             </div>
                                         </div>
@@ -2320,6 +2471,7 @@
                                                                         ${item.category || ''} 
                                                                         ${item.orderProject ? `← 仕入: ${item.orderProject}` : ''}
                                                                     </p>
+                                                                    ${item.note ? `<p class="text-xs text-slate-600 dark:text-slate-300 mt-0.5">📝 ${item.note}</p>` : ''}
                                                                 </div>
                                                                 <div class="text-right">
                                                                     <span class="font-bold text-slate-900 dark:text-white">${formatJPY(item.costJPY || 0)}</span>
@@ -2350,6 +2502,7 @@
                                                                             ${exp.payee ? `<span>${exp.payee}</span>` : ''}
                                                                             ${exp.paidDate ? `<span class="ml-2">${exp.paidDate}</span>` : ''}
                                                                         </div>
+                                                                        ${exp.note ? `<div class="text-xs text-slate-600 dark:text-slate-300 mt-0.5">📝 ${exp.note}</div>` : ''}
                                                                     </div>
                                                                     <button onclick="event.stopPropagation();deleteSalesExpense('${sp.projectNumber}', ${idx})" 
                                                                         class="ml-2 p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400" title="削除">
@@ -2388,16 +2541,238 @@
                                                             <span class="text-lg font-bold text-purple-600 dark:text-purple-400">${formatJPY(sp.totalCost)}</span>
                                                         </div>
                                                     </div>
+
+                                                    <!-- 売上・納品日の手入力 -->
+                                                    <div class="mt-3 pt-3 border-t border-slate-300 dark:border-slate-500">
+                                                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">売上（税抜）・納品日 ${sp.fiscalLabel ? `<span class="ml-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 rounded">${sp.fiscalLabel}</span>` : ''}</label>
+                                                        <div class="flex items-center gap-2 flex-wrap">
+                                                            <div class="flex items-center gap-1 flex-1 min-w-[120px]">
+                                                                <span class="text-slate-500 dark:text-slate-400">¥</span>
+                                                                <input type="number" id="sales-revenue-input-${sp.projectNumber}" value="${sp.revenue > 0 ? sp.revenue : ''}" placeholder="売上"
+                                                                    onkeydown="if(event.key==='Enter'){event.preventDefault();saveSalesProjectInfo('${sp.projectNumber}')}"
+                                                                    class="flex-1 min-w-0 px-3 py-1.5 border rounded-lg dark:bg-slate-700 dark:border-slate-500 dark:text-white text-right">
+                                                            </div>
+                                                            <input type="date" id="sales-delivery-input-${sp.projectNumber}" value="${sp.deliveryDate || ''}" title="納品日"
+                                                                class="px-2 py-1.5 border rounded-lg dark:bg-slate-700 dark:border-slate-500 dark:text-white text-sm">
+                                                            <button onclick="event.stopPropagation();saveSalesProjectInfo('${sp.projectNumber}')" class="px-3 py-1.5 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 whitespace-nowrap">保存</button>
+                                                        </div>
+                                                        ${(salesProjectRevenue[sp.projectNumber] && salesProjectRevenue[sp.projectNumber].updatedDate) ? `<p class="text-[10px] text-slate-400 dark:text-slate-500 mt-1 text-right">更新: ${salesProjectRevenue[sp.projectNumber].updatedDate}</p>` : ''}
+                                                    </div>
+
+                                                    <!-- 粗利 -->
+                                                    <div class="mt-2 pt-2 border-t border-slate-300 dark:border-slate-500">
+                                                        ${sp.revenue > 0 ? `
+                                                            <div class="flex justify-between items-center">
+                                                                <span class="text-sm text-slate-600 dark:text-slate-400">📈 粗利（売上 − 総原価）</span>
+                                                                <span class="text-lg font-bold ${sp.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}">${formatJPY(sp.grossProfit)}</span>
+                                                            </div>
+                                                            <div class="flex justify-between items-center mt-1">
+                                                                <span class="text-xs text-slate-500 dark:text-slate-400">粗利率</span>
+                                                                <span class="text-sm font-bold ${sp.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}">${sp.grossMargin != null ? (sp.grossMargin * 100).toFixed(1) + '%' : '-'}</span>
+                                                            </div>
+                                                        ` : `
+                                                            <p class="text-xs text-slate-400 dark:text-slate-500 text-center">売上を入力すると粗利が表示されます</p>
+                                                        `}
+                                                    </div>
                                                 </div>
                                             </div>
                                         ` : ''}
                                     </div>
-                                `).join('')}
-                            </div>
-                            `}
-                        </div>
-                    </main>
+                                `;
+        }
+
+        // 経営目標カード（各期を縦に並べて 目標 vs 実績 vs 達成率）
+        function renderBusinessTargetsCard() {
+            const sps = getSalesProjects();
+            const periodNum = (label) => { const n = parseInt(String(label).replace(/[^0-9]/g, ''), 10); return isNaN(n) ? -1 : n; };
+
+            // 表示する期：目標あり ∪ 実績あり
+            const periodSet = new Set(Object.keys(businessTargets));
+            sps.forEach(sp => { if (sp.fiscalLabel && sp.revenue > 0) periodSet.add(sp.fiscalLabel); });
+            const periods = Array.from(periodSet).sort((a, b) => periodNum(b) - periodNum(a));
+
+            const cur = getCurrentFiscalPeriodNumber();
+            const currentPeriod = `第${cur}期`;
+
+            // 設定欄の期セレクタ：今期-1〜今期+3 ∪ 既存
+            const optSet = new Set(periods);
+            for (let n = cur - 1; n <= cur + 3; n++) optSet.add(`第${n}期`);
+            const optPeriods = Array.from(optSet).sort((a, b) => periodNum(b) - periodNum(a));
+            const defTarget = businessTargets[currentPeriod] || {};
+
+            const rowsHtml = periods.length === 0 ? `
+                <p class="text-xs text-slate-400 dark:text-slate-500 text-center py-2">まだ目標も実績もありません。「目標を編集」から設定できます。</p>
+            ` : periods.map(p => {
+                const t = businessTargets[p] || {};
+                const act = getPeriodActuals(p);
+                const revTarget = t.revenueTarget || 0;
+                const revRate = revTarget > 0 ? (act.revenue / revTarget * 100) : null;
+                const marginTarget = t.marginTarget || 0;
+                const actMargin = act.grossMargin != null ? act.grossMargin * 100 : null;
+                const isCurrent = p === currentPeriod;
+                const revRateColor = revRate == null ? 'text-slate-400'
+                    : (revRate >= 100 ? 'text-emerald-600 dark:text-emerald-400' : (revRate >= 80 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-300'));
+                const marginColor = (actMargin != null && marginTarget > 0)
+                    ? (actMargin >= marginTarget ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')
+                    : 'text-slate-700 dark:text-slate-200';
+                return `
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 py-2 border-b border-slate-100 dark:border-slate-700 last:border-0">
+                    <div class="w-14 font-bold text-sm ${isCurrent ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-300'}">${p}${isCurrent ? '<span class="block text-[10px] font-normal text-indigo-400">今期</span>' : ''}</div>
+                    <div class="flex-1 min-w-[150px]">
+                        <p class="text-[11px] text-slate-400 dark:text-slate-500">売上（実績 / 目標）</p>
+                        <p class="text-sm"><span class="font-bold text-slate-900 dark:text-white">${formatJPY(act.revenue)}</span> <span class="text-slate-400">/</span> ${revTarget > 0 ? formatJPY(revTarget) : '<span class="text-slate-400">未設定</span>'}${revRate != null ? ` <span class="ml-1 text-xs font-semibold ${revRateColor}">達成${revRate.toFixed(0)}%</span>` : ''}</p>
+                    </div>
+                    <div class="flex-1 min-w-[120px]">
+                        <p class="text-[11px] text-slate-400 dark:text-slate-500">粗利率（実績 / 目標）</p>
+                        <p class="text-sm"><span class="font-bold ${marginColor}">${actMargin != null ? actMargin.toFixed(1) + '%' : '-'}</span> <span class="text-slate-400">/</span> ${marginTarget > 0 ? marginTarget.toFixed(1) + '%' : '<span class="text-slate-400">未設定</span>'}</p>
+                    </div>
                 </div>`;
+            }).join('');
+
+            return `
+            <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 sm:p-4 mb-3">
+                <div class="flex items-center justify-between gap-3 mb-2">
+                    <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">🎯 経営目標 vs 実績</p>
+                    <button onclick="showBusinessTargetSettings=!showBusinessTargetSettings;renderMain()" class="px-2.5 py-1 border border-slate-200 dark:border-slate-600 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600">
+                        ${showBusinessTargetSettings ? '設定を閉じる' : '目標を編集'}
+                    </button>
+                </div>
+                <div class="mb-1">${rowsHtml}</div>
+                ${showBusinessTargetSettings ? `
+                <div class="pt-3 mt-2 border-t border-slate-200 dark:border-slate-600">
+                    <p class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">目標を設定 / 更新</p>
+                    <div class="flex flex-wrap items-end gap-2">
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-0.5">期</label>
+                            <select id="target-period-select" onchange="onTargetPeriodChange()" class="px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm dark:bg-slate-700 dark:text-white">
+                                ${optPeriods.map(p => `<option value="${p}" ${p === currentPeriod ? 'selected' : ''}>${p}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-0.5">売上目標(¥)</label>
+                            <input type="number" id="target-revenue-input" value="${defTarget.revenueTarget || ''}" placeholder="例: 50000000" class="w-36 px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm dark:bg-slate-700 dark:text-white text-right">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-0.5">粗利率目標(%)</label>
+                            <input type="number" id="target-margin-input" value="${defTarget.marginTarget || ''}" step="0.1" placeholder="例: 45" class="w-24 px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm dark:bg-slate-700 dark:text-white text-right">
+                        </div>
+                        <button onclick="saveBusinessTarget()" class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">保存</button>
+                    </div>
+                </div>
+                ` : ''}
+            </div>`;
+        }
+
+        // 設定欄の期を切り替えたら、その期の既存目標を入力欄に反映
+        function onTargetPeriodChange() {
+            const period = document.getElementById('target-period-select').value;
+            const t = businessTargets[period] || {};
+            const rev = document.getElementById('target-revenue-input');
+            const mar = document.getElementById('target-margin-input');
+            if (rev) rev.value = t.revenueTarget || '';
+            if (mar) mar.value = t.marginTarget || '';
+        }
+
+        function getFilteredSalesProjects() {
+            const query = salesSearchText.trim().toLocaleLowerCase('ja-JP');
+            return getSalesProjects().filter(sp => {
+                if (salesPeriodFilter !== 'all' && sp.fiscalLabel !== salesPeriodFilter) return false;
+                if (salesMissingDeliveryOnly && sp.deliveryDate) return false;
+                if (!query) return true;
+                const searchable = [
+                    sp.projectNumber,
+                    ...sp.items.flatMap(item => [item.productName, item.serial, item.orderProject])
+                ].filter(Boolean).join(' ').toLocaleLowerCase('ja-JP');
+                return searchable.includes(query);
+            });
+        }
+
+        function renderSalesFilterControls() {
+            const allProjects = getSalesProjects();
+            const visibleProjects = getFilteredSalesProjects();
+            const periods = Array.from(new Set(allProjects.map(sp => sp.fiscalLabel).filter(Boolean)))
+                .sort((a, b) => parseInt(String(b).replace(/[^0-9]/g, ''), 10) - parseInt(String(a).replace(/[^0-9]/g, ''), 10));
+            const safeSearch = String(salesSearchText).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return `
+                <div class="sales-filter-bar">
+                    <label class="sr-only" for="salesSearchInput">案件を検索</label>
+                    <input id="salesSearchInput" type="search" value="${safeSearch}" placeholder="案件番号・製品名・Serialで検索" oninput="salesSearchText=this.value;refreshSalesProjectList()" class="form-control">
+                    <select onchange="salesPeriodFilter=this.value;refreshSalesProjectList()" class="form-control" aria-label="会計期で絞り込み">
+                        <option value="all">すべての期</option>
+                        ${periods.map(period => `<option value="${period}" ${salesPeriodFilter === period ? 'selected' : ''}>${period}</option>`).join('')}
+                    </select>
+                    <label class="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                        <input type="checkbox" ${salesMissingDeliveryOnly ? 'checked' : ''} onchange="salesMissingDeliveryOnly=this.checked;refreshSalesProjectList()"> 納品日未入力のみ
+                    </label>
+                    <span id="salesVisibleCount" class="text-xs text-slate-500 dark:text-slate-400 text-right">表示 ${visibleProjects.length} / ${allProjects.length}件</span>
+                </div>`;
+        }
+
+        function refreshSalesProjectList() {
+            const list = document.getElementById('salesProjectList');
+            const count = document.getElementById('salesVisibleCount');
+            if (list) list.innerHTML = renderSalesProjectGroups();
+            if (count) count.textContent = `表示 ${getFilteredSalesProjects().length} / ${getSalesProjects().length}件`;
+        }
+
+        // 販売案件リストの描画（期でグループ化 or 案件番号順）
+        function renderSalesProjectGroups() {
+            const allProjects = getSalesProjects();
+            const sps = getFilteredSalesProjects();
+            if (allProjects.length === 0) {
+                return `
+                                    <div class="text-center py-8 text-slate-500 dark:text-slate-400">
+                                        <p class="mb-2">引当・出庫済みの案件がありません</p>
+                                        <p class="text-xs">在庫ナビで出庫先案件を設定すると、ここに表示されます</p>
+                                    </div>
+                                `;
+            }
+            if (sps.length === 0) {
+                return `
+                    <div class="text-center py-10 text-slate-500 dark:text-slate-400">
+                        <p class="font-semibold">条件に一致する案件がありません</p>
+                        <p class="mt-1 text-xs">検索語または絞り込み条件を変更してください</p>
+                    </div>`;
+            }
+            const sortMode = (typeof salesSortMode !== 'undefined') ? salesSortMode : 'fiscal';
+            if (sortMode === 'project') {
+                return sps.slice().sort((a, b) => b.projectNumber.localeCompare(a.projectNumber)).map(salesProjectCardHTML).join('');
+            }
+            const groups = {};
+            sps.forEach(sp => {
+                const key = sp.fiscalLabel || '__none__';
+                (groups[key] = groups[key] || []).push(sp);
+            });
+            const periodNum = (label) => {
+                if (!label) return -1;
+                const n = parseInt(String(label).replace(/[^0-9]/g, ''), 10);
+                return isNaN(n) ? -1 : n;
+            };
+            const keys = Object.keys(groups).sort((a, b) => {
+                if (a === '__none__') return 1;
+                if (b === '__none__') return -1;
+                return periodNum(b) - periodNum(a);
+            });
+            return keys.map(key => {
+                const list = groups[key].slice().sort((a, b) =>
+                    (b.deliveryDate || '').localeCompare(a.deliveryDate || '') || b.projectNumber.localeCompare(a.projectNumber));
+                const withRev = list.filter(sp => sp.revenue > 0);
+                const subRev = withRev.reduce((s, sp) => s + sp.revenue, 0);
+                const subCost = withRev.reduce((s, sp) => s + sp.totalCost, 0);
+                const subGP = subRev - subCost;
+                const subGM = subRev > 0 ? (subGP / subRev * 100).toFixed(1) + '%' : '-';
+                const gpColor = subGP >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
+                const title = key === '__none__' ? '納品日未入力' : key;
+                const header = `
+                    <div class="flex flex-wrap items-center justify-between gap-2 mt-4 mb-1 px-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-bold text-indigo-700 dark:text-indigo-300">${title}</span>
+                            <span class="text-xs text-slate-500 dark:text-slate-400">${list.length}件</span>
+                        </div>
+                        ${key === '__none__' ? '' : `<div class="text-xs text-slate-600 dark:text-slate-400">売上 ${formatJPY(subRev)} ／ 粗利 <span class="font-semibold ${gpColor}">${formatJPY(subGP)}（${subGM}）</span></div>`}
+                    </div>`;
+                return header + `<div class="space-y-3 sm:space-y-4">` + list.map(salesProjectCardHTML).join('') + `</div>`;
+            }).join('');
         }
 
         // ==================== 販売案件（タブ）関連 ====================
@@ -2412,6 +2787,8 @@
         }
         
         async function loadInventoryForSales() {
+            salesDataLoading = true;
+            renderMain();
             try {
                 showStatus('在庫データを読み込み中...');
                 
@@ -2478,11 +2855,18 @@
                 
                 // 販売案件経費も読み込む
                 await loadSalesExpenses();
+                // 販売案件売上も読み込む
+                await loadSalesRevenue();
+                // 経営目標も読み込む
+                await loadBusinessTargets();
                 
-                showStatus('');
+                salesDataLoading = false;
                 renderMain();
+                showStatus('');
             } catch (e) {
                 console.error('在庫データ読み込みエラー:', e);
+                salesDataLoading = false;
+                renderMain();
                 showStatus('在庫データの読み込みに失敗しました');
             }
         }
@@ -2546,10 +2930,269 @@
             }
         }
         
+        async function loadSalesRevenue() {
+            try {
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '販売案件売上!A2:E',
+                });
+                const rows = response.result.values || [];
+                salesProjectRevenue = {};
+                rows.forEach(row => {
+                    const projectNumber = row[0] || '';
+                    if (!projectNumber) return;
+                    salesProjectRevenue[projectNumber] = {
+                        amount: parseFloat(row[1]) || 0,
+                        updatedDate: row[2] || '',
+                        note: row[3] || '',
+                        deliveryDate: row[4] || ''
+                    };
+                });
+            } catch (e) {
+                // シートがない場合は作成
+                if (e.result?.error?.code === 400 || e.status === 400) {
+                    await createSalesRevenueSheet();
+                } else {
+                    console.error('販売案件売上読み込みエラー:', e);
+                }
+            }
+        }
+
+        async function createSalesRevenueSheet() {
+            try {
+                await gapi.client.sheets.spreadsheets.batchUpdate({
+                    spreadsheetId: SPREADSHEET_ID,
+                    resource: {
+                        requests: [{
+                            addSheet: {
+                                properties: { title: '販売案件売上' }
+                            }
+                        }]
+                    }
+                });
+                await gapi.client.sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '販売案件売上!A1:E1',
+                    valueInputOption: 'RAW',
+                    resource: {
+                        values: [['案件番号', '売上', '更新日', 'メモ', '納品日']]
+                    }
+                });
+                console.log('販売案件売上シートを作成しました');
+            } catch (e) {
+                console.error('販売案件売上シート作成エラー:', e);
+            }
+        }
+
+        // 売上・納品日の手入力を保存（案件ごとに1行をupsert）
+        async function saveSalesProjectInfo(projectNumber) {
+            const revInput = document.getElementById(`sales-revenue-input-${projectNumber}`);
+            const dateInput = document.getElementById(`sales-delivery-input-${projectNumber}`);
+            if (!revInput) return;
+
+            // 売上：空欄は0扱い（納品日だけ入れたいケースを許容）
+            const raw = revInput.value.trim();
+            const amount = raw === '' ? 0 : parseFloat(raw);
+            if (isNaN(amount) || amount < 0) {
+                alert('売上を正しく入力してください');
+                return;
+            }
+            const deliveryDate = dateInput ? dateInput.value : '';
+            const today = new Date().toISOString().split('T')[0];
+            const existingNote = (salesProjectRevenue[projectNumber] || {}).note || '';
+
+            try {
+                // 既存行を探す
+                let rows = [];
+                try {
+                    const resp = await gapi.client.sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: '販売案件売上!A2:E',
+                    });
+                    rows = resp.result.values || [];
+                } catch (e) {
+                    if (e.result?.error?.code === 400 || e.status === 400) {
+                        await createSalesRevenueSheet();
+                    } else { throw e; }
+                }
+
+                let rowIndex = -1;
+                rows.forEach((row, idx) => {
+                    if (row[0] === projectNumber) rowIndex = idx + 2; // ヘッダー考慮
+                });
+
+                const values = [[projectNumber, amount, today, existingNote, deliveryDate]];
+                if (rowIndex > 0) {
+                    // 既存行を更新
+                    await gapi.client.sheets.spreadsheets.values.update({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: `販売案件売上!A${rowIndex}:E${rowIndex}`,
+                        valueInputOption: 'RAW',
+                        resource: { values }
+                    });
+                } else {
+                    // 新規追加
+                    await gapi.client.sheets.spreadsheets.values.append({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: '販売案件売上!A:E',
+                        valueInputOption: 'RAW',
+                        resource: { values }
+                    });
+                }
+
+                salesProjectRevenue[projectNumber] = { amount, updatedDate: today, note: existingNote, deliveryDate };
+                renderMain();
+                showStatus('✅ 保存しました');
+                setTimeout(() => showStatus(''), 3000);
+            } catch (e) {
+                console.error('売上・納品日保存エラー:', e);
+                alert('保存に失敗しました');
+            }
+        }
+        
+        // 今日が属する会計期の番号（第1期=2019/7〜）
+        function getCurrentFiscalPeriodNumber() {
+            const d = new Date();
+            const startYear = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1;
+            return startYear - 2019 + 1;
+        }
+
+        async function loadBusinessTargets() {
+            try {
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '経営目標!A2:D',
+                });
+                const rows = response.result.values || [];
+                businessTargets = {};
+                rows.forEach(row => {
+                    const period = row[0] || '';
+                    if (!period) return;
+                    businessTargets[period] = {
+                        revenueTarget: parseFloat(row[1]) || 0,
+                        marginTarget: parseFloat(row[2]) || 0, // 粗利率(%)
+                        updatedDate: row[3] || ''
+                    };
+                });
+            } catch (e) {
+                if (e.result?.error?.code === 400 || e.status === 400) {
+                    await createBusinessTargetsSheet();
+                } else {
+                    console.error('経営目標読み込みエラー:', e);
+                }
+            }
+        }
+
+        async function createBusinessTargetsSheet() {
+            try {
+                await gapi.client.sheets.spreadsheets.batchUpdate({
+                    spreadsheetId: SPREADSHEET_ID,
+                    resource: {
+                        requests: [{ addSheet: { properties: { title: '経営目標' } } }]
+                    }
+                });
+                await gapi.client.sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '経営目標!A1:D1',
+                    valueInputOption: 'RAW',
+                    resource: { values: [['期', '売上目標', '粗利率目標(%)', '更新日']] }
+                });
+                console.log('経営目標シートを作成しました');
+            } catch (e) {
+                console.error('経営目標シート作成エラー:', e);
+            }
+        }
+
+        // 経営目標の保存（期ごとに1行をupsert）
+        async function saveBusinessTarget() {
+            const period = document.getElementById('target-period-select').value;
+            const revRaw = document.getElementById('target-revenue-input').value.trim();
+            const marginRaw = document.getElementById('target-margin-input').value.trim();
+            if (!period) { alert('期を選んでください'); return; }
+
+            const revenueTarget = revRaw === '' ? 0 : parseFloat(revRaw);
+            const marginTarget = marginRaw === '' ? 0 : parseFloat(marginRaw);
+            if (isNaN(revenueTarget) || revenueTarget < 0 || isNaN(marginTarget) || marginTarget < 0) {
+                alert('目標を正しく入力してください');
+                return;
+            }
+            const today = new Date().toISOString().split('T')[0];
+
+            try {
+                let rows = [];
+                try {
+                    const resp = await gapi.client.sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: '経営目標!A2:D',
+                    });
+                    rows = resp.result.values || [];
+                } catch (e) {
+                    if (e.result?.error?.code === 400 || e.status === 400) {
+                        await createBusinessTargetsSheet();
+                    } else { throw e; }
+                }
+
+                let rowIndex = -1;
+                rows.forEach((row, idx) => { if (row[0] === period) rowIndex = idx + 2; });
+                const values = [[period, revenueTarget, marginTarget, today]];
+
+                if (rowIndex > 0) {
+                    await gapi.client.sheets.spreadsheets.values.update({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: `経営目標!A${rowIndex}:D${rowIndex}`,
+                        valueInputOption: 'RAW',
+                        resource: { values }
+                    });
+                } else {
+                    await gapi.client.sheets.spreadsheets.values.append({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: '経営目標!A:D',
+                        valueInputOption: 'RAW',
+                        resource: { values }
+                    });
+                }
+
+                businessTargets[period] = { revenueTarget, marginTarget, updatedDate: today };
+                renderMain();
+                showStatus('✅ 目標を保存しました');
+                setTimeout(() => showStatus(''), 3000);
+            } catch (e) {
+                console.error('目標保存エラー:', e);
+                alert('目標の保存に失敗しました');
+            }
+        }
+
+        // 指定した期の実績（売上入力済の販売案件を集計）
+        function getPeriodActuals(periodLabel) {
+            const sps = getSalesProjects().filter(sp => sp.fiscalLabel === periodLabel && sp.revenue > 0);
+            const revenue = sps.reduce((s, sp) => s + sp.revenue, 0);
+            const cost = sps.reduce((s, sp) => s + sp.totalCost, 0);
+            const grossProfit = revenue - cost;
+            return {
+                count: sps.length,
+                revenue,
+                cost,
+                grossProfit,
+                grossMargin: revenue > 0 ? (grossProfit / revenue) : null
+            };
+        }
+
+        // 会計期ラベル：第1期=2019/7〜2020/6、7月始まり（既存のgetFiscalYearInfoと同一基準）
+        function getFiscalPeriodLabel(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return '';
+            const startYear = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1; // 7月以降は当年
+            return `第${startYear - 2019 + 1}期`;
+        }
+
         function getSalesProjects() {
             // 出庫先が設定されている在庫をグループ化（引当済 + 出庫済 + アーカイブ済み）
+            // ただしRS（リザーブ＝販売可能在庫としての仮押さえ）は実売ではないため除外する。
+            // RSは最終的にAD/TSなどへ割り当て直される。
             const allocated = inventoryData.filter(item => 
                 item.shipPrefix && item.shipNumber && 
+                String(item.shipPrefix).toUpperCase() !== 'RS' &&
                 (item.status === '出庫済' || item.status === '出庫済み' || item.status === '引当済' || item.isArchived)
             );
             
@@ -2564,6 +3207,7 @@
                         itemsCost: 0,
                         expensesCost: 0,
                         totalCost: 0,
+                        revenue: 0,
                         allocatedCount: 0,
                         shippedCount: 0,
                         archivedCount: 0
@@ -2589,9 +3233,37 @@
             Object.values(grouped).forEach(sp => {
                 sp.expensesCost = sp.expenses.reduce((sum, e) => sum + (e.amountJPY || 0), 0);
                 sp.totalCost = sp.itemsCost + sp.expensesCost;
+                // 売上・粗利（売上は手入力、税抜想定）
+                const rev = salesProjectRevenue[sp.projectNumber];
+                sp.revenue = rev ? (rev.amount || 0) : 0;
+                sp.grossProfit = sp.revenue - sp.totalCost;
+                sp.grossMargin = sp.revenue > 0 ? (sp.grossProfit / sp.revenue) : null;
+                // 納品日・会計期（手入力の納品日ベース）
+                sp.deliveryDate = rev ? (rev.deliveryDate || '') : '';
+                sp.fiscalLabel = getFiscalPeriodLabel(sp.deliveryDate);
             });
             
             return Object.values(grouped).sort((a, b) => b.projectNumber.localeCompare(a.projectNumber));
+        }
+
+        // 販売案件の全体集計（トップカード用）
+        // 粗利・粗利率は「売上が入力済みの案件のみ」で集計する（売上ゼロの案件で歪まないように）
+        function getSalesSummary() {
+            const sps = getSalesProjects();
+            const withRev = sps.filter(sp => sp.revenue > 0);
+            const sumRevenue = withRev.reduce((s, sp) => s + sp.revenue, 0);
+            const sumCostRev = withRev.reduce((s, sp) => s + sp.totalCost, 0);
+            const grossProfit = sumRevenue - sumCostRev;
+            return {
+                totalProjects: sps.length,
+                revenueProjects: withRev.length,
+                missingRevenue: sps.length - withRev.length,
+                sumRevenue: sumRevenue,
+                sumCostRev: sumCostRev,
+                grossProfit: grossProfit,
+                grossMargin: sumRevenue > 0 ? (grossProfit / sumRevenue) : null,
+                sumCostAll: sps.reduce((s, sp) => s + sp.totalCost, 0)
+            };
         }
         
         function toggleSalesProject(projectNumber) {
