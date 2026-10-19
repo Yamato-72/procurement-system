@@ -735,6 +735,11 @@
             return Math.max(...existing.map(p => p.orderBatch || 0)) + 1;
         }
 
+        // HTMLエスケープ（表示用）
+        function escapeHtml(str) {
+            return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+
         // デポジットの表示ラベル（初回は「第N回」、追加発注は「追加M 第N回」）
         function depositLabel(dep) {
             const b = dep.orderBatch || 0;
@@ -1748,7 +1753,18 @@
                                                         <span>総数量: ${totalQuantity}</span>
                                                     </div>
                                                     <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs sm:text-sm text-slate-600">
-                                                        <span>集荷: <span class="font-semibold text-blue-600">${pickupDateDisplay}</span></span>
+                                                        ${(() => {
+                                                            // 発注ロットが複数あれば、集荷予定日をロットごとに表示
+                                                            const lots = [...new Set(g.items.map(p => p.orderBatch || 0))].sort((a, b) => a - b);
+                                                            if (lots.length <= 1) {
+                                                                return `<span>集荷: <span class="font-semibold text-blue-600">${pickupDateDisplay}</span></span>`;
+                                                            }
+                                                            return lots.map(b => {
+                                                                const first = g.items.find(p => (p.orderBatch || 0) === b);
+                                                                const d = first && first.pickupDate ? first.pickupDate.replace(/-/g, '/') : '未設定';
+                                                                return `<span>${b > 0 ? `追加${b}` : '初回'}集荷: <span class="font-semibold text-blue-600">${d}</span></span>`;
+                                                            }).join('');
+                                                        })()}
                                                     </div>
                                                 </div>
                                                 
@@ -3350,41 +3366,51 @@
             return serials.join(', ');
         }
 
-        // グループ用インボイステキスト生成
-        function generateGroupInvoiceText(projectNumber) {
-            const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
+        // インボイステキスト生成（発注ロット単位。サプライヤーのPI 1枚 = ロット1つ）
+        // lot を省略すると案件内の全製品（ロットが1つの案件は従来どおり）
+        function generateGroupInvoiceText(projectNumber, lot = null) {
+            let groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
+            if (lot !== null) {
+                groupProjects = groupProjects.filter(p => (p.orderBatch || 0) === lot);
+            }
             if (groupProjects.length === 0) return '';
             
             const representative = groupProjects[0];
             const pickupDateDisplay = representative.pickupDate ? representative.pickupDate.replace(/-/g, '/') : '未設定';
             const serialDisplay = formatGroupSerials(groupProjects);
+            const lotSuffix = lot !== null && lot > 0 ? `（追加${lot}）` : '';
             
-            let text = `PJ番号：${projectNumber}\n`;
+            let text = `PJ番号：${projectNumber}${lotSuffix}\n`;
             text += `Serial：${serialDisplay}\n`;
             text += `集荷予定日：${pickupDateDisplay}\n\n`;
             
-            // デポジット情報（代表から取得）
-            const depositSchedule = representative.depositSchedule || [];
-            depositSchedule.forEach(dep => {
+            // デポジット：対象製品すべての同じ回を合算（以前は先頭の製品1つ分しか出ていなかった）
+            const byNumber = {};
+            groupProjects.forEach(p => {
+                (p.depositSchedule || []).forEach(dep => {
+                    if (!byNumber[dep.depositNumber]) {
+                        byNumber[dep.depositNumber] = { percentage: dep.percentage, amountUSD: 0, paid: dep.paid };
+                    }
+                    byNumber[dep.depositNumber].amountUSD += dep.amountUSD || 0;
+                    if (dep.paid) byNumber[dep.depositNumber].paid = true;
+                });
+            });
+            Object.keys(byNumber).map(Number).sort((x, y) => x - y).forEach(n => {
+                const dep = byNumber[n];
                 const status = dep.paid ? '✓済' : '未';
-                text += `${dep.percentage}%  $${(dep.amountUSD || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} [${status}]\n`;
+                text += `${dep.percentage}%  $${dep.amountUSD.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} [${status}]\n`;
             });
             
             return text.trim();
         }
 
-        // グループ用クリップボードコピー
-        function copyGroupInvoiceText(projectNumber) {
-            const text = generateGroupInvoiceText(projectNumber);
-            if (!text) {
-                showStatus('コピーするデータがありません', 'error');
-                return;
-            }
-            
-            navigator.clipboard.writeText(text).then(() => {
+        // クリップボードへコピー（共通）
+        function copyTextToClipboard(text) {
+            const done = () => {
                 showStatus('📋 インボイス情報をコピーしました！');
                 setTimeout(() => showStatus(''), 2000);
-            }).catch(err => {
+            };
+            navigator.clipboard.writeText(text).then(done).catch(err => {
                 console.error('コピーエラー:', err);
                 // フォールバック：テキストエリアを使う方法
                 const textarea = document.createElement('textarea');
@@ -3393,9 +3419,58 @@
                 textarea.select();
                 document.execCommand('copy');
                 document.body.removeChild(textarea);
-                showStatus('📋 インボイス情報をコピーしました！');
-                setTimeout(() => showStatus(''), 2000);
+                done();
             });
+        }
+
+        // グループ用クリップボードコピー
+        // 発注ロットが複数ある案件は、どのロット（PI）をコピーするか選ぶ
+        function copyGroupInvoiceText(projectNumber) {
+            const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
+            if (groupProjects.length === 0) {
+                showStatus('コピーするデータがありません', 'error');
+                return;
+            }
+            const lots = [...new Set(groupProjects.map(p => p.orderBatch || 0))].sort((x, y) => x - y);
+            
+            if (lots.length === 1) {
+                copyTextToClipboard(generateGroupInvoiceText(projectNumber, lots[0]));
+                return;
+            }
+            
+            // ロット選択（最新ロットを上に）
+            const existing = document.getElementById('invoiceLotModal');
+            if (existing) existing.remove();
+            const latest = lots[lots.length - 1];
+            const modal = document.createElement('div');
+            modal.id = 'invoiceLotModal';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onclick="if(event.target===this) closeModal('invoiceLotModal')">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl p-5 w-full max-w-sm">
+                        <h3 class="text-lg font-bold mb-1 dark:text-white">📋 インボイス情報をコピー</h3>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">${projectNumber} のどの発注分をコピーしますか？</p>
+                        <div class="space-y-2">
+                            ${[...lots].reverse().map(b => {
+                                const items = groupProjects.filter(p => (p.orderBatch || 0) === b);
+                                const usd = items.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+                                const names = items.map(p => p.productName).join(', ');
+                                return `
+                                    <button onclick="copyTextToClipboard(generateGroupInvoiceText('${projectNumber}', ${b})); closeModal('invoiceLotModal')"
+                                        class="w-full text-left px-3 py-2 rounded-lg border ${b === latest ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'border-slate-200 dark:border-slate-600'} hover:bg-slate-50 dark:hover:bg-slate-700">
+                                        <div class="flex justify-between items-center">
+                                            <span class="font-semibold text-sm dark:text-white">${b > 0 ? `追加${b}` : '初回'}${b === latest ? '（最新）' : ''}</span>
+                                            <span class="text-sm text-slate-600 dark:text-slate-300">$${usd.toLocaleString()}</span>
+                                        </div>
+                                        <p class="text-xs text-slate-500 dark:text-slate-400 truncate">${escapeHtml(names)}</p>
+                                    </button>
+                                `;
+                            }).join('')}
+                        </div>
+                        <button onclick="closeModal('invoiceLotModal')" class="mt-4 w-full px-3 py-2 text-sm text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 rounded-lg">キャンセル</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
         }
 
         // 案件編集（Serial、数量、WorkingDays、集荷予定日）
@@ -3411,6 +3486,12 @@
             // グループ全体の合計
             const totalUSD = groupProjects.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
             const totalQuantity = groupProjects.reduce((sum, p) => sum + (p.quantity || 1), 0);
+
+            // 発注ロット一覧（複数あれば発注日・集荷予定日をロットごとに編集）
+            const lotNumbers = [...new Set(groupProjects.map(p => p.orderBatch || 0))].sort((a, b) => a - b);
+            const isMultiLot = lotNumbers.length > 1;
+            const lotFirst = b => groupProjects.find(p => (p.orderBatch || 0) === b) || {};
+            const lotName = b => b > 0 ? `追加${b}` : '初回';
             
             const modal = document.createElement('div');
             modal.id = 'editGroupModal';
@@ -3429,6 +3510,19 @@
                                     ${suppliers.map(s => `<option value="${s.id}" ${s.id === representative.supplierId ? 'selected' : ''}>${s.name}</option>`).join('')}
                                 </select>
                             </div>
+                            ${isMultiLot ? `
+                            <div class="col-span-2 space-y-2">
+                                <label class="block text-sm font-semibold dark:text-slate-300">発注日・集荷予定日（発注ロットごと）</label>
+                                ${lotNumbers.map(b => `
+                                    <div class="grid grid-cols-[4rem_1fr_1fr] gap-2 items-center">
+                                        <span class="text-sm font-semibold ${b > 0 ? 'text-violet-700 dark:text-violet-300' : 'text-slate-700 dark:text-slate-300'}">${lotName(b)}</span>
+                                        <input type="date" id="editGroupOrderDate_${b}" value="${lotFirst(b).registeredDate || ''}" title="発注日" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                        <input type="date" id="editGroupPickupDate_${b}" value="${lotFirst(b).pickupDate || ''}" title="集荷予定日" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                    </div>
+                                `).join('')}
+                                <p class="text-xs text-slate-500 dark:text-slate-400">左：発注日 / 右：集荷予定日</p>
+                            </div>
+                            ` : `
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">発注日</label>
                                 <input type="date" id="editGroupOrderDate" value="${representative.registeredDate || ''}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
@@ -3437,6 +3531,7 @@
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">集荷予定日</label>
                                 <input type="date" id="editGroupPickupDate" value="${representative.pickupDate || ''}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                             </div>
+                            `}
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">Working Days</label>
                                 <input type="number" id="editGroupWorkingDays" value="${representative.workingDays || 30}" min="1" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
@@ -3810,8 +3905,13 @@
             
             // 共通設定を取得
             const supplierId = parseInt(document.getElementById('editGroupSupplierId').value) || null;
-            const orderDate = document.getElementById('editGroupOrderDate').value;
-            const pickupDate = document.getElementById('editGroupPickupDate').value;
+            // 発注日・集荷予定日：ロット別の入力があればそちらを使う
+            const lotDate = (kind, b) => {
+                const lotEl = document.getElementById(`editGroup${kind}_${b}`);
+                if (lotEl) return lotEl.value;
+                const el = document.getElementById(`editGroup${kind}`);
+                return el ? el.value : null;
+            };
             const workingDays = parseInt(document.getElementById('editGroupWorkingDays').value) || 30;
             
             // デポジットパターン
@@ -3869,8 +3969,11 @@
             
             groupProjects.forEach((p, idx) => {
                 p.supplierId = supplierId;
-                p.registeredDate = orderDate;
-                p.pickupDate = pickupDate;
+                const b = p.orderBatch || 0;
+                const od = lotDate('OrderDate', b);
+                const pd = lotDate('PickupDate', b);
+                if (od !== null) p.registeredDate = od;
+                if (pd !== null) p.pickupDate = pd;
                 p.workingDays = workingDays;
                 p.totalAmount = productAmounts[p.id] || 0;
                 p.quantity = productQuantities[p.id] || 1;
