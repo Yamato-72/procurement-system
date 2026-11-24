@@ -93,11 +93,10 @@ pre{white-space:pre;overflow-x:auto;background:var(--panel);padding:10px;border-
  <div class="board">
   <div class="col"><div class="ch"><span class="cnt" id="c-plan">0</span><b>入荷予定</b></div><p class="why">在庫ナビで「入庫待ち」。支払ナビで購入済みで、まだ届いていない台です。</p><div id="l-plan"></div></div>
   <div class="col tape"><div class="ch"><span class="cnt" id="c-wait">0</span><b>入荷検品まち</b></div><p class="why">在庫ナビで「検品待ち」。検品すると在庫ナビが「在庫中」（異常は「不良品」）に変わります。</p><div id="l-wait"></div></div>
-  <div class="col warn"><div class="ch"><span class="cnt" id="c-due">0</span><b>定期検品の期限切れ</b></div><p class="why">最後の検品から3ヶ月を過ぎた、倉庫にある台。</p><div id="l-due"></div></div>
+  <div class="col warn"><div class="ch"><span class="cnt" id="c-due">0</span><b>定期検品</b></div><p class="why">棚ごとにまとめています。棚の前で全部見たら「この棚を正常で登録」。異常の台だけ先に「異常」で記録してください。</p><div class="chips" id="due-tab"></div><div id="l-due"></div></div>
   <div class="col warn"><div class="ch"><span class="cnt" id="c-bad">0</span><b>不良品（処置まち）</b></div><p class="why">在庫ナビで「不良品」の台。修理・復旧したら記録して在庫中に戻します。</p><div id="l-bad"></div></div>
  </div>
  <div class="strip">
-  <div class="item"><div class="t">検品の記録がない台 <span id="c-none"></span></div><div class="s">倉庫にあるのに品質ログに検品が一度もない台。少しずつ埋めていけばOKです。</div><div class="acts"><button type="button" data-a="go-none">一覧を見る</button></div></div>
   <div class="item"><div class="t">ログの入力が途中 <span id="c-mid"></span></div><div class="s">品質ログで種別か結果が空いている行。</div><div class="acts"><button type="button" data-a="go-mid">片付ける</button></div></div>
  </div>
  <div id="mid-box" class="hide" style="margin-top:16px"><h2>ログの入力が途中の行</h2><div id="l-mid"></div></div>
@@ -280,7 +279,7 @@ const qBadge=(o,due)=>!o.li?badge('記録なし','b-hold'):due?badge('要検品'
 function group(list,f){const g={};list.forEach(x=>{const k=f(x);(g[k]=g[k]||[]).push(x)});return Object.entries(g).sort((a,b)=>b[1].length-a[1].length)}
 const sumLine=a=>esc(a[0].s)+(a.length>1?' 〜 '+esc(a[a.length-1].s):'');
 const pname=a=>esc(a[0].p)+(new Set(a.map(x=>x.p)).size>1?' ほか':'');
-let GROUPS={};
+let GROUPS={},DUETAB='due';
 
 function renderTodo(){
  const W=wh(),core=W.filter(x=>x.st!=='引当済').length;
@@ -290,18 +289,24 @@ function renderTodo(){
  $('l-plan').innerHTML=plan.length?group(plan,x=>x.o||'注文番号なし').slice(0,8).map(([o,a])=>'<div class="item"><div class="t">'+esc(o)+'・'+pname(a)+' × '+a.length+'台</div><div class="s">'+esc(a[0].sup||'')+'</div><div class="acts"><button type="button" data-a="open-in" data-o="'+esc(o+'|入庫待ち')+'">届いたので検品する</button></div></div>').join(''):'<div class="empty">入荷予定はありません。</div>';
  const wait=W.filter(x=>x.st==='検品待ち');$('c-wait').textContent=wait.length;
  $('l-wait').innerHTML=wait.length?group(wait,x=>x.o||'注文番号なし').map(([o,a])=>'<div class="item"><div class="t">'+esc(o)+'・'+pname(a)+' × '+a.length+'台</div><div class="s">'+sumLine(a)+'</div><div class="acts"><button type="button" class="y" data-a="open-in" data-o="'+esc(o+'|検品待ち')+'">この注文を検品する</button></div></div>').join(''):'<div class="empty">検品待ちはありません。</div>';
- const due=W.filter(x=>x.st!=='検品待ち'&&inScope(x)).map(x=>({x,...q(x)})).filter(o=>o.li&&o.nx<=TODAY).sort((a,b)=>a.nx.localeCompare(b.nx));
- $('c-due').textContent=due.length;
- $('l-due').innerHTML=due.length?due.slice(0,20).map(o=>'<div class="item"><div class="t">'+esc(o.x.s)+'</div><div class="s">'+esc(o.x.p)+'・'+esc(o.x.st)+(o.x.shelf?'・棚 '+esc(o.x.shelf):'')+'・最終検品 '+esc(fmt(o.li))+'・<b style="color:var(--red)">'+days(o.nx,TODAY)+'日超過</b></div><div class="acts"><button type="button" class="y" data-a="ok" data-id="'+esc(o.x.id)+'">検品した・正常</button><button type="button" class="bad" data-a="ng" data-id="'+esc(o.x.id)+'">異常あり</button></div></div>').join('')+(due.length>20?'<p class="note">ほか'+(due.length-20)+'台は「倉庫にある台」の「要検品」で見られます</p>':''):'<div class="empty">期限切れはありません。</div>';
+ const pool=W.filter(x=>x.st!=='検品待ち'&&inScope(x)).map(x=>({x,...q(x)}));
+ const due=pool.filter(o=>o.li&&o.nx<=TODAY),none=pool.filter(o=>!o.li);
+ $('c-due').textContent=due.length+none.length;
+ $('due-tab').innerHTML=[['due','期限切れ '+due.length],['none','記録なし '+none.length]].map(([v,l])=>'<button type="button" data-duetab="'+v+'" class="'+(DUETAB===v?'on':'')+'">'+esc(l)+'</button>').join('');
+ const list=DUETAB==='due'?due:none;
+ const shelfKey=o=>o.x.shelf?'棚 '+o.x.shelf:'棚番なし・'+(o.x.p||'製品名なし');
+ const gs=group(list,shelfKey).sort((a,b)=>{const na=a[0].startsWith('棚番なし'),nb=b[0].startsWith('棚番なし');return na!==nb?(na?1:-1):a[0].localeCompare(b[0],'ja',{numeric:true})});
+ GROUPS.shelf=Object.fromEntries(gs);
+ $('l-due').innerHTML=gs.length?gs.map(([k,a])=>'<div class="item"><div class="t">'+esc(k)+' × '+a.length+'台</div>'+a.map(o=>'<div class="unit" style="margin-top:6px"><span><b>'+esc(o.x.s)+'</b><br><span class="src">'+esc(o.x.p)+'・'+esc(o.x.st)+(o.li?'・最終 '+esc(fmt(o.li))+'（'+days(o.nx,TODAY)+'日超過）':'・検品の記録なし')+'</span></span><button type="button" class="bad" data-a="ng" data-id="'+esc(o.x.id)+'">異常</button></div>').join('')+'<div class="acts"><button type="button" class="y" data-a="shelf-ok" data-g="'+esc(k)+'">この棚を正常で登録（'+a.length+'台）</button></div></div>').join(''):'<div class="empty">'+(DUETAB==='due'?'期限切れはありません。':'記録のない台はありません。')+'</div>';
  const bad=W.filter(x=>x.st==='不良品');$('c-bad').textContent=bad.length;
  $('l-bad').innerHTML=bad.length?bad.map(x=>{const o=q(x);return '<div class="item"><div class="t">'+esc(x.s)+'</div><div class="s">'+esc(x.p)+(o.sym?'・'+esc(o.sym):'')+'</div><div class="acts"><button type="button" data-a="fix" data-id="'+esc(x.id)+'">処置・修理を記録</button></div></div>'}).join(''):'<div class="empty">不良品はありません。</div>';
- const none=W.filter(x=>x.st!=='検品待ち'&&!q(x).li);$('c-none').textContent=none.length+'台';
- const mid=LOG.filter(r=>(r.s||r.p)&&(!r.t||!r.res)&&r.res!=='保留');$('c-mid').textContent=mid.length+'行';
+  const mid=LOG.filter(r=>(r.s||r.p)&&(!r.t||!r.res)&&r.res!=='保留');$('c-mid').textContent=mid.length+'行';
  const gm=group(mid,r=>(r.d||'')+'|'+(r.o||'')+'|'+(r.p||'')+'|'+(r.s?1:0));GROUPS.mid=Object.fromEntries(gm);
  $('l-mid').innerHTML=gm.length?gm.map(([k,a])=>{const r=a[0];return '<div class="item"><div class="t">'+esc(r.p||'製品名なし')+' × '+a.length+'行</div><div class="s">'+esc(fmt(r.d))+'・'+esc(r.o||'注文番号なし')+(r.s?'・'+sumLine(a):'・<b>Serialが空</b>')+'</div><div class="acts">'+(r.s?'<button type="button" class="y" data-a="bulk" data-g="'+esc(k)+'">まとめて入荷検品・正常に</button>':'')+'<button type="button" data-a="edit" data-row="'+r.row+'">1行ずつ直す</button></div></div>'}).join(''):'<div class="empty">途中の行はありません。</div>';
 }
 
 document.addEventListener('click',e=>{
+ const dt=e.target.closest('button[data-duetab]');if(dt){DUETAB=dt.dataset.duetab;renderTodo();return}
  const sc=e.target.closest('button[data-scope]');if(sc){scope=sc.dataset.scope;ls('qualityScope',scope);renderTodo();return}
  const b=e.target.closest('button[data-a]');if(!b)return;
  const a=b.dataset.a,x=b.dataset.id?INV.find(i=>String(i.id)===b.dataset.id):null;
@@ -309,7 +314,7 @@ document.addEventListener('click',e=>{
  if(a==='ng'&&x)openRec({s:x.s,t:'定期検品',res:'異常'});
  if(a==='fix'&&x)openRec({s:x.s,t:'処置・修理',res:'復旧'});
  if(a==='open-in'){location.hash='inbound';fillOrders();$('in-o').value=b.dataset.o;loadUnits()}
- if(a==='go-none'){SF='記録なし';location.hash='stock';renderStock()}
+ if(a==='shelf-ok'){const g=GROUPS.shelf[b.dataset.g]||[];if(!g.length)return;save(()=>appendLog(g.map(o=>row(o.x,{t:'定期検品',res:'正常',act:'通電確認',note:o.li?'':'記録なし台の初回検品'}))),b.dataset.g+'の'+g.length+'台を定期検品（正常）で登録しました')}
  if(a==='go-mid'){$('mid-box').classList.toggle('hide')}
  if(a==='bulk'){const g=GROUPS.mid[b.dataset.g]||[];save(async()=>{for(const r of g)await editLog(Object.assign({},r,{s0:r.s,t:r.t||'入荷検品',res:r.res||'正常',who:r.who||who()}))},g.length+'行を入荷検品・正常にしました')}
  if(a==='edit'){const r=LOG.find(z=>String(z.row)===b.dataset.row);if(r)openRec({s:r.s,t:r.t||'入荷検品',res:r.res||'正常',edit:r})}
