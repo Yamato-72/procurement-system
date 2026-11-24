@@ -168,7 +168,14 @@
 
     <script>
         const CLIENT_ID = '47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
-        const SPREADSHEET_ID = '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ'; // 在庫データ（調達管理と同じ）
+        const IS_TEST = new URLSearchParams(location.search).has('test'); // URLに ?test を付けると【テスト】スプレッドシートを使う
+        if (IS_TEST) {
+            document.title = '【テスト】' + document.title;
+            // ほかのナビへのリンクにも ?test を引き継ぐ（本番に飛ばないように）
+            document.addEventListener('click', e => { const a = e.target.closest && e.target.closest('a[href]'); if (!a) return; const h = a.getAttribute('href') || ''; if (/^[\w-]+\.html/.test(h) && !/[?&]test\b/.test(h)) a.setAttribute('href', h + (h.includes('?') ? '&' : '?') + 'test'); }, true);
+            document.addEventListener('DOMContentLoaded', () => { const b = document.createElement('div'); b.textContent = 'テスト環境'; b.title = '【テスト】スプレッドシートを使っています。本番のデータは変わりません'; b.style.cssText = 'position:fixed;top:0;left:0;z-index:99999;background:#d7261e;color:#fff;font:700 12px/1.4 sans-serif;padding:3px 10px;border-radius:0 0 8px 0;pointer-events:none'; document.body.appendChild(b); });
+        }
+        const SPREADSHEET_ID = IS_TEST ? '1VwfwgSgfCN3CsO-L2kwtfqggy5sW9eMIGW8bGczxcFE' : '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ'; // 在庫データ（調達管理）
         const PRODUCT_MASTER_ID = '1YnEJ5LEYBwZJ2zDYnjUpkpjnB2naHFVAtPdzcv81nvI'; // 製品マスタ
         const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly';
         const PARENT_FOLDER_ID = '1EvObQiCJgxJCzd_kQJ1PNbOUMD5P-Zxp';
@@ -1704,7 +1711,7 @@
         
         // 調達管理画面へジャンプ（案件でフィルタ）
         function openProcurementForProject(projectNumber) {
-            window.open(`index.html?project=${encodeURIComponent(projectNumber)}`, '_blank');
+            window.open(`index.html?project=${encodeURIComponent(projectNumber)}${IS_TEST ? '&test' : ''}`, '_blank');
         }
         
         // URLパラメータをチェックして案件フィルタを適用
