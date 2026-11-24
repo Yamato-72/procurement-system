@@ -198,6 +198,7 @@
         let autoReloadEnabled = true;
         const AUTO_RELOAD_SECONDS = 60; // 60秒間隔
         let lastDataHash = ''; // データ変更検知用
+        let lastLoadedRows = null; // 最後に読み込んだ在庫の生データ（他画面の変更を取り込むための基準）
         let lastArchiveHash = ''; // アーカイブシート変更検知用
         let lastSaveTime = 0; // 最後に保存した時刻
         
@@ -825,6 +826,8 @@
                         };
                     });
                     dataLoaded = true; // 在庫の読み込みに成功（保存を許可）
+                    lastLoadedRows = inventoryRows;
+                    lastDataHash = JSON.stringify(inventoryRows);
                 } catch (e) {
                     // 「シートが本当に無い」場合だけ新規作成。通信・認証などの一時エラーでは
                     // inventory を空にしない（空のまま保存されると全消失するため）。保存はロックしたまま。
@@ -1101,6 +1104,7 @@
                     renderMain();
                 }
                 lastDataHash = newHash;
+                lastLoadedRows = rows;
             } catch (err) {
                 console.log('自動同期エラー:', err);
             }
@@ -1347,7 +1351,29 @@
                 }
 
                 const currentHash = JSON.stringify(currentRows);
-                if (lastDataHash && currentHash !== lastDataHash) {
+                // 品質ナビなど別の画面が変えた「入庫日」「ステータス」を取り込む。
+                // この画面で同じ台の同じ項目を変えていなければ相手の変更を採用し、上書きで戻さない。
+                // 取り込んだ項目以外に違いがなければ、確認なしでそのまま保存する。
+                let onlyMergedChanges = false;
+                if (lastLoadedRows) {
+                    const isOld = r => !!(r && r[4] && String(r[4]).match(/^[A-Z]+-\d+$/i));
+                    const byId = rows => { const m = new Map(); rows.forEach(r => { if (r && r[0] !== undefined && r[0] !== '' && !isOld(r)) m.set(String(r[0]), r); }); return m; };
+                    const baseMap = byId(lastLoadedRows), remoteMap = byId(currentRows);
+                    const MERGE_FIELDS = [['receiveDate', 7], ['status', 8]];
+                    inventory.forEach(item => {
+                        const b = baseMap.get(String(item.id)), r = remoteMap.get(String(item.id));
+                        if (!b || !r) return;
+                        MERGE_FIELDS.forEach(([key, i]) => {
+                            const bv = String(b[i] ?? ''), rv = String(r[i] ?? '');
+                            const mine = String(item[key] ?? '');
+                            const baseVal = key === 'status' ? normalizeStatus(bv || '入庫待ち') : bv;
+                            if (rv !== bv && mine === baseVal) item[key] = key === 'status' ? normalizeStatus(rv || '入庫待ち') : rv;
+                        });
+                    });
+                    const strip = rows => JSON.stringify(rows.map(r => Array.from({ length: 17 }, (_, i) => (i === 7 || i === 8) ? '' : String((r || [])[i] ?? ''))));
+                    onlyMergedChanges = strip(currentRows) === strip(lastLoadedRows);
+                }
+                if (lastDataHash && currentHash !== lastDataHash && !onlyMergedChanges) {
                     const confirmOverwrite = confirm('他のユーザーによってデータが更新されています。\n\n上書きしますか？\n（キャンセルで最新データを取得します）');
                     if (!confirmOverwrite) {
                         await loadData();
@@ -1459,6 +1485,7 @@
 
                 // 保存後にハッシュを更新
                 lastSaveTime = Date.now();
+                lastLoadedRows = inventoryData.slice(1);
                 lastDataHash = JSON.stringify(inventory.map(item => [
                     item.id, item.serial, item.category, item.productName, 
                     item.orderPrefix, item.orderNumber, item.orderDate, item.receiveDate, 

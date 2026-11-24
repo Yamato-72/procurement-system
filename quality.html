@@ -103,10 +103,10 @@ pre{white-space:pre;overflow-x:auto;background:var(--panel);padding:10px;border-
 </section>
 
 <section id="v-inbound" class="hide">
- <h2>入荷検品</h2><p class="lead">注文を選ぶと台が全部「正常」で並びます。異常の台だけ切り替えてください。QRを読むと、その台の注文が選ばれます。</p>
+ <h2>入荷検品</h2><p class="lead">注文を選ぶと台が「進行中」で並びます。見た台をタップすると「正常」→「異常」→「進行中」と切り替わります。全部見たら「全部正常」を押して、異常の台だけ直してください。「進行中」の台は登録されず、検品待ちのまま残ります。</p>
  <form id="fin">
   <div class="grid2"><div class="f"><label for="in-o">注文（検品待ち・入庫待ち）</label><select id="in-o"></select></div><div class="f"><label for="in-d">検品日</label><input id="in-d" type="date"></div></div>
-  <button type="button" data-a="qr" data-for="inbound">QRを読む</button>
+  <div class="acts"><button type="button" data-a="qr" data-for="inbound">QRを読む</button><button type="button" id="in-all">全部正常</button><button type="button" id="in-reset">全部進行中に戻す</button></div>
   <div id="units" class="units"></div>
   <div id="ngs"></div>
   <button type="submit" class="pri" id="in-save" disabled>登録する</button>
@@ -365,25 +365,28 @@ function fillOrders(){
  $('in-o').innerHTML='<option value="">選んでください</option>'+os.map(([k,a])=>'<option value="'+esc(k)+'">'+esc(a[0].st)+'：'+esc(a[0].o||'注文番号なし')+'・'+esc(a[0].p)+(new Set(a.map(x=>x.p)).size>1?' ほか':'')+'（'+a.length+'台）</option>').join('');
  if(os.some(([k])=>k===cur))$('in-o').value=cur;
 }
-function loadUnits(){const k=$('in-o').value;UNITS=INV.filter(x=>!x.arch&&x.s&&okey(x)===k).map(x=>({x,ng:false,sym:'',cause:''}));drawUnits()}
+function loadUnits(){const k=$('in-o').value;UNITS=INV.filter(x=>!x.arch&&x.s&&okey(x)===k).map(x=>({x,st:'進行中',sym:'',cause:''}));drawUnits()}
 $('in-o').addEventListener('change',loadUnits);
 function drawUnits(){
- $('units').innerHTML=UNITS.map((u,i)=>'<div class="unit'+(u.ng?' ng':'')+'"><span><b>'+esc(u.x.s||'(Serialなし)')+'</b><br><span class="src">'+esc(u.x.p)+'・'+esc(u.x.st)+'</span></span><button type="button" class="'+(u.ng?'bad':'')+'" data-u="'+i+'">'+(u.ng?'異常':'正常')+'</button></div>').join('');
- $('ngs').innerHTML=UNITS.map((u,i)=>u.ng?'<div class="panel" style="margin:8px 0;padding:10px"><b style="color:var(--red)">'+esc(u.x.s)+' の異常</b><div class="grid2"><div><label for="ng-s'+i+'">症状</label><input id="ng-s'+i+'" data-ns="'+i+'" list="dl-sym" value="'+esc(u.sym)+'"></div><div><label for="ng-c'+i+'">原因</label><select id="ng-c'+i+'" data-nc="'+i+'">'+CAUSES.map(c=>'<option'+(c===u.cause?' selected':'')+' value="'+esc(c)+'">'+(c||'（あとで）')+'</option>').join('')+'</select></div></div></div>':'').join('');
- const ng=UNITS.filter(u=>u.ng).length;
- $('in-save').disabled=!UNITS.length;
- $('in-save').textContent=UNITS.length?UNITS.length+'台を登録する（正常 '+(UNITS.length-ng)+'・異常 '+ng+'）':'登録する';
+ $('units').innerHTML=UNITS.map((u,i)=>'<div class="unit'+(u.st==='異常'?' ng':'')+'"'+(u.st==='進行中'?' style="opacity:.75;border-style:dashed"':'')+'><span><b>'+esc(u.x.s||'(Serialなし)')+'</b><br><span class="src">'+esc(u.x.p)+'・'+esc(u.x.st)+'</span></span><button type="button" class="'+(u.st==='異常'?'bad':u.st==='正常'?'pri':'')+'" data-u="'+i+'">'+esc(u.st)+'</button></div>').join('');
+ $('ngs').innerHTML=UNITS.map((u,i)=>u.st==='異常'?'<div class="panel" style="margin:8px 0;padding:10px"><b style="color:var(--red)">'+esc(u.x.s)+' の異常</b><div class="grid2"><div><label for="ng-s'+i+'">症状</label><input id="ng-s'+i+'" data-ns="'+i+'" list="dl-sym" value="'+esc(u.sym)+'"></div><div><label for="ng-c'+i+'">原因</label><select id="ng-c'+i+'" data-nc="'+i+'">'+CAUSES.map(c=>'<option'+(c===u.cause?' selected':'')+' value="'+esc(c)+'">'+(c||'（あとで）')+'</option>').join('')+'</select></div></div></div>':'').join('');
+ const ok=UNITS.filter(u=>u.st==='正常').length,ng=UNITS.filter(u=>u.st==='異常').length,wip=UNITS.length-ok-ng;
+ $('in-save').disabled=!(ok+ng);
+ $('in-save').textContent=(ok+ng)?(ok+ng)+'台を登録する（正常 '+ok+'・異常 '+ng+(wip?'・進行中 '+wip+'台は残す':'')+'）':'見た台をタップして「正常」にしてください';
 }
-$('units').onclick=e=>{const b=e.target.closest('button[data-u]');if(b){const u=UNITS[+b.dataset.u];u.ng=!u.ng;drawUnits()}};
+const NEXT={'進行中':'正常','正常':'異常','異常':'進行中'};
+$('units').onclick=e=>{const b=e.target.closest('button[data-u]');if(b){const u=UNITS[+b.dataset.u];u.st=NEXT[u.st];drawUnits()}};
+$('in-all').onclick=()=>{UNITS.forEach(u=>{if(u.st==='進行中')u.st='正常'});drawUnits()};
+$('in-reset').onclick=()=>{UNITS.forEach(u=>u.st='進行中');drawUnits()};
 $('ngs').oninput=e=>{const t=e.target;if(t.dataset.ns)UNITS[+t.dataset.ns].sym=t.value;if(t.dataset.nc)UNITS[+t.dataset.nc].cause=t.value};
 $('ngs').onchange=$('ngs').oninput;
 $('fin').addEventListener('submit',e=>{
- e.preventDefault();if(!UNITS.length)return;
- const d=$('in-d').value||TODAY,list=UNITS.slice(),n=list.length;
+ e.preventDefault();
+ const d=$('in-d').value||TODAY,list=UNITS.filter(u=>u.st!=='進行中').map(u=>Object.assign({},u,{ng:u.st==='異常'})),n=list.length;if(!n)return;
  save(async()=>{
   await appendLog(list.map(u=>row(u.x,{d,t:'入荷検品',res:u.ng?'異常':'正常',sym:u.ng?u.sym:'',cause:u.ng?u.cause:'',act:'通電確認'})));
   await setStatus(list.map(u=>({id:u.x.id,st:u.ng?'不良品':'在庫中',recv:d})));
- },n+'台の入荷検品を登録しました（在庫ナビのステータスも更新）').then(()=>{UNITS=[];fillOrders();drawUnits()});
+ },n+'台の入荷検品を登録しました（在庫ナビのステータスも更新）').then(()=>{fillOrders();loadUnits()});
 });
 
 // ===== 倉庫にある台 =====
