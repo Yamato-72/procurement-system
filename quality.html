@@ -194,11 +194,13 @@ function init(){
  if(typeof gapi==='undefined'||typeof google==='undefined'||!google.accounts){setTimeout(init,100);return}
  gapi.load('client',async()=>{
   await gapi.client.init({discoveryDocs:['https://sheets.googleapis.com/$discovery/rest?version=v4']});
-  tokenClient=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SCOPES,callback:r=>{if(r.error){console.error(r);return}ls('lastToken',r.access_token);gapi.client.setToken({access_token:r.access_token});load()}});
-  const t=ls('lastToken');if(t){gapi.client.setToken({access_token:t});load()}else showLogin();
+  tokenClient=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SCOPES,callback:r=>{if(r.error){console.error(r);return}ls('lastToken',r.access_token);try{sessionStorage.setItem('googleAccessToken',r.access_token);sessionStorage.setItem('tokenExpiresAt',String(Date.now()+(r.expires_in||3600)*1000))}catch(e){}gapi.client.setToken({access_token:r.access_token});load()}});
+  // 在庫ナビから同じタブで来たときは、在庫ナビのログインをそのまま使う
+  let t=null;try{const st=sessionStorage.getItem('googleAccessToken'),ex=+sessionStorage.getItem('tokenExpiresAt');if(st&&ex>Date.now()+60000)t=st}catch(e){}
+  t=t||ls('lastToken');if(t){gapi.client.setToken({access_token:t});load()}else showLogin();
  });
 }
-$('login-btn').onclick=()=>tokenClient&&tokenClient.requestAccessToken({prompt:'consent'});
+$('login-btn').onclick=()=>tokenClient&&tokenClient.requestAccessToken({prompt:''});
 $('logout').onclick=()=>{const t=gapi.client.getToken();if(t)google.accounts.oauth2.revoke(t.access_token);gapi.client.setToken('');try{localStorage.removeItem('lastToken')}catch(e){}showLogin()};
 function authFail(e){const s=e&&(e.status||(e.result&&e.result.error&&e.result.error.code));if(s===401||s===403){try{localStorage.removeItem('lastToken')}catch(x){}showLogin();return true}return false}
 
@@ -281,6 +283,8 @@ function q(x){
  return {ev,li,nx:li?addMonths(li,INSPECT_MONTHS):'',res:lr?lr.res:'',sym:(ev.slice().reverse().find(r=>r.sym)||{}).sym||'',qnote:(ev.slice().reverse().find(r=>r.note||r.sym)||{})};
 }
 const findItem=v=>{const k=norm(v);return INV.find(x=>!x.arch&&(x.key===k||String(x.id)===String(v).trim()))||INV.find(x=>x.key===k||String(x.id)===String(v).trim())};
+// 在庫ナビでその製品の詳細を開くリンク（同じタブで開く。テスト中は ?test を引き継ぐ）
+const invLink=x=>'<a href="inventory.html?item='+encodeURIComponent(x.id)+(IS_TEST?'&test':'')+'" style="display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;border:2px solid var(--ink);border-radius:8px;color:var(--ink);font-weight:700;text-decoration:none;font-size:15px">在庫ナビで開く</a>';
 const badge=(t,c)=>t?'<span class="badge '+c+'">'+esc(t)+'</span>':'';
 const qBadge=(o,due)=>!o.li?badge('記録なし','b-hold'):due?badge('要検品','b-due'):badge(o.res||'正常',o.res==='異常'?'b-ng':o.res==='保留'?'b-hold':'b-ok');
 function group(list,f){const g={};list.forEach(x=>{const k=f(x);(g[k]=g[k]||[]).push(x)});return Object.entries(g).sort((a,b)=>b[1].length-a[1].length)}
@@ -307,7 +311,7 @@ function renderTodo(){
  GROUPS.shelf=Object.fromEntries(gs);
  $('l-due').innerHTML=gs.length?gs.map(([k,a])=>'<div class="item"><div class="t">'+esc(k)+' × '+a.length+'点</div>'+a.map(o=>'<div class="unit" style="margin-top:6px"><span><b>'+esc(o.x.s)+'</b><br><span class="src">'+esc(o.x.p)+'・'+esc(o.x.st)+(o.li?'・最終 '+esc(fmt(o.li))+'（'+days(o.nx,TODAY)+'日超過）':'・検品の記録なし')+'</span></span><button type="button" class="bad" data-a="ng" data-id="'+esc(o.x.id)+'">異常</button></div>').join('')+'<div class="acts"><button type="button" class="y" data-a="shelf-ok" data-g="'+esc(k)+'">この棚を正常で登録（'+a.length+'点）</button></div></div>').join(''):'<div class="empty">'+(DUETAB==='due'?'期限切れはありません。':'記録のない製品はありません。')+'</div>';
  const bad=W.filter(x=>x.st==='不良品');$('c-bad').textContent=bad.length;
- $('l-bad').innerHTML=bad.length?bad.map(x=>{const o=q(x);return '<div class="item"><div class="t">'+esc(x.s)+'</div><div class="s">'+esc(x.p)+(o.sym?'・'+esc(o.sym):'')+'</div><div class="acts"><button type="button" data-a="fix" data-id="'+esc(x.id)+'">処置・修理を記録</button></div></div>'}).join(''):'<div class="empty">不良品はありません。</div>';
+ $('l-bad').innerHTML=bad.length?bad.map(x=>{const o=q(x);return '<div class="item"><div class="t">'+esc(x.s)+'</div><div class="s">'+esc(x.p)+(o.sym?'・'+esc(o.sym):'')+'</div><div class="acts"><button type="button" data-a="fix" data-id="'+esc(x.id)+'">処置・修理を記録</button><button type="button" data-a="see" data-sid="'+esc(x.id)+'">記録を見る</button>'+invLink(x)+'</div></div>'}).join(''):'<div class="empty">不良品はありません。</div>';
   const mid=LOG.filter(r=>(r.s||r.p)&&(!r.t||!r.res)&&r.res!=='保留');$('c-mid').textContent=mid.length+'行';
  const gm=group(mid,r=>(r.d||'')+'|'+(r.o||'')+'|'+(r.p||'')+'|'+(r.s?1:0));GROUPS.mid=Object.fromEntries(gm);
  $('l-mid').innerHTML=gm.length?gm.map(([k,a])=>{const r=a[0];return '<div class="item"><div class="t">'+esc(r.p||'製品名なし')+' × '+a.length+'行</div><div class="s">'+esc(fmt(r.d))+'・'+esc(r.o||'注文番号なし')+(r.s?'・'+sumLine(a):'・<b>Serialが空</b>')+'</div><div class="acts">'+(r.s?'<button type="button" class="y" data-a="bulk" data-g="'+esc(k)+'">まとめて入荷検品・正常に</button>':'')+'<button type="button" data-a="edit" data-row="'+r.row+'">1行ずつ直す</button></div></div>'}).join(''):'<div class="empty">途中の行はありません。</div>';
@@ -327,6 +331,7 @@ document.addEventListener('click',e=>{
  if(a==='bulk'){const g=GROUPS.mid[b.dataset.g]||[];save(async()=>{for(const r of g)await editLog(Object.assign({},r,{s0:r.s,t:r.t||'入荷検品',res:r.res||'正常',who:r.who||who()}))},g.length+'行を入荷検品・正常にしました')}
  if(a==='edit'){const r=LOG.find(z=>String(z.row)===b.dataset.row);if(r)openRec({s:r.s,t:r.t||'入荷検品',res:r.res||'正常',edit:r})}
  if(a==='qr')openQR(b.dataset.for);
+ if(a==='see'){const y=INV.find(i=>String(i.id)===b.dataset.sid);if(y){SF='すべて';$('st-q').value=y.s;OPEN=String(y.id);location.hash='stock';renderStock()}}
  if(a==='rec-this'){const y=INV.find(i=>String(i.id)===b.dataset.sid);if(y)openRec({s:y.s})}
 });
 const row=(x,o)=>Object.assign({d:TODAY,s:x.s,o:x.o,sup:x.sup,p:x.p,t:'',sym:'',cause:'',act:'',res:'',cls:'',who:who(),photo:'',note:''},o);
@@ -427,7 +432,7 @@ function detail(o){
   '<div><b>'+esc(x.s)+'</b>　'+esc(x.p)+'　<span class="src">発注 '+esc(x.o||'—')+'・引当先 '+esc(x.al||'—')+'・棚 '+esc(x.shelf||'—')+'</span></div>'+
   (x.memo?'<div style="margin-top:4px">在庫ナビの備考：'+esc(x.memo)+'</div>':'')+
   '<div style="margin-top:8px">'+(rows||'<div class="src">品質の記録はまだありません。</div>')+'</div>'+
-  '<div class="acts"><button type="button" class="y" data-a="rec-this" data-sid="'+esc(x.id)+'">この製品の記録を追加</button></div></td></tr>';
+  '<div class="acts"><button type="button" class="y" data-a="rec-this" data-sid="'+esc(x.id)+'">この製品の記録を追加</button>'+invLink(x)+'</div></td></tr>';
 }
 $('t-stock').onclick=e=>{if(e.target.closest('button,a'))return;const tr=e.target.closest('tr.srow');if(!tr)return;OPEN=OPEN===tr.dataset.sid?'':tr.dataset.sid;renderStock()};
 $('st-f').onclick=e=>{const b=e.target.closest('button[data-sf]');if(b){SF=b.dataset.sf;renderStock()}};

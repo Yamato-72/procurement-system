@@ -1718,6 +1718,11 @@
         function checkUrlParams() {
             const urlParams = new URLSearchParams(window.location.search);
             const projectParam = urlParams.get('project');
+            const itemParam = urlParams.get('item'); // 品質ナビなどから製品を指定して詳細を開く（?item=在庫ID）
+            if (itemParam) {
+                setTimeout(() => showDetailModal(itemParam), 200);
+                window.history.replaceState({}, document.title, window.location.pathname + (IS_TEST ? '?test' : ''));
+            }
             
             if (projectParam) {
                 // グループ表示モードに
@@ -1743,7 +1748,7 @@
                 setTimeout(() => showStatus(''), 2000);
                 
                 // URLパラメータをクリア（履歴を汚さない）
-                window.history.replaceState({}, document.title, window.location.pathname);
+                window.history.replaceState({}, document.title, window.location.pathname + (IS_TEST ? '?test' : '')); // ?test は残す
             }
         }
 
