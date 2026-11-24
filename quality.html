@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>YS品質ナビ</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+/* VOICE work tool for one person in a warehouse, calm and plain
+   IDEA a warehouse inspection tag board: yellow floor tape, black stencil, red for faults
+   PICTURE the "今週やること" board itself, big counts and the units to act on
+   COLOUR white / near-black ink, safety yellow #ffd21f lead, red #d7261e for 異常, grey rules
+   TYPE Zen Kaku Gothic New 900 for counts and titles, 500/700 for text
+   LAYOUT top bar with tabs; laptop: 2x2 task board; phone: one column, tabs scroll */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#121212);--ink:light-dark(#141414,#f1f1f1);--sub:light-dark(#5b5b5b,#a8a8a8);--line:light-dark(#e2e2e2,#2d2d2d);--panel:light-dark(#f6f6f4,#1b1b1b);--y:#ffd21f;--yink:#141414;--red:light-dark(#d7261e,#ff6b5e);--ok:light-dark(#2b6e3f,#7fd197)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 "Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",sans-serif;overflow-x:clip}
+header{background:var(--y);color:var(--yink);padding:14px max(4vw,16px) 0}
+.top{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 18px;justify-content:space-between}
+h1{font-size:clamp(26px,4vw,36px);line-height:1.05;margin:0;font-weight:900;letter-spacing:-.02em}
+.meta{font-size:14px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.meta select{width:auto;font:inherit;font-size:16px;padding:4px 8px;border:2px solid var(--yink);border-radius:6px;background:#fff;color:#141414}
+nav{display:flex;gap:4px;overflow-x:auto;margin-top:12px}
+nav a{flex:none;padding:10px 14px;min-height:44px;color:var(--yink);text-decoration:none;font-weight:700;border-radius:8px 8px 0 0}
+nav a.on{background:var(--bg);color:var(--ink)}
+main{padding:20px max(4vw,16px) 120px;max-width:1240px;margin:0 auto}
+.note{font-size:13px;color:var(--sub);margin:0 0 14px}
+h2{font-size:22px;margin:0 0 4px;font-weight:900}
+.lead{color:var(--sub);margin:0 0 16px;font-size:15px}
+.board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 18px}
+@media(max-width:900px){.board{grid-template-columns:minmax(0,1fr)}}
+.col{border-top:6px solid var(--ink);padding-top:10px}
+.col.warn{border-color:var(--red)}
+.col.tape{border-color:var(--y)}
+.cnt{font-size:clamp(44px,6vw,64px);font-weight:900;line-height:1;letter-spacing:-.03em}
+.ch{display:flex;align-items:baseline;gap:10px}
+.ch b{font-size:17px}
+.why{font-size:14px;color:var(--sub);margin:6px 0 12px}
+.item{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--bg)}
+.item .t{font-weight:700;overflow-wrap:anywhere}
+.item .s{font-size:14px;color:var(--sub)}
+.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+button{font:inherit;font-size:15px;font-weight:700;min-height:44px;padding:8px 14px;border-radius:8px;border:2px solid var(--ink);background:var(--bg);color:var(--ink);cursor:pointer}
+button.pri{background:var(--ink);color:var(--bg)}
+button.y{background:var(--y);color:#141414;border-color:#141414}
+button.bad{border-color:var(--red);color:var(--red)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid var(--red);outline-offset:2px}
+.empty{padding:14px;border:1px dashed var(--line);border-radius:10px;color:var(--sub);font-size:14px}
+form,.panel{background:var(--panel);border-radius:12px;padding:16px;max-width:760px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media(max-width:600px){.grid2{grid-template-columns:minmax(0,1fr)}}
+label{display:block;font-size:14px;font-weight:700;margin-bottom:4px}
+input,select,textarea{font:inherit;font-size:16px;width:100%;padding:9px 10px;border:1.5px solid color-mix(in srgb,var(--ink) 35%,transparent);border-radius:8px;background:var(--bg);color:var(--ink)}
+textarea{min-height:96px}
+.f{margin-bottom:12px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{min-width:72px}
+.seg button.on{background:var(--ink);color:var(--bg)}
+.seg button.on.bad{background:var(--red);border-color:var(--red);color:#fff}
+.units{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin:10px 0}
+.unit{display:flex;justify-content:space-between;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--bg);font-size:14px}
+.unit button{min-height:36px;padding:4px 8px;font-size:13px}
+.unit.ng{border-color:var(--red)}
+.badge{display:inline-block;font-size:13px;font-weight:700;padding:1px 8px;border-radius:99px;border:1.5px solid currentColor;white-space:nowrap}
+.b-ok{color:var(--ok)}.b-ng{color:var(--red)}.b-due{color:var(--red)}.b-hold{color:var(--sub)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:13px;color:var(--sub);white-space:nowrap}
+td.n{white-space:nowrap}
+.tray{position:fixed;left:0;right:0;bottom:0;background:var(--ink);color:var(--bg);padding:10px max(4vw,16px);display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;z-index:5}
+.tray button{border-color:var(--bg);background:transparent;color:var(--bg);min-height:40px}
+.tray button.y{background:var(--y);color:#141414;border-color:var(--y)}
+.toast{font-size:14px}
+pre{white-space:pre;overflow-x:auto;background:var(--panel);padding:10px;border-radius:8px;font-size:12px;max-height:240px}
+.hide{display:none!important}
+@media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}.stack td{display:flex;justify-content:space-between;gap:12px;border:0;padding:2px 0}.stack td::before{content:attr(data-l);color:var(--sub);font-size:12px}}
+</style></head>
+<style>.tog{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 16px;font-size:14px}.tog .seg button{min-height:38px;font-size:14px}.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}.chips button{min-height:38px;font-size:14px}.chips button.on{background:var(--ink);color:var(--bg)}.src{font-size:12px;color:var(--sub)}</style><style>.busy{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 70%,transparent);display:none;align-items:center;justify-content:center;z-index:20;font-weight:700}.busy.on{display:flex}#login{min-height:70vh;display:flex;align-items:center;justify-content:center}#qr{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:30;padding:16px}#qr.on{display:flex}#qr .box{background:var(--bg);border-radius:12px;padding:14px;width:min(420px,100%)}.chk{display:flex;gap:8px;align-items:center;font-size:15px;margin:4px 0 12px}.chk input{width:22px;height:22px}.strip{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}.strip .item{flex:1 1 260px}</style><body>
+<header>
+ <div class="top"><h1>YS品質ナビ</h1>
+  <div class="meta"><span id="today"></span><label for="who" style="margin:0">担当</label><select id="who"><option>上村</option><option>和田</option></select><button type="button" id="reload" style="min-height:38px;padding:4px 12px;border-color:#141414;color:#141414;background:#fff">更新</button><button type="button" id="logout" style="min-height:38px;padding:4px 12px;border-color:#141414;color:#141414;background:transparent">ログアウト</button></div></div>
+ <nav id="nav"><a href="#todo">今週やること</a><a href="#inbound">入荷検品</a><a href="#record">1台を記録</a><a href="#stock">倉庫にある台</a><a href="#log">履歴</a></nav>
+</header>
+<main>
+<section id="login" class="hide"><div class="panel" style="text-align:center;max-width:420px"><h2>YS品質ナビ</h2><p class="lead">在庫ナビと同じGoogleアカウントでログインしてください。</p><button type="button" class="pri" id="login-btn">Googleでログイン</button></div></section>
+
+<section id="v-todo" class="hide">
+ <h2>今週やること</h2><p class="lead" id="load-at"></p>
+ <div class="tog"><span>定期検品の対象</span><div class="seg" id="scope"></div></div>
+ <div class="board">
+  <div class="col"><div class="ch"><span class="cnt" id="c-plan">0</span><b>入荷予定</b></div><p class="why">在庫ナビで「入庫待ち」。支払ナビで購入済みで、まだ届いていない台です。</p><div id="l-plan"></div></div>
+  <div class="col tape"><div class="ch"><span class="cnt" id="c-wait">0</span><b>入荷検品まち</b></div><p class="why">在庫ナビで「検品待ち」。検品すると在庫ナビが「在庫中」（異常は「不良品」）に変わります。</p><div id="l-wait"></div></div>
+  <div class="col warn"><div class="ch"><span class="cnt" id="c-due">0</span><b>定期検品の期限切れ</b></div><p class="why">最後の検品から3ヶ月を過ぎた、倉庫にある台。</p><div id="l-due"></div></div>
+  <div class="col warn"><div class="ch"><span class="cnt" id="c-bad">0</span><b>不良品（処置まち）</b></div><p class="why">在庫ナビで「不良品」の台。修理・復旧したら記録して在庫中に戻します。</p><div id="l-bad"></div></div>
+ </div>
+ <div class="strip">
+  <div class="item"><div class="t">検品の記録がない台 <span id="c-none"></span></div><div class="s">倉庫にあるのに品質ログに検品が一度もない台。少しずつ埋めていけばOKです。</div><div class="acts"><button type="button" data-a="go-none">一覧を見る</button></div></div>
+  <div class="item"><div class="t">ログの入力が途中 <span id="c-mid"></span></div><div class="s">品質ログで種別か結果が空いている行。</div><div class="acts"><button type="button" data-a="go-mid">片付ける</button></div></div>
+ </div>
+ <div id="mid-box" class="hide" style="margin-top:16px"><h2>ログの入力が途中の行</h2><div id="l-mid"></div></div>
+</section>
+
+<section id="v-inbound" class="hide">
+ <h2>入荷検品</h2><p class="lead">注文を選ぶと台が全部「正常」で並びます。異常の台だけ切り替えてください。QRを読むと、その台の注文が選ばれます。</p>
+ <form id="fin">
+  <div class="grid2"><div class="f"><label for="in-o">注文（検品待ち・入庫待ち）</label><select id="in-o"></select></div><div class="f"><label for="in-d">検品日</label><input id="in-d" type="date"></div></div>
+  <button type="button" data-a="qr" data-for="inbound">QRを読む</button>
+  <div id="units" class="units"></div>
+  <div id="ngs"></div>
+  <button type="submit" class="pri" id="in-save" disabled>登録する</button>
+  <p class="src">登録すると、品質ログに1台1行で追加し、在庫ナビのステータスを「在庫中」（異常は「不良品」）に変えます。入庫日が空の台は検品日を入庫日として入れます。</p>
+ </form>
+</section>
+
+<section id="v-record" class="hide">
+ <h2 id="rec-h">1台を記録</h2><p class="lead">定期検品・返却・修理など、1台ずつの出来事を残します。出庫と廃棄は在庫ナビで入れてください（ここにも自動で反映されます）。</p>
+ <form id="frec">
+  <div class="f"><label for="r-s">Serial</label><div style="display:flex;gap:8px"><input id="r-s" list="dl-s" autocomplete="off"><button type="button" data-a="qr" data-for="record">QR</button></div><div id="r-info" style="font-size:14px;color:var(--sub);margin-top:4px"></div></div>
+  <div class="f"><label>何をした？</label><div class="seg" id="r-t"></div></div>
+  <div class="f"><label>結果</label><div class="seg" id="r-res"></div></div>
+  <div id="w-ng" class="hide"><div class="grid2">
+   <div class="f"><label for="r-sym">症状</label><input id="r-sym" list="dl-sym" placeholder="同じ症状は同じ言葉で"></div>
+   <div class="f"><label for="r-c">原因</label><select id="r-c"></select></div></div>
+   <div class="f"><label for="r-ph">写真URL（Googleフォト）</label><input id="r-ph" inputmode="url"></div></div>
+  <div class="f"><label for="r-act">処置・確認したこと</label><input id="r-act" placeholder="通電確認"></div>
+  <div class="f"><label for="r-n">備考</label><input id="r-n"></div>
+  <label class="chk hide" id="w-st"><input type="checkbox" id="r-st" checked><span id="r-st-t"></span></label>
+  <button type="submit" class="pri">記録する</button> <button type="button" id="r-cancel" class="hide">やめる</button>
+ </form>
+</section>
+
+<section id="v-stock" class="hide">
+ <h2>倉庫にある台 <span id="c-stock" style="font-weight:500"></span></h2>
+ <p class="lead">在庫ナビで「在庫中・検品待ち・引当済・不良品」の台です。</p>
+ <div class="chips" id="st-f"></div>
+ <div class="f" style="max-width:420px"><label for="st-q">さがす（Serial・製品・棚番・注文）</label><input id="st-q" type="search"></div>
+ <div class="scroll"><table class="stack"><thead><tr><th>Serial</th><th>製品</th><th>在庫ナビ</th><th>棚番</th><th>品質</th><th>最終検品</th><th>次回検品</th></tr></thead><tbody id="t-stock"></tbody></table></div>
+</section>
+
+<section id="v-log" class="hide">
+ <h2>履歴</h2>
+ <div class="f" style="max-width:420px"><label for="q">さがす（Serial・注文番号・製品・症状）</label><input id="q" type="search"></div>
+ <div class="scroll"><table class="stack"><thead><tr><th>日付</th><th>Serial</th><th>製品</th><th>種別</th><th>結果</th><th>担当</th><th>備考</th></tr></thead><tbody id="t-log"></tbody></table></div>
+ <p class="note" id="log-more"></p>
+</section>
+</main>
+<div class="tray"><span id="tray-t">読み込み中…</span><span></span></div>
+<div class="busy" id="busy"><span id="busy-t">保存中…</span></div>
+<div id="qr"><div class="box"><div id="qr-reader"></div><button type="button" id="qr-close" style="margin-top:10px;width:100%">とじる</button></div></div>
+<datalist id="dl-s"></datalist><datalist id="dl-sym"></datalist>
+<script>
+{
+// ===== 設定 =====
+const CLIENT_ID='47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
+const SCOPES='https://www.googleapis.com/auth/spreadsheets';
+const INV_ID='1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';   // 調達管理データ（在庫ナビ）
+const LOG_ID='1JdFUk07s9KsBskn3qfYu1pym4uY1xq2evS-5N4xRtXg';   // イベントログ
+const LOG_SHEET='品質イベントログ（倉庫を通り抜けたもの）';
+const INSPECT_MONTHS=3;
+const WH=['在庫中','検品待ち','引当済','不良品'];
+const INSP=['入荷検品','定期検品','処置・修理','返却受入'];
+const TYPES=['定期検品','返却受入','処置・修理','保管報告'];
+const RESULTS=['正常','異常','復旧','保留'];
+const CAUSES=['','部品不良','製造不良','輸送ダメージ','設置・施工','操作・設定','経年・環境','不明'];
+
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s||'').replace(/[\s　]/g,'').toUpperCase().replace(/-0+(\d)/g,'-$1');
+const pad=n=>String(n).padStart(2,'0');
+const ymd=dt=>dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate());
+const TODAY=ymd(new Date());
+const toYmd=v=>{const m=String(v||'').trim().match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);return m?m[1]+'-'+pad(m[2])+'-'+pad(m[3]):''};
+const fmt=d=>d?d.replace(/-/g,'/'):'—';
+const addMonths=(d,m)=>{const x=new Date(d+'T00:00:00');x.setMonth(x.getMonth()+m);return ymd(x)};
+const days=(a,b)=>Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/864e5);
+const ls=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}};
+
+let INV=[],LOG=[],SUP={},LOGBY={},LOADED_AT='';
+let scope=ls('qualityScope')||'all';
+
+// ===== Google ログイン（在庫ナビ・検品ナビと同じ方式。トークンも共有） =====
+let tokenClient=null;
+function showLogin(){document.querySelectorAll('main>section').forEach(s=>s.classList.add('hide'));$('login').classList.remove('hide');$('tray-t').textContent='ログインしてください'}
+function init(){
+ if(typeof gapi==='undefined'||typeof google==='undefined'||!google.accounts){setTimeout(init,100);return}
+ gapi.load('client',async()=>{
+  await gapi.client.init({discoveryDocs:['https://sheets.googleapis.com/$discovery/rest?version=v4']});
+  tokenClient=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SCOPES,callback:r=>{if(r.error){console.error(r);return}ls('lastToken',r.access_token);gapi.client.setToken({access_token:r.access_token});load()}});
+  const t=ls('lastToken');if(t){gapi.client.setToken({access_token:t});load()}else showLogin();
+ });
+}
+$('login-btn').onclick=()=>tokenClient&&tokenClient.requestAccessToken({prompt:'consent'});
+$('logout').onclick=()=>{const t=gapi.client.getToken();if(t)google.accounts.oauth2.revoke(t.access_token);gapi.client.setToken('');try{localStorage.removeItem('lastToken')}catch(e){}showLogin()};
+function authFail(e){const s=e&&(e.status||(e.result&&e.result.error&&e.result.error.code));if(s===401||s===403){try{localStorage.removeItem('lastToken')}catch(x){}showLogin();return true}return false}
+
+// ===== シート読み書き =====
+const V=()=>gapi.client.sheets.spreadsheets.values;
+const getVals=async(id,range)=>(await V().get({spreadsheetId:id,range})).result.values||[];
+const LR=r=>"'"+LOG_SHEET+"'!"+r;
+function busy(on,t){$('busy').classList.toggle('on',on);if(t)$('busy-t').textContent=t}
+
+async function load(){
+ busy(true,'読み込み中…');
+ try{
+  const [inv,arc,log,sup]=await Promise.all([getVals(INV_ID,'在庫!A2:Q'),getVals(INV_ID,'在庫アーカイブ!A2:Q'),getVals(LOG_ID,LR('A2:N')),getVals(INV_ID,'サプライヤー!A2:B')]);
+  SUP={};sup.forEach(r=>{if(r[0])SUP[String(Math.round(Number(r[0])))||r[0]]=r[1]||''});
+  const mk=(r,arch)=>({id:r[0]||'',s:(r[1]||'').trim(),key:norm(r[1]),cat:r[2]||'',p:r[3]||'',o:r[5]!==undefined&&r[5]!==''?(r[4]||'')+'-'+r[5]:(r[4]||''),recv:toYmd(r[7]),st:arch?'出庫済':(r[8]||'入庫待ち').replace(/^(発送済|引渡済)$/,'出庫済').replace(/^不具合$/,'不良品'),ship:toYmd(r[9]),shelf:r[14]||'',sup:SUP[String(Math.round(Number(r[16])))]||'',arch});
+  INV=inv.filter(r=>r[1]||r[3]).map(r=>mk(r,false)).concat(arc.filter(r=>r[1]).map(r=>mk(r,true)));
+  LOG=log.map((r,i)=>({row:i+2,d:toYmd(r[0]),s:(r[1]||'').trim(),o:r[2]||'',sup:r[3]||'',p:r[4]||'',t:r[5]||'',sym:r[6]||'',cause:r[7]||'',act:r[8]||'',res:r[9]||'',cls:r[10]||'',who:r[11]||'',photo:r[12]||'',note:r[13]||''})).filter(r=>r.s||r.p||r.d);
+  LOGBY={};LOG.forEach(r=>{const k=norm(r.s);if(k)(LOGBY[k]=LOGBY[k]||[]).push(r)});Object.values(LOGBY).forEach(a=>a.sort((x,y)=>(x.d||'').localeCompare(y.d||'')));
+  LOADED_AT=new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+  $('login').classList.add('hide');renderAll();route();
+  $('tray-t').textContent=LOADED_AT+' に読み込みました（倉庫にある台 '+wh().length+'台・品質ログ '+LOG.length+'行）';
+ }catch(e){console.error(e);if(!authFail(e))$('tray-t').textContent='読み込みに失敗しました。「更新」を押してください';}
+ busy(false);
+}
+$('reload').onclick=load;
+
+async function appendLog(rows){
+ const vals=rows.map(r=>[fmt(r.d),r.s,r.o,r.sup,r.p,r.t,r.sym,r.cause,r.act,r.res,r.cls||'',r.who,r.photo,r.note]);
+ await V().append({spreadsheetId:LOG_ID,range:LR('A:N'),valueInputOption:'USER_ENTERED',insertDataOption:'INSERT_ROWS',resource:{values:vals}});
+}
+async function editLog(r){
+ const cur=await getVals(LOG_ID,LR('B'+r.row));
+ if(norm((cur[0]||[])[0])!==norm(r.s0))throw new Error('品質ログの'+r.row+'行目が変わっています。「更新」してからやり直してください');
+ await V().update({spreadsheetId:LOG_ID,range:LR('A'+r.row+':N'+r.row),valueInputOption:'USER_ENTERED',resource:{values:[[fmt(r.d),r.s,r.o,r.sup,r.p,r.t,r.sym,r.cause,r.act,r.res,r.cls||'',r.who,r.photo,r.note]]}});
+}
+// 在庫ナビのステータス変更：IDで行を探して I列（必要なら H列=入庫日）だけ書き換える（検品ナビと同じ方式）
+async function setStatus(list){
+ if(!list.length)return;
+ const ids=await getVals(INV_ID,'在庫!A2:H');
+ const data=[];
+ list.forEach(u=>{const i=ids.findIndex(r=>String(r[0])===String(u.id));if(i<0)return;const row=i+2;data.push({range:'在庫!I'+row,values:[[u.st]]});if(u.recv&&!(ids[i][7]))data.push({range:'在庫!H'+row,values:[[u.recv]]})});
+ if(data.length)await V().batchUpdate({spreadsheetId:INV_ID,resource:{valueInputOption:'USER_ENTERED',data}});
+}
+async function save(fn,msg){
+ busy(true,'保存中…');
+ try{await fn();await load();$('tray-t').textContent=msg}
+ catch(e){console.error(e);busy(false);if(!authFail(e))$('tray-t').textContent='保存できませんでした：'+(e.message||(e.result&&e.result.error&&e.result.error.message)||'通信エラー')}
+}
+
+// ===== 集計 =====
+const who=()=>$('who').value;
+$('who').value=ls('qualityUser')||'上村';$('who').onchange=()=>ls('qualityUser',$('who').value);
+const wh=()=>INV.filter(x=>!x.arch&&x.s&&WH.includes(x.st));
+const inScope=x=>scope==='all'||x.st!=='引当済';
+function q(x){
+ const ev=LOGBY[x.key]||[];
+ const ins=ev.filter(r=>r.d&&INSP.includes(r.t)).map(r=>r.d).sort();
+ const li=ins.length?ins[ins.length-1]:'';
+ const lr=ev.slice().reverse().find(r=>r.res);
+ return {ev,li,nx:li?addMonths(li,INSPECT_MONTHS):'',res:lr?lr.res:'',sym:(ev.slice().reverse().find(r=>r.sym)||{}).sym||''};
+}
+const findItem=v=>{const k=norm(v);return INV.find(x=>!x.arch&&(x.key===k||String(x.id)===String(v).trim()))||INV.find(x=>x.key===k||String(x.id)===String(v).trim())};
+const badge=(t,c)=>t?'<span class="badge '+c+'">'+esc(t)+'</span>':'';
+const qBadge=(o,due)=>!o.li?badge('記録なし','b-hold'):due?badge('要検品','b-due'):badge(o.res||'正常',o.res==='異常'?'b-ng':o.res==='保留'?'b-hold':'b-ok');
+function group(list,f){const g={};list.forEach(x=>{const k=f(x);(g[k]=g[k]||[]).push(x)});return Object.entries(g).sort((a,b)=>b[1].length-a[1].length)}
+const sumLine=a=>esc(a[0].s)+(a.length>1?' 〜 '+esc(a[a.length-1].s):'');
+const pname=a=>esc(a[0].p)+(new Set(a.map(x=>x.p)).size>1?' ほか':'');
+let GROUPS={};
+
+function renderTodo(){
+ const W=wh(),core=W.filter(x=>x.st!=='引当済').length;
+ $('load-at').textContent=LOADED_AT+' 時点。作業の前に「更新」を押すと最新になります。';
+ $('scope').innerHTML=[['all','引当済もふくむ（'+W.length+'台）'],['core','在庫中・検品待ち・不良品だけ（'+core+'台）']].map(([v,l])=>'<button type="button" data-scope="'+v+'" class="'+(scope===v?'on':'')+'">'+esc(l)+'</button>').join('');
+ const plan=INV.filter(x=>!x.arch&&x.s&&x.st==='入庫待ち');$('c-plan').textContent=plan.length;
+ $('l-plan').innerHTML=plan.length?group(plan,x=>x.o||'注文番号なし').slice(0,8).map(([o,a])=>'<div class="item"><div class="t">'+esc(o)+'・'+pname(a)+' × '+a.length+'台</div><div class="s">'+esc(a[0].sup||'')+'</div><div class="acts"><button type="button" data-a="open-in" data-o="'+esc(o+'|入庫待ち')+'">届いたので検品する</button></div></div>').join(''):'<div class="empty">入荷予定はありません。</div>';
+ const wait=W.filter(x=>x.st==='検品待ち');$('c-wait').textContent=wait.length;
+ $('l-wait').innerHTML=wait.length?group(wait,x=>x.o||'注文番号なし').map(([o,a])=>'<div class="item"><div class="t">'+esc(o)+'・'+pname(a)+' × '+a.length+'台</div><div class="s">'+sumLine(a)+'</div><div class="acts"><button type="button" class="y" data-a="open-in" data-o="'+esc(o+'|検品待ち')+'">この注文を検品する</button></div></div>').join(''):'<div class="empty">検品待ちはありません。</div>';
+ const due=W.filter(x=>x.st!=='検品待ち'&&inScope(x)).map(x=>({x,...q(x)})).filter(o=>o.li&&o.nx<=TODAY).sort((a,b)=>a.nx.localeCompare(b.nx));
+ $('c-due').textContent=due.length;
+ $('l-due').innerHTML=due.length?due.slice(0,20).map(o=>'<div class="item"><div class="t">'+esc(o.x.s)+'</div><div class="s">'+esc(o.x.p)+'・'+esc(o.x.st)+(o.x.shelf?'・棚 '+esc(o.x.shelf):'')+'・最終検品 '+esc(fmt(o.li))+'・<b style="color:var(--red)">'+days(o.nx,TODAY)+'日超過</b></div><div class="acts"><button type="button" class="y" data-a="ok" data-id="'+esc(o.x.id)+'">検品した・正常</button><button type="button" class="bad" data-a="ng" data-id="'+esc(o.x.id)+'">異常あり</button></div></div>').join('')+(due.length>20?'<p class="note">ほか'+(due.length-20)+'台は「倉庫にある台」の「要検品」で見られます</p>':''):'<div class="empty">期限切れはありません。</div>';
+ const bad=W.filter(x=>x.st==='不良品');$('c-bad').textContent=bad.length;
+ $('l-bad').innerHTML=bad.length?bad.map(x=>{const o=q(x);return '<div class="item"><div class="t">'+esc(x.s)+'</div><div class="s">'+esc(x.p)+(o.sym?'・'+esc(o.sym):'')+'</div><div class="acts"><button type="button" data-a="fix" data-id="'+esc(x.id)+'">処置・修理を記録</button></div></div>'}).join(''):'<div class="empty">不良品はありません。</div>';
+ const none=W.filter(x=>x.st!=='検品待ち'&&!q(x).li);$('c-none').textContent=none.length+'台';
+ const mid=LOG.filter(r=>(r.s||r.p)&&(!r.t||!r.res)&&r.res!=='保留');$('c-mid').textContent=mid.length+'行';
+ const gm=group(mid,r=>(r.d||'')+'|'+(r.o||'')+'|'+(r.p||'')+'|'+(r.s?1:0));GROUPS.mid=Object.fromEntries(gm);
+ $('l-mid').innerHTML=gm.length?gm.map(([k,a])=>{const r=a[0];return '<div class="item"><div class="t">'+esc(r.p||'製品名なし')+' × '+a.length+'行</div><div class="s">'+esc(fmt(r.d))+'・'+esc(r.o||'注文番号なし')+(r.s?'・'+sumLine(a):'・<b>Serialが空</b>')+'</div><div class="acts">'+(r.s?'<button type="button" class="y" data-a="bulk" data-g="'+esc(k)+'">まとめて入荷検品・正常に</button>':'')+'<button type="button" data-a="edit" data-row="'+r.row+'">1行ずつ直す</button></div></div>'}).join(''):'<div class="empty">途中の行はありません。</div>';
+}
+
+document.addEventListener('click',e=>{
+ const sc=e.target.closest('button[data-scope]');if(sc){scope=sc.dataset.scope;ls('qualityScope',scope);renderTodo();return}
+ const b=e.target.closest('button[data-a]');if(!b)return;
+ const a=b.dataset.a,x=b.dataset.id?INV.find(i=>String(i.id)===b.dataset.id):null;
+ if(a==='ok'&&x)save(()=>appendLog([row(x,{t:'定期検品',res:'正常',act:'通電確認'})]),'定期検品（正常）を記録しました：'+x.s);
+ if(a==='ng'&&x)openRec({s:x.s,t:'定期検品',res:'異常'});
+ if(a==='fix'&&x)openRec({s:x.s,t:'処置・修理',res:'復旧'});
+ if(a==='open-in'){location.hash='inbound';fillOrders();$('in-o').value=b.dataset.o;loadUnits()}
+ if(a==='go-none'){SF='記録なし';location.hash='stock';renderStock()}
+ if(a==='go-mid'){$('mid-box').classList.toggle('hide')}
+ if(a==='bulk'){const g=GROUPS.mid[b.dataset.g]||[];save(async()=>{for(const r of g)await editLog(Object.assign({},r,{s0:r.s,t:r.t||'入荷検品',res:r.res||'正常',who:r.who||who()}))},g.length+'行を入荷検品・正常にしました')}
+ if(a==='edit'){const r=LOG.find(z=>String(z.row)===b.dataset.row);if(r)openRec({s:r.s,t:r.t||'入荷検品',res:r.res||'正常',edit:r})}
+ if(a==='qr')openQR(b.dataset.for);
+});
+const row=(x,o)=>Object.assign({d:TODAY,s:x.s,o:x.o,sup:x.sup,p:x.p,t:'',sym:'',cause:'',act:'',res:'',cls:'',who:who(),photo:'',note:''},o);
+
+// ===== 1台を記録 =====
+let REC={};
+function seg(el,opts,cur,cb,bad){el.innerHTML=opts.map(v=>'<button type="button" class="'+(v===cur?'on':'')+(v===bad?' bad':'')+'" data-v="'+esc(v)+'">'+esc(v)+'</button>').join('');el.onclick=e=>{const t=e.target.closest('button');if(t)cb(t.dataset.v)}}
+function stChange(x){
+ if(!x||x.arch)return null;
+ if(REC.res==='異常'&&['在庫中','引当済','検品待ち'].includes(x.st))return {st:'不良品',label:'在庫ナビのステータスを「不良品」にする（いまは「'+x.st+'」）'};
+ if((REC.res==='復旧'||REC.res==='正常')&&x.st==='不良品')return {st:'在庫中',label:'在庫ナビのステータスを「在庫中」に戻す'};
+ return null;
+}
+function drawRec(){
+ seg($('r-t'),REC.edit?['入荷検品'].concat(TYPES):TYPES,REC.t,v=>{REC.t=v;drawRec()});
+ seg($('r-res'),RESULTS,REC.res,v=>{REC.res=v;drawRec()},'異常');
+ $('w-ng').classList.toggle('hide',!(REC.res==='異常'||REC.t==='返却受入'));
+ const x=$('r-s').value.trim()?findItem($('r-s').value):null;
+ $('r-info').textContent=$('r-s').value.trim()?(x?x.p+'・在庫ナビ「'+x.st+'」'+(x.arch?'（アーカイブ済み。返却なら在庫ナビで戻してください）':'')+(x.shelf?'・棚 '+x.shelf:'')+'・最終検品 '+fmt(q(x).li):'在庫ナビに見つからないSerialです（表記を確認してください）'):'';
+ const c=REC.edit?null:stChange(x);$('w-st').classList.toggle('hide',!c);if(c)$('r-st-t').textContent=c.label;
+ $('rec-h').textContent=REC.edit?'途中の行を直す（品質ログ '+REC.edit.row+'行目）':'1台を記録';
+ $('r-cancel').classList.toggle('hide',!REC.edit);
+}
+function openRec(o,go=true){REC={t:o.t||'定期検品',res:o.res??'正常',edit:o.edit||null};$('r-s').value=o.s||'';const e=o.edit||{};$('r-sym').value=e.sym||'';$('r-c').value=e.cause||'';$('r-ph').value=e.photo||'';$('r-act').value=e.act||(REC.t==='定期検品'?'通電確認':'');$('r-n').value=e.note||'';$('r-st').checked=true;if(go)location.hash='record';drawRec()}
+$('r-c').innerHTML=CAUSES.map(c=>'<option value="'+esc(c)+'">'+(c||'（わからない・あとで）')+'</option>').join('');
+$('r-s').addEventListener('input',drawRec);
+$('r-cancel').onclick=()=>{openRec({},false);location.hash='todo'};
+$('frec').addEventListener('submit',e=>{
+ e.preventDefault();const sv=$('r-s').value.trim();if(!sv){$('r-s').focus();return}
+ const x=findItem(sv);
+ const v={t:REC.t,res:REC.res,sym:$('r-sym').value.trim(),cause:$('r-c').value,photo:$('r-ph').value.trim(),act:$('r-act').value.trim(),note:$('r-n').value.trim()};
+ if(REC.edit){const r=REC.edit;save(()=>editLog(Object.assign({},r,v,{s0:r.s,s:sv,who:r.who||who()})),'品質ログ '+r.row+'行目を直しました').then(()=>{openRec({},false);location.hash='todo'});return}
+ const c=stChange(x),doSt=c&&$('r-st').checked;
+ const r=x?row(x,Object.assign({},v,{s:x.s})):row({s:sv,o:'',sup:'',p:''},v);
+ save(async()=>{await appendLog([r]);if(doSt)await setStatus([{id:x.id,st:c.st}])},REC.t+'を記録しました：'+sv+(doSt?'（在庫ナビ→'+c.st+'）':'')).then(()=>{openRec({},false);location.hash='todo'});
+});
+
+// ===== 入荷検品 =====
+let UNITS=[];
+$('in-d').value=TODAY;
+const okey=x=>(x.o||'注文番号なし')+'|'+x.st;
+function fillOrders(){
+ const L=INV.filter(x=>!x.arch&&x.s&&(x.st==='検品待ち'||x.st==='入庫待ち'));
+ const os=group(L,okey).sort((a,b)=>(a[0].endsWith('検品待ち')?0:1)-(b[0].endsWith('検品待ち')?0:1));const cur=$('in-o').value;
+ $('in-o').innerHTML='<option value="">選んでください</option>'+os.map(([k,a])=>'<option value="'+esc(k)+'">'+esc(a[0].st)+'：'+esc(a[0].o||'注文番号なし')+'・'+esc(a[0].p)+(new Set(a.map(x=>x.p)).size>1?' ほか':'')+'（'+a.length+'台）</option>').join('');
+ if(os.some(([k])=>k===cur))$('in-o').value=cur;
+}
+function loadUnits(){const k=$('in-o').value;UNITS=INV.filter(x=>!x.arch&&x.s&&okey(x)===k).map(x=>({x,ng:false,sym:'',cause:''}));drawUnits()}
+$('in-o').addEventListener('change',loadUnits);
+function drawUnits(){
+ $('units').innerHTML=UNITS.map((u,i)=>'<div class="unit'+(u.ng?' ng':'')+'"><span><b>'+esc(u.x.s||'(Serialなし)')+'</b><br><span class="src">'+esc(u.x.p)+'・'+esc(u.x.st)+'</span></span><button type="button" class="'+(u.ng?'bad':'')+'" data-u="'+i+'">'+(u.ng?'異常':'正常')+'</button></div>').join('');
+ $('ngs').innerHTML=UNITS.map((u,i)=>u.ng?'<div class="panel" style="margin:8px 0;padding:10px"><b style="color:var(--red)">'+esc(u.x.s)+' の異常</b><div class="grid2"><div><label for="ng-s'+i+'">症状</label><input id="ng-s'+i+'" data-ns="'+i+'" list="dl-sym" value="'+esc(u.sym)+'"></div><div><label for="ng-c'+i+'">原因</label><select id="ng-c'+i+'" data-nc="'+i+'">'+CAUSES.map(c=>'<option'+(c===u.cause?' selected':'')+' value="'+esc(c)+'">'+(c||'（あとで）')+'</option>').join('')+'</select></div></div></div>':'').join('');
+ const ng=UNITS.filter(u=>u.ng).length;
+ $('in-save').disabled=!UNITS.length;
+ $('in-save').textContent=UNITS.length?UNITS.length+'台を登録する（正常 '+(UNITS.length-ng)+'・異常 '+ng+'）':'登録する';
+}
+$('units').onclick=e=>{const b=e.target.closest('button[data-u]');if(b){const u=UNITS[+b.dataset.u];u.ng=!u.ng;drawUnits()}};
+$('ngs').oninput=e=>{const t=e.target;if(t.dataset.ns)UNITS[+t.dataset.ns].sym=t.value;if(t.dataset.nc)UNITS[+t.dataset.nc].cause=t.value};
+$('ngs').onchange=$('ngs').oninput;
+$('fin').addEventListener('submit',e=>{
+ e.preventDefault();if(!UNITS.length)return;
+ const d=$('in-d').value||TODAY,list=UNITS.slice(),n=list.length;
+ save(async()=>{
+  await appendLog(list.map(u=>row(u.x,{d,t:'入荷検品',res:u.ng?'異常':'正常',sym:u.ng?u.sym:'',cause:u.ng?u.cause:'',act:'通電確認'})));
+  await setStatus(list.map(u=>({id:u.x.id,st:u.ng?'不良品':'在庫中',recv:d})));
+ },n+'台の入荷検品を登録しました（在庫ナビのステータスも更新）').then(()=>{UNITS=[];fillOrders();drawUnits()});
+});
+
+// ===== 倉庫にある台 =====
+let SF='すべて';
+function renderStock(){
+ const W=wh().map(x=>({x,...q(x)})),qq=$('st-q').value.trim().toLowerCase();
+ const isDue=o=>o.li&&o.nx<=TODAY;
+ const F={'すべて':()=>true,'在庫中':o=>o.x.st==='在庫中','検品待ち':o=>o.x.st==='検品待ち','引当済':o=>o.x.st==='引当済','不良品':o=>o.x.st==='不良品','要検品':isDue,'記録なし':o=>!o.li&&o.x.st!=='検品待ち'};
+ $('st-f').innerHTML=Object.keys(F).map(f=>'<button type="button" data-sf="'+esc(f)+'" class="'+(SF===f?'on':'')+'">'+esc(f)+' '+W.filter(F[f]).length+'</button>').join('');
+ const L=W.filter(F[SF]||F['すべて']).filter(o=>!qq||[o.x.s,o.x.p,o.x.shelf,o.x.o].join(' ').toLowerCase().includes(qq)).sort((a,b)=>(a.nx||'0').localeCompare(b.nx||'0'));
+ $('c-stock').textContent=W.length+'台';
+ $('t-stock').innerHTML=L.map(o=>'<tr><td data-l="Serial"><b>'+esc(o.x.s)+'</b></td><td data-l="製品">'+esc(o.x.p)+'</td><td data-l="在庫ナビ">'+esc(o.x.st)+'</td><td data-l="棚番">'+esc(o.x.shelf||'—')+'</td><td data-l="品質">'+qBadge(o,isDue(o))+'</td><td data-l="最終検品" class="n">'+esc(fmt(o.li))+'</td><td data-l="次回検品" class="n">'+esc(fmt(o.nx))+'</td></tr>').join('')||'<tr><td colspan="7">該当する台はありません</td></tr>';
+}
+$('st-f').onclick=e=>{const b=e.target.closest('button[data-sf]');if(b){SF=b.dataset.sf;renderStock()}};
+$('st-q').addEventListener('input',renderStock);
+
+// ===== 履歴 =====
+function renderLog(){
+ const qq=$('q').value.trim().toLowerCase();
+ let L=LOG.filter(r=>!qq||[r.s,r.o,r.p,r.sym,r.note].join(' ').toLowerCase().includes(qq)).sort((a,b)=>(b.d||'').localeCompare(a.d||'')||b.row-a.row);
+ const n=L.length;L=L.slice(0,200);
+ $('t-log').innerHTML=L.map(r=>'<tr><td data-l="日付" class="n">'+esc(fmt(r.d))+'</td><td data-l="Serial">'+esc(r.s||'—')+'</td><td data-l="製品">'+esc(r.p)+'</td><td data-l="種別">'+esc(r.t||'—')+'</td><td data-l="結果">'+(r.res?badge(r.res,r.res==='異常'?'b-ng':r.res==='保留'?'b-hold':'b-ok'):'—')+'</td><td data-l="担当">'+esc(r.who)+'</td><td data-l="備考">'+esc(((r.sym?r.sym+' ':'')+(r.note||'')).slice(0,60))+'</td></tr>').join('');
+ $('log-more').textContent=n>200?n+'件中、新しい200件を表示':n+'件';
+}
+$('q').addEventListener('input',renderLog);
+
+// ===== QR（在庫ナビのラベル：IDまたはSerial） =====
+let QR=null,QRFOR='';
+function openQR(f){
+ if(typeof Html5Qrcode==='undefined'){$('tray-t').textContent='QR読み取りを読み込めませんでした';return}
+ QRFOR=f;$('qr').classList.add('on');QR=new Html5Qrcode('qr-reader');
+ QR.start({facingMode:'environment'},{fps:10,qrbox:{width:240,height:240}},txt=>{closeQR();onScan(txt)},()=>{}).catch(err=>{$('qr-reader').textContent='カメラを起動できません：'+(err.message||err)});
+}
+function closeQR(){if(QR){QR.stop().catch(()=>{});QR=null}$('qr').classList.remove('on')}
+$('qr-close').onclick=closeQR;
+function onScan(txt){
+ const x=findItem(txt);if(!x){$('tray-t').textContent='在庫ナビに見つかりません：'+txt;return}
+ if(QRFOR==='inbound'){fillOrders();$('in-o').value=okey(x);loadUnits();if(!UNITS.length)$('tray-t').textContent=x.s+' は検品待ち・入庫待ちではありません（いまは「'+x.st+'」）'}
+ else{$('r-s').value=x.s;drawRec()}
+ $('tray-t').textContent='読み取りました：'+x.s;
+}
+
+// ===== 画面 =====
+function fillLists(){
+ $('dl-s').innerHTML=wh().map(x=>'<option value="'+esc(x.s)+'">').join('');
+ $('dl-sym').innerHTML=[...new Set(LOG.map(r=>r.sym).filter(Boolean))].map(v=>'<option value="'+esc(v)+'">').join('');
+}
+function renderAll(){fillLists();fillOrders();renderTodo();renderStock();renderLog();if(UNITS.length)loadUnits()}
+const VIEWS=['todo','inbound','record','stock','log'];
+function route(){if(!INV.length&&!LOG.length)return;const h=location.hash.slice(1);const v=VIEWS.includes(h)?h:'todo';VIEWS.forEach(x=>$('v-'+x).classList.toggle('hide',x!==v));document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+v));if(v==='record')drawRec()}
+addEventListener('hashchange',route);
+$('today').textContent='今日 '+fmt(TODAY);
+openRec({},false);
+init();
+}
+</script>
+</body></html>
