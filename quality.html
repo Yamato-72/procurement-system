@@ -134,8 +134,8 @@ pre{white-space:pre;overflow-x:auto;background:var(--panel);padding:10px;border-
  <h2>倉庫にある製品 <span id="c-stock" style="font-weight:500"></span></h2>
  <p class="lead">在庫ナビで「在庫中・検品待ち・引当済・不良品」の製品です。</p>
  <div class="chips" id="st-f"></div>
- <div class="f" style="max-width:420px"><label for="st-q">さがす（Serial・製品・棚番・注文）</label><input id="st-q" type="search"></div>
- <div class="scroll"><table class="stack"><thead><tr><th>Serial</th><th>製品</th><th>在庫ナビ</th><th>棚番</th><th>品質</th><th>最終検品</th><th>次回検品</th></tr></thead><tbody id="t-stock"></tbody></table></div>
+ <div class="f" style="max-width:420px"><label for="st-q">さがす（Serial・製品・発注番号・引当先・棚番・備考）</label><input id="st-q" type="search"></div>
+ <div class="scroll"><table class="stack"><thead><tr><th>Serial</th><th>製品</th><th>発注番号</th><th>引当先</th><th>在庫ナビ</th><th>棚番</th><th>品質</th><th>最終検品</th><th>次回検品</th><th>備考</th></tr></thead><tbody id="t-stock"></tbody></table></div>
 </section>
 
 <section id="v-log" class="hide">
@@ -214,7 +214,7 @@ async function load(){
   const [inv,arc,log,sup,conf]=await Promise.all([getVals(INV_ID,'在庫!A2:Q'),getVals(INV_ID,'在庫アーカイブ!A2:Q'),getVals(LOG_ID,LR('A2:N')),getVals(INV_ID,'サプライヤー!A2:B'),getVals(LOG_ID,"'設定'!A1:B").catch(()=>[])]);
   CONF=conf;const pr=conf.find(r=>r[0]==='担当者');PEOPLE=pr&&pr[1]?pr[1].split(/[／\/、,]/).map(v=>v.trim()).filter(Boolean):['上村'];fillWho();
   SUP={};sup.forEach(r=>{if(r[0])SUP[String(Math.round(Number(r[0])))||r[0]]=r[1]||''});
-  const mk=(r,arch)=>({id:r[0]||'',s:(r[1]||'').trim(),key:norm(r[1]),cat:r[2]||'',p:r[3]||'',o:r[5]!==undefined&&r[5]!==''?(r[4]||'')+'-'+r[5]:(r[4]||''),od:toYmd(r[6]),recv:toYmd(r[7]),st:arch?'出庫済':(r[8]||'入庫待ち').replace(/^(発送済|引渡済)$/,'出庫済').replace(/^不具合$/,'不良品'),ship:toYmd(r[9]),shelf:r[14]||'',sup:SUP[String(Math.round(Number(r[16])))]||'',arch});
+  const mk=(r,arch)=>({id:r[0]||'',s:(r[1]||'').trim(),key:norm(r[1]),cat:r[2]||'',p:r[3]||'',o:r[5]!==undefined&&r[5]!==''?(r[4]||'')+'-'+r[5]:(r[4]||''),od:toYmd(r[6]),recv:toYmd(r[7]),st:arch?'出庫済':(r[8]||'入庫待ち').replace(/^(発送済|引渡済)$/,'出庫済').replace(/^不具合$/,'不良品'),ship:toYmd(r[9]),al:(r[11]!==undefined&&r[11]!=='')?(r[10]||'')+'-'+r[11]:'',shelf:r[14]||'',memo:r[13]||'',sup:SUP[String(Math.round(Number(r[16])))]||'',arch});
   INV=inv.filter(r=>r[1]||r[3]).map(r=>mk(r,false)).concat(arc.filter(r=>r[1]).map(r=>mk(r,true)));
   LOG=log.map((r,i)=>({row:i+2,d:toYmd(r[0]),s:(r[1]||'').trim(),o:r[2]||'',sup:r[3]||'',p:r[4]||'',t:r[5]||'',sym:r[6]||'',cause:r[7]||'',act:r[8]||'',res:r[9]||'',cls:r[10]||'',who:r[11]||'',photo:r[12]||'',note:r[13]||''})).filter(r=>r.s||r.p||r.d);
   LOGBY={};LOG.forEach(r=>{const k=norm(r.s);if(k)(LOGBY[k]=LOGBY[k]||[]).push(r)});Object.values(LOGBY).forEach(a=>a.sort((x,y)=>(x.d||'').localeCompare(y.d||'')));
@@ -278,7 +278,7 @@ function q(x){
  const ins=ev.filter(r=>r.d&&INSP.includes(r.t)).map(r=>r.d).sort();
  const li=ins.length?ins[ins.length-1]:'';
  const lr=ev.slice().reverse().find(r=>r.res);
- return {ev,li,nx:li?addMonths(li,INSPECT_MONTHS):'',res:lr?lr.res:'',sym:(ev.slice().reverse().find(r=>r.sym)||{}).sym||''};
+ return {ev,li,nx:li?addMonths(li,INSPECT_MONTHS):'',res:lr?lr.res:'',sym:(ev.slice().reverse().find(r=>r.sym)||{}).sym||'',qnote:(ev.slice().reverse().find(r=>r.note||r.sym)||{})};
 }
 const findItem=v=>{const k=norm(v);return INV.find(x=>!x.arch&&(x.key===k||String(x.id)===String(v).trim()))||INV.find(x=>x.key===k||String(x.id)===String(v).trim())};
 const badge=(t,c)=>t?'<span class="badge '+c+'">'+esc(t)+'</span>':'';
@@ -327,6 +327,7 @@ document.addEventListener('click',e=>{
  if(a==='bulk'){const g=GROUPS.mid[b.dataset.g]||[];save(async()=>{for(const r of g)await editLog(Object.assign({},r,{s0:r.s,t:r.t||'入荷検品',res:r.res||'正常',who:r.who||who()}))},g.length+'行を入荷検品・正常にしました')}
  if(a==='edit'){const r=LOG.find(z=>String(z.row)===b.dataset.row);if(r)openRec({s:r.s,t:r.t||'入荷検品',res:r.res||'正常',edit:r})}
  if(a==='qr')openQR(b.dataset.for);
+ if(a==='rec-this'){const y=INV.find(i=>String(i.id)===b.dataset.sid);if(y)openRec({s:y.s})}
 });
 const row=(x,o)=>Object.assign({d:TODAY,s:x.s,o:x.o,sup:x.sup,p:x.p,t:'',sym:'',cause:'',act:'',res:'',cls:'',who:who(),photo:'',note:''},o);
 
@@ -398,16 +399,37 @@ $('fin').addEventListener('submit',e=>{
 });
 
 // ===== 倉庫にある製品 =====
+// 備考：在庫ナビの備考（製品そのもののメモ）と、品質ログの最新の備考・症状を並べて出す
+function memoCell(o){
+ const a=[];if(o.x.memo)a.push('<div>'+esc(o.x.memo)+'</div>');
+ const n=o.qnote||{};const t=[n.sym,n.note].filter(Boolean).join('／');
+ if(t)a.push('<div class="src">品質 '+esc(fmt(n.d))+'：'+esc(t.length>60?t.slice(0,60)+'…':t)+'</div>');
+ return a.join('')||'—';
+}
 let SF='すべて';
 function renderStock(){
  const W=wh().map(x=>({x,...q(x)})),qq=$('st-q').value.trim().toLowerCase();
  const isDue=o=>o.li&&o.nx<=TODAY;
  const F={'すべて':()=>true,'在庫中':o=>o.x.st==='在庫中','検品待ち':o=>o.x.st==='検品待ち','引当済':o=>o.x.st==='引当済','不良品':o=>o.x.st==='不良品','要検品':isDue,'記録なし':o=>!o.li&&o.x.st!=='検品待ち'};
  $('st-f').innerHTML=Object.keys(F).map(f=>'<button type="button" data-sf="'+esc(f)+'" class="'+(SF===f?'on':'')+'">'+esc(f)+' '+W.filter(F[f]).length+'</button>').join('');
- const L=W.filter(F[SF]||F['すべて']).filter(o=>!qq||[o.x.s,o.x.p,o.x.shelf,o.x.o].join(' ').toLowerCase().includes(qq)).sort((a,b)=>(a.nx||'0').localeCompare(b.nx||'0'));
+ const L=W.filter(F[SF]||F['すべて']).filter(o=>!qq||[o.x.s,o.x.p,o.x.shelf,o.x.o,o.x.al,o.x.memo,o.qnote.note,o.qnote.sym].join(' ').toLowerCase().includes(qq)).sort((a,b)=>(a.nx||'0').localeCompare(b.nx||'0'));
  $('c-stock').textContent=W.length+'点';
- $('t-stock').innerHTML=L.map(o=>'<tr><td data-l="Serial"><b>'+esc(o.x.s)+'</b></td><td data-l="製品">'+esc(o.x.p)+'</td><td data-l="在庫ナビ">'+esc(o.x.st)+'</td><td data-l="棚番">'+esc(o.x.shelf||'—')+'</td><td data-l="品質">'+qBadge(o,isDue(o))+'</td><td data-l="最終検品" class="n">'+esc(fmt(o.li))+'</td><td data-l="次回検品" class="n">'+esc(fmt(o.nx))+'</td></tr>').join('')||'<tr><td colspan="7">該当する製品はありません</td></tr>';
+ $('t-stock').innerHTML=L.map(o=>'<tr class="srow" data-sid="'+esc(o.x.id)+'" style="cursor:pointer"><td data-l="Serial"><b>'+esc(o.x.s)+'</b> <span class="src">'+(OPEN===String(o.x.id)?'▲':'▼')+'</span></td><td data-l="製品">'+esc(o.x.p)+'</td><td data-l="発注番号" class="n">'+esc(o.x.o||'—')+'</td><td data-l="引当先" class="n">'+esc(o.x.al||'—')+'</td><td data-l="在庫ナビ">'+esc(o.x.st)+'</td><td data-l="棚番">'+esc(o.x.shelf||'—')+'</td><td data-l="品質">'+qBadge(o,isDue(o))+'</td><td data-l="最終検品" class="n">'+esc(fmt(o.li))+'</td><td data-l="次回検品" class="n">'+esc(fmt(o.nx))+'</td><td data-l="備考" style="min-width:12em">'+memoCell(o)+'</td></tr>'+(OPEN===String(o.x.id)?detail(o):'')).join('')||'<tr><td colspan="10">該当する製品はありません</td></tr>';
 }
+let OPEN='';
+// 行をタップすると、その製品の品質の記録をすべて開く
+function detail(o){
+ const x=o.x,ev=o.ev.slice().reverse();
+ const link=u=>/^https:\/\//.test(u)?'<a href="'+esc(u)+'" target="_blank" rel="noopener">写真を見る</a>':'';
+ const rows=ev.map(e=>'<div style="padding:8px 0;border-top:1px solid var(--line)"><b>'+esc(fmt(e.d))+'</b>　'+esc(e.t||'種別なし')+'　'+(e.res?badge(e.res,e.res==='異常'?'b-ng':e.res==='保留'?'b-hold':'b-ok'):'')+(e.who?'　<span class="src">'+esc(e.who)+'</span>':'')+
+  (e.sym?'<div>症状：'+esc(e.sym)+(e.cause?'（'+esc(e.cause)+'）':'')+'</div>':'')+(e.act?'<div>処置：'+esc(e.act)+'</div>':'')+(e.note?'<div>備考：'+esc(e.note)+'</div>':'')+(e.photo?'<div>'+link(e.photo)+'</div>':'')+'</div>').join('');
+ return '<tr class="det"><td colspan="10" style="display:block;background:var(--panel);padding:12px 14px">'+
+  '<div><b>'+esc(x.s)+'</b>　'+esc(x.p)+'　<span class="src">発注 '+esc(x.o||'—')+'・引当先 '+esc(x.al||'—')+'・棚 '+esc(x.shelf||'—')+'</span></div>'+
+  (x.memo?'<div style="margin-top:4px">在庫ナビの備考：'+esc(x.memo)+'</div>':'')+
+  '<div style="margin-top:8px">'+(rows||'<div class="src">品質の記録はまだありません。</div>')+'</div>'+
+  '<div class="acts"><button type="button" class="y" data-a="rec-this" data-sid="'+esc(x.id)+'">この製品の記録を追加</button></div></td></tr>';
+}
+$('t-stock').onclick=e=>{if(e.target.closest('button,a'))return;const tr=e.target.closest('tr.srow');if(!tr)return;OPEN=OPEN===tr.dataset.sid?'':tr.dataset.sid;renderStock()};
 $('st-f').onclick=e=>{const b=e.target.closest('button[data-sf]');if(b){SF=b.dataset.sf;renderStock()}};
 $('st-q').addEventListener('input',renderStock);
 
