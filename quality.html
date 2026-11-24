@@ -3,7 +3,6 @@
 <title>YS品質ナビ</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://apis.google.com/js/api.js" async defer></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap" rel="stylesheet">
 <style>
 /* VOICE work tool for one person in a warehouse, calm and plain
@@ -166,6 +165,7 @@ const INV_ID=IS_TEST?'1VwfwgSgfCN3CsO-L2kwtfqggy5sW9eMIGW8bGczxcFE':'1-Sv1ci9aQ8
 const LOG_ID=IS_TEST?'1GpIYAjtMUWNgQ3U-kmoC5ID2RRFRjWN9ZJdYwU42N_w':'1JdFUk07s9KsBskn3qfYu1pym4uY1xq2evS-5N4xRtXg';   // イベントログ
 const LOG_SHEET='品質イベントログ（倉庫を通り抜けたもの）';
 const INSPECT_MONTHS=3;
+const USE_QR=false; // QR読み取りを使うときは true にする（ボタンが表示され、読み取り用ライブラリを必要なときに読み込む）
 const WH=['在庫中','検品待ち','引当済','不良品'];
 const INSP=['入荷検品','定期検品','処置・修理','返却受入'];
 const TYPES=['定期検品','返却受入','処置・修理','保管報告'];
@@ -424,7 +424,7 @@ $('q').addEventListener('input',renderLog);
 // ===== QR（在庫ナビのラベル：IDまたはSerial） =====
 let QR=null,QRFOR='';
 function openQR(f){
- if(typeof Html5Qrcode==='undefined'){$('tray-t').textContent='QR読み取りを読み込めませんでした';return}
+ if(typeof Html5Qrcode==='undefined'){const sc=document.createElement('script');sc.src='https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';sc.onload=()=>openQR(f);sc.onerror=()=>{$('tray-t').textContent='QR読み取りを読み込めませんでした'};document.head.appendChild(sc);return}
  QRFOR=f;$('qr').classList.add('on');QR=new Html5Qrcode('qr-reader');
  QR.start({facingMode:'environment'},{fps:10,qrbox:{width:240,height:240}},txt=>{closeQR();onScan(txt)},()=>{}).catch(err=>{$('qr-reader').textContent='カメラを起動できません：'+(err.message||err)});
 }
@@ -447,6 +447,7 @@ const VIEWS=['todo','inbound','record','stock','log'];
 function route(){if(!INV.length&&!LOG.length)return;const h=location.hash.slice(1);const v=VIEWS.includes(h)?h:'todo';VIEWS.forEach(x=>$('v-'+x).classList.toggle('hide',x!==v));document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+v));if(v==='record')drawRec()}
 addEventListener('hashchange',route);
 $('today').textContent='今日 '+fmt(TODAY);
+if(!USE_QR)document.querySelectorAll('button[data-a="qr"]').forEach(b=>b.classList.add('hide'));
 openRec({},false);
 init();
 }
