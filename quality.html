@@ -81,7 +81,7 @@ pre{white-space:pre;overflow-x:auto;background:var(--panel);padding:10px;border-
 <style>.tog{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 16px;font-size:14px}.tog .seg button{min-height:38px;font-size:14px}.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}.chips button{min-height:38px;font-size:14px}.chips button.on{background:var(--ink);color:var(--bg)}.src{font-size:12px;color:var(--sub)}</style><style>.busy{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 70%,transparent);display:none;align-items:center;justify-content:center;z-index:20;font-weight:700}.busy.on{display:flex}#login{min-height:70vh;display:flex;align-items:center;justify-content:center}#qr{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:30;padding:16px}#qr.on{display:flex}#qr .box{background:var(--bg);border-radius:12px;padding:14px;width:min(420px,100%)}.chk{display:flex;gap:8px;align-items:center;font-size:15px;margin:4px 0 12px}.chk input{width:22px;height:22px}.strip{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}.strip .item{flex:1 1 260px}</style><body>
 <header>
  <div class="top"><h1>YS品質ナビ</h1>
-  <div class="meta"><span id="today"></span><label for="who" style="margin:0">担当</label><select id="who"><option>上村</option><option>和田</option></select><button type="button" id="reload" style="min-height:38px;padding:4px 12px;border-color:#141414;color:#141414;background:#fff">更新</button><button type="button" id="logout" style="min-height:38px;padding:4px 12px;border-color:#141414;color:#141414;background:transparent">ログアウト</button></div></div>
+  <div class="meta"><span id="today"></span><label for="who" style="margin:0">担当</label><select id="who"><option>上村</option></select><span id="who-add" class="hide" style="display:flex;gap:6px;align-items:center"><input id="who-new" placeholder="名前" style="width:8em;padding:5px 8px;font-size:16px;background:#fff;color:#141414;border:2px solid #141414"><button type="button" id="who-ok" style="min-height:38px;padding:4px 12px;border-color:#141414;color:#141414;background:#fff">追加</button><button type="button" id="who-x" style="min-height:38px;padding:4px 10px;border-color:#141414;color:#141414;background:transparent">やめる</button></span><button type="button" id="reload" style="min-height:38px;padding:4px 12px;border-color:#141414;color:#141414;background:#fff">更新</button><button type="button" id="logout" style="min-height:38px;padding:4px 12px;border-color:#141414;color:#141414;background:transparent">ログアウト</button></div></div>
  <nav id="nav"><a href="#todo">今週やること</a><a href="#inbound">入荷検品</a><a href="#record">1台を記録</a><a href="#stock">倉庫にある台</a><a href="#log">履歴</a></nav>
 </header>
 <main>
@@ -178,7 +178,7 @@ const addMonths=(d,m)=>{const x=new Date(d+'T00:00:00');x.setMonth(x.getMonth()+
 const days=(a,b)=>Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/864e5);
 const ls=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}};
 
-let INV=[],LOG=[],SUP={},LOGBY={},LOADED_AT='';
+let INV=[],LOG=[],SUP={},LOGBY={},LOADED_AT='',CONF=[],PEOPLE=['上村'];
 let scope=ls('qualityScope')||'all';
 
 // ===== Google ログイン（在庫ナビ・検品ナビと同じ方式。トークンも共有） =====
@@ -205,7 +205,8 @@ function busy(on,t){$('busy').classList.toggle('on',on);if(t)$('busy-t').textCon
 async function load(){
  busy(true,'読み込み中…');
  try{
-  const [inv,arc,log,sup]=await Promise.all([getVals(INV_ID,'在庫!A2:Q'),getVals(INV_ID,'在庫アーカイブ!A2:Q'),getVals(LOG_ID,LR('A2:N')),getVals(INV_ID,'サプライヤー!A2:B')]);
+  const [inv,arc,log,sup,conf]=await Promise.all([getVals(INV_ID,'在庫!A2:Q'),getVals(INV_ID,'在庫アーカイブ!A2:Q'),getVals(LOG_ID,LR('A2:N')),getVals(INV_ID,'サプライヤー!A2:B'),getVals(LOG_ID,"'設定'!A1:B").catch(()=>[])]);
+  CONF=conf;const pr=conf.find(r=>r[0]==='担当者');PEOPLE=pr&&pr[1]?pr[1].split(/[／\/、,]/).map(v=>v.trim()).filter(Boolean):['上村'];fillWho();
   SUP={};sup.forEach(r=>{if(r[0])SUP[String(Math.round(Number(r[0])))||r[0]]=r[1]||''});
   const mk=(r,arch)=>({id:r[0]||'',s:(r[1]||'').trim(),key:norm(r[1]),cat:r[2]||'',p:r[3]||'',o:r[5]!==undefined&&r[5]!==''?(r[4]||'')+'-'+r[5]:(r[4]||''),recv:toYmd(r[7]),st:arch?'出庫済':(r[8]||'入庫待ち').replace(/^(発送済|引渡済)$/,'出庫済').replace(/^不具合$/,'不良品'),ship:toYmd(r[9]),shelf:r[14]||'',sup:SUP[String(Math.round(Number(r[16])))]||'',arch});
   INV=inv.filter(r=>r[1]||r[3]).map(r=>mk(r,false)).concat(arc.filter(r=>r[1]).map(r=>mk(r,true)));
@@ -244,7 +245,26 @@ async function save(fn,msg){
 
 // ===== 集計 =====
 const who=()=>$('who').value;
-$('who').value=ls('qualityUser')||'上村';$('who').onchange=()=>ls('qualityUser',$('who').value);
+const ADD='__add__';
+function fillWho(){
+ const cur=ls('qualityUser');
+ $('who').innerHTML=PEOPLE.map(p=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join('')+'<option value="'+ADD+'">＋ 担当を追加</option>';
+ $('who').value=PEOPLE.includes(cur)?cur:PEOPLE[0];
+}
+$('who').onchange=()=>{if($('who').value===ADD){$('who-add').classList.remove('hide');$('who-new').focus();$('who').value=PEOPLE.includes(ls('qualityUser'))?ls('qualityUser'):PEOPLE[0];return}ls('qualityUser',$('who').value)};
+$('who-x').onclick=()=>{$('who-new').value='';$('who-add').classList.add('hide')};
+// 担当者の一覧はイベントログの「設定」シートの「担当者」行に「／」区切りで保存する
+$('who-ok').onclick=()=>{
+ const n=$('who-new').value.trim().replace(/[／\/、,]/g,'');if(!n)return;
+ if(PEOPLE.includes(n)){ls('qualityUser',n);fillWho();$('who-x').onclick();return}
+ const list=PEOPLE.concat(n).join('／');
+ save(async()=>{
+  const conf=await getVals(LOG_ID,"'設定'!A1:B");const i=conf.findIndex(r=>r[0]==='担当者');
+  if(i>=0)await V().update({spreadsheetId:LOG_ID,range:"'設定'!B"+(i+1),valueInputOption:'RAW',resource:{values:[[list]]}});
+  else await V().append({spreadsheetId:LOG_ID,range:"'設定'!A:B",valueInputOption:'RAW',insertDataOption:'INSERT_ROWS',resource:{values:[['担当者',list]]}});
+  ls('qualityUser',n);
+ },'担当に「'+n+'」を追加しました').then(()=>$('who-x').onclick());
+};
 const wh=()=>INV.filter(x=>!x.arch&&x.s&&WH.includes(x.st));
 const inScope=x=>scope==='all'||x.st!=='引当済';
 function q(x){
