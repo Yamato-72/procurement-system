@@ -296,6 +296,45 @@
             .mobile-nav a span { display: block; margin-bottom: 1px; font-size: 16px; }
             .mobile-nav a.active { color: var(--ui-brand); background: var(--ui-brand-soft); }
         }
+
+        /* ===== スマホ表示の読みやすさ調整（640px以下だけに効く。PCの見た目は変えない） =====
+           - 文字：12px前後が多く小さすぎたため、本文16px・補足13〜14pxを下限にする
+           - 押しやすさ：ボタン・入力欄を指で押せる高さ（40〜44px）にする
+           - 入力欄は16px（iPhoneで入力時に画面が勝手に拡大されるのを防ぐ）
+           - Tailwind の文字サイズより優先させるため「html body」を付けている */
+        @media (max-width: 640px) {
+            html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+            html body { font-size: 16px; }
+            html body .text-xs { font-size: 13.5px; line-height: 1.45; }
+            html body .text-sm { font-size: 15px; line-height: 1.5; }
+            html body .text-\[9px\], html body .text-\[10px\], html body .text-\[11px\] { font-size: 12.5px; line-height: 1.4; }
+
+            html body .brand-subtitle, html body .shell-menu-label { font-size: 12px; }
+            html body .payment-sync-row, html body .inventory-sync-row { font-size: 12px; flex-wrap: wrap; row-gap: 2px; }
+            html body .payment-sync-row > *, html body .inventory-sync-row > * { white-space: nowrap; }
+            html body .priority-heading span, html body .queue-title p, html body .metrics-heading span,
+            html body .workspace-title-row p, html body .section-heading span,
+            html body .form-step-heading span:last-child, html body .summary-item dt { font-size: 12.5px; }
+            html body .field-label { font-size: 13.5px; }
+            html body .modal-eyebrow { font-size: 12px; }
+            html body .modal-copy { font-size: 14px; }
+            html body .project-action-button { font-size: 14px; min-height: 44px; }
+            html body .modal-close { width: 40px; height: 40px; }
+            html body .shell-tool-button, html body .shell-bulk-button, html body .shell-primary-button { font-size: 14px; }
+            html body .shell-icon-button, html body .shell-tool-button, html body .shell-bulk-button, html body .shell-primary-button { min-width: 40px; min-height: 40px; }
+            html body .mobile-nav a { padding: 7px 3px 8px; font-size: 11.5px; }
+            html body .mobile-nav a span { font-size: 19px; }
+            html body { padding-bottom: 82px; }
+
+            /* 押しやすさ */
+            html body button { min-height: 40px; }
+            html body .mobile-nav button, html body .no-tap-size { min-height: 0; }
+            html body input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]),
+            html body select, html body textarea { font-size: 16px !important; min-height: 44px !important; }
+            html body textarea { min-height: 88px; }
+            html body input[type="checkbox"], html body input[type="radio"] { width: 20px; height: 20px; }
+            html body .shell-menu button { min-height: 46px; font-size: 15px; }
+        }
     </style>
 </head>
 <body>
