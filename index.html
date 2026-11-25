@@ -611,7 +611,7 @@
                         throw (resp);
                     }
                     accessToken = resp.access_token;
-                    sessionStorage.setItem('googleAccessToken', accessToken);
+                    saveSharedToken(accessToken, resp.expires_in);
                     scheduleTokenRefresh();
                     loadData();
                     renderMain();
@@ -626,7 +626,28 @@
         let tokenRefreshTimer = null;
         let tokenAcquiredAt = 0; // トークン取得時刻（ミリ秒）
 
-        function scheduleTokenRefresh() {
+        // ログイン情報は端末（localStorage）に保存して、支払・在庫・品質ナビで共有する。
+        // Googleの仕様でトークンは1時間で切れるので、期限も一緒に保存しておく。
+        function saveSharedToken(token, expiresInSec) {
+            try {
+                localStorage.setItem('googleAccessToken', token);
+                localStorage.setItem('tokenExpiresAt', String(Date.now() + (expiresInSec || 3600) * 1000));
+            } catch (e) {}
+        }
+        function clearSharedToken() {
+            try { localStorage.removeItem('googleAccessToken'); localStorage.removeItem('tokenExpiresAt'); } catch (e) {}
+        }
+        // 残り時間が5分以上ある保存済みトークンを返す（なければ null）
+        function loadSharedToken() {
+            try {
+                const t = localStorage.getItem('googleAccessToken');
+                const ex = parseInt(localStorage.getItem('tokenExpiresAt') || '0');
+                if (t && ex > Date.now() + 5 * 60 * 1000) return { token: t, expiresAt: ex };
+            } catch (e) {}
+            return null;
+        }
+
+        function scheduleTokenRefresh(delayMs) {
             tokenAcquiredAt = Date.now();
             if (tokenRefreshTimer) clearTimeout(tokenRefreshTimer);
             tokenRefreshTimer = setTimeout(() => {
@@ -640,14 +661,14 @@
                         return;
                     }
                     accessToken = resp.access_token;
-                    sessionStorage.setItem('googleAccessToken', accessToken);
+                    saveSharedToken(accessToken, resp.expires_in);
                     gapi.client.setToken({ access_token: accessToken });
                     tokenAcquiredAt = Date.now();
                     console.log('[認証] トークン自動更新 成功');
                     scheduleTokenRefresh(); // 次の更新を予約
                 };
                 tokenClient.requestAccessToken({ prompt: '' });
-            }, 50 * 60 * 1000); // 50分
+            }, delayMs || 50 * 60 * 1000); // 通常は50分後
         }
 
         // トークンが古くなりすぎてないか確認、必要なら更新（タブ非アクティブで setTimeout が遅延する対策）
@@ -706,7 +727,7 @@
                         return;
                     }
                     accessToken = resp.access_token;
-                    sessionStorage.setItem('googleAccessToken', accessToken);
+                    saveSharedToken(accessToken, resp.expires_in);
                     gapi.client.setToken({ access_token: accessToken });
                     scheduleTokenRefresh();
                     console.log('[認証] リトライ用トークン取得 成功');
@@ -718,11 +739,13 @@
 
         function maybeEnableButtons() {
             if (gapiInited && gisInited) {
-                const savedToken = sessionStorage.getItem('googleAccessToken');
-                if (savedToken) {
-                    accessToken = savedToken;
+                const saved = loadSharedToken();
+                if (saved) {
+                    accessToken = saved.token;
                     gapi.client.setToken({ access_token: accessToken });
-                    scheduleTokenRefresh();
+                    // 期限の10分前に更新を予約（取得時刻は期限から逆算）
+                    scheduleTokenRefresh(Math.max(saved.expiresAt - Date.now() - 10 * 60 * 1000, 1000));
+                    tokenAcquiredAt = saved.expiresAt - 60 * 60 * 1000;
                     loadData();
                     renderMain();
                 } else {
@@ -737,7 +760,7 @@
                     throw (resp);
                 }
                 accessToken = resp.access_token;
-                sessionStorage.setItem('googleAccessToken', accessToken);
+                saveSharedToken(accessToken, resp.expires_in);
                 scheduleTokenRefresh();
                 await loadData();
                 renderMain();
@@ -753,7 +776,7 @@
         function handleSignoutClick() {
             if (accessToken) {
                 google.accounts.oauth2.revoke(accessToken);
-                sessionStorage.removeItem('googleAccessToken');
+                clearSharedToken();
                 accessToken = null;
             }
             gapi.client.setToken(null);

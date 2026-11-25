@@ -157,7 +157,7 @@ pre{white-space:pre;overflow-x:auto;background:var(--panel);padding:10px;border-
 {
 // ===== 設定 =====
 const CLIENT_ID='47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
-const SCOPES='https://www.googleapis.com/auth/spreadsheets';
+const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly'; // 支払・在庫ナビとログインを共有するため同じ権限にそろえる
 const IS_TEST = new URLSearchParams(location.search).has('test'); // URLに ?test を付けると【テスト】スプレッドシートを使う
 if (IS_TEST) {
     document.title = '【テスト】' + document.title;
@@ -199,15 +199,15 @@ function init(){
  if(typeof gapi==='undefined'||typeof google==='undefined'||!google.accounts){setTimeout(init,100);return}
  gapi.load('client',async()=>{
   await gapi.client.init({discoveryDocs:['https://sheets.googleapis.com/$discovery/rest?version=v4']});
-  tokenClient=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SCOPES,callback:r=>{if(r.error){console.error(r);return}ls('lastToken',r.access_token);try{sessionStorage.setItem('googleAccessToken',r.access_token);sessionStorage.setItem('tokenExpiresAt',String(Date.now()+(r.expires_in||3600)*1000))}catch(e){}gapi.client.setToken({access_token:r.access_token});load()}});
-  // 在庫ナビから同じタブで来たときは、在庫ナビのログインをそのまま使う
-  let t=null;try{const st=sessionStorage.getItem('googleAccessToken'),ex=+sessionStorage.getItem('tokenExpiresAt');if(st&&ex>Date.now()+60000)t=st}catch(e){}
-  t=t||ls('lastToken');if(t){gapi.client.setToken({access_token:t});load()}else showLogin();
+  tokenClient=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SCOPES,callback:r=>{if(r.error){console.error(r);return}try{localStorage.setItem('googleAccessToken',r.access_token);localStorage.setItem('tokenExpiresAt',String(Date.now()+(r.expires_in||3600)*1000))}catch(e){}gapi.client.setToken({access_token:r.access_token});load()}});
+  // ログインは支払・在庫ナビと共有（端末に保存。期限が5分以上残っていればそのまま使う）
+  let t=null;try{localStorage.removeItem('lastToken');const st=localStorage.getItem('googleAccessToken'),ex=+localStorage.getItem('tokenExpiresAt');if(st&&ex>Date.now()+5*60000)t=st}catch(e){}
+  if(t){gapi.client.setToken({access_token:t});load()}else showLogin();
  });
 }
 $('login-btn').onclick=()=>tokenClient&&tokenClient.requestAccessToken({prompt:''});
-$('logout').onclick=()=>{const t=gapi.client.getToken();if(t)google.accounts.oauth2.revoke(t.access_token);gapi.client.setToken('');try{localStorage.removeItem('lastToken')}catch(e){}showLogin()};
-function authFail(e){const s=e&&(e.status||(e.result&&e.result.error&&e.result.error.code));if(s===401||s===403){try{localStorage.removeItem('lastToken')}catch(x){}showLogin();return true}return false}
+$('logout').onclick=()=>{const t=gapi.client.getToken();if(t)google.accounts.oauth2.revoke(t.access_token);gapi.client.setToken('');try{localStorage.removeItem('googleAccessToken');localStorage.removeItem('tokenExpiresAt')}catch(e){}showLogin()};
+function authFail(e){const s=e&&(e.status||(e.result&&e.result.error&&e.result.error.code));if(s===401){try{localStorage.removeItem('googleAccessToken');localStorage.removeItem('tokenExpiresAt')}catch(x){}showLogin();return true}if(s===403){showLogin();return true}return false}
 
 // ===== シート読み書き =====
 const V=()=>gapi.client.sheets.spreadsheets.values;

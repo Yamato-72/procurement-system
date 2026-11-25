@@ -444,12 +444,12 @@
                         throw (resp);
                     }
                     accessToken = resp.access_token;
-                    sessionStorage.setItem('googleAccessToken', accessToken);
+                    localStorage.setItem('googleAccessToken', accessToken);
                     
                     // トークン有効期限を記録（デフォルト60分）
                     const expiresIn = resp.expires_in || 3600;
                     tokenExpiresAt = Date.now() + (expiresIn * 1000);
-                    sessionStorage.setItem('tokenExpiresAt', tokenExpiresAt.toString());
+                    localStorage.setItem('tokenExpiresAt', tokenExpiresAt.toString());
                     
                     // 自動リフレッシュタイマー設定
                     startTokenRefreshTimer();
@@ -488,11 +488,11 @@
                     return;
                 }
                 accessToken = resp.access_token;
-                sessionStorage.setItem('googleAccessToken', accessToken);
+                localStorage.setItem('googleAccessToken', accessToken);
                 
                 const expiresIn = resp.expires_in || 3600;
                 tokenExpiresAt = Date.now() + (expiresIn * 1000);
-                sessionStorage.setItem('tokenExpiresAt', tokenExpiresAt.toString());
+                localStorage.setItem('tokenExpiresAt', tokenExpiresAt.toString());
                 
                 console.log('✅ トークンリフレッシュ成功');
                 showConnectionStatus('connected');
@@ -536,11 +536,11 @@
                         return;
                     }
                     accessToken = resp.access_token;
-                    sessionStorage.setItem('googleAccessToken', accessToken);
+                    localStorage.setItem('googleAccessToken', accessToken);
                     gapi.client.setToken({ access_token: accessToken });
                     const expiresIn = resp.expires_in || 3600;
                     tokenExpiresAt = Date.now() + (expiresIn * 1000);
-                    sessionStorage.setItem('tokenExpiresAt', tokenExpiresAt.toString());
+                    localStorage.setItem('tokenExpiresAt', tokenExpiresAt.toString());
                     startTokenRefreshTimer();
                     console.log('[認証] リトライ用トークン取得 成功');
                     resolve();
@@ -583,11 +583,11 @@
                                 return;
                             }
                             accessToken = resp.access_token;
-                            sessionStorage.setItem('googleAccessToken', accessToken);
+                            localStorage.setItem('googleAccessToken', accessToken);
                             gapi.client.setToken({ access_token: accessToken });
                             
                             tokenExpiresAt = Date.now() + 3600000;
-                            sessionStorage.setItem('tokenExpiresAt', tokenExpiresAt.toString());
+                            localStorage.setItem('tokenExpiresAt', tokenExpiresAt.toString());
                             startTokenRefreshTimer();
                             showConnectionStatus('connected');
                             
@@ -607,8 +607,8 @@
 
         function maybeEnableButtons() {
             if (gapiInited && gisInited) {
-                const savedToken = sessionStorage.getItem('googleAccessToken');
-                const savedExpiry = sessionStorage.getItem('tokenExpiresAt');
+                const savedToken = localStorage.getItem('googleAccessToken');
+                const savedExpiry = localStorage.getItem('tokenExpiresAt');
                 
                 // トークンがあり、有効期限内かチェック
                 if (savedToken && savedExpiry) {
@@ -626,8 +626,8 @@
                     } else {
                         // 期限切れ間近または期限切れ → クリア
                         console.log('⚠️ トークン期限切れ、再ログインが必要');
-                        sessionStorage.removeItem('googleAccessToken');
-                        sessionStorage.removeItem('tokenExpiresAt');
+                        localStorage.removeItem('googleAccessToken');
+                        localStorage.removeItem('tokenExpiresAt');
                     }
                 }
                 renderSignIn();
@@ -640,12 +640,12 @@
                     throw (resp);
                 }
                 accessToken = resp.access_token;
-                sessionStorage.setItem('googleAccessToken', accessToken);
+                localStorage.setItem('googleAccessToken', accessToken);
                 
                 // トークン有効期限を記録
                 const expiresIn = resp.expires_in || 3600;
                 tokenExpiresAt = Date.now() + (expiresIn * 1000);
-                sessionStorage.setItem('tokenExpiresAt', tokenExpiresAt.toString());
+                localStorage.setItem('tokenExpiresAt', tokenExpiresAt.toString());
                 
                 // 自動リフレッシュタイマー設定
                 startTokenRefreshTimer();
@@ -662,8 +662,8 @@
 
         function handleSignoutClick() {
             accessToken = null;
-            sessionStorage.removeItem('googleAccessToken');
-            sessionStorage.removeItem('tokenExpiresAt');
+            localStorage.removeItem('googleAccessToken');
+            localStorage.removeItem('tokenExpiresAt');
             gapi.client.setToken(null);
             
             // タイマーをクリア
