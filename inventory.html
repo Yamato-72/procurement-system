@@ -260,6 +260,7 @@
         let lastDataHash = ''; // データ変更検知用
         let lastLoadedRows = null; // 最後に読み込んだ在庫の生データ（他画面の変更を取り込むための基準）
         let lastArchiveHash = ''; // アーカイブシート変更検知用
+        let lastArchiveRows = null; // 最後に読み込んだアーカイブの生データ（合流の基準）
         let lastSaveTime = 0; // 最後に保存した時刻
         
         // トークン自動リフレッシュ
@@ -969,6 +970,7 @@
                     });
                     const archiveRows = archiveResponse.result.values || [];
                     lastArchiveHash = JSON.stringify(archiveRows); // 競合検知用ハッシュを記録
+                    lastArchiveRows = archiveRows; // 合流の基準
                     archivedInventory = archiveRows.map((row, idx) => {
                         const itemId = row[0] || `archive-${Date.now()}-${idx}`;
                         
@@ -1410,37 +1412,104 @@
                     return; // 現在値が取れないなら絶対に上書きしない
                 }
 
-                const currentHash = JSON.stringify(currentRows);
-                // 品質ナビなど別の画面が変えた「入庫日」「ステータス」を取り込む。
-                // この画面で同じ台の同じ項目を変えていなければ相手の変更を採用し、上書きで戻さない。
-                // 取り込んだ項目以外に違いがなければ、確認なしでそのまま保存する。
-                let onlyMergedChanges = false;
-                if (lastLoadedRows) {
-                    const isOld = r => !!(r && r[4] && String(r[4]).match(/^[A-Z]+-\d+$/i));
-                    const byId = rows => { const m = new Map(); rows.forEach(r => { if (r && r[0] !== undefined && r[0] !== '' && !isOld(r)) m.set(String(r[0]), r); }); return m; };
-                    const baseMap = byId(lastLoadedRows), remoteMap = byId(currentRows);
-                    const MERGE_FIELDS = [['receiveDate', 7], ['status', 8]];
-                    inventory.forEach(item => {
-                        const b = baseMap.get(String(item.id)), r = remoteMap.get(String(item.id));
-                        if (!b || !r) return;
-                        MERGE_FIELDS.forEach(([key, i]) => {
-                            const bv = String(b[i] ?? ''), rv = String(r[i] ?? '');
-                            const mine = String(item[key] ?? '');
-                            const baseVal = key === 'status' ? normalizeStatus(bv || '入庫待ち') : bv;
-                            if (rv !== bv && mine === baseVal) item[key] = key === 'status' ? normalizeStatus(rv || '入庫待ち') : rv;
+                // === ほかの人・ほかの画面の変更を取り込む（項目ごとの合流）===
+                // 読み込んだ時点（基準）と、いまのシートを比べて、
+                //   ・相手だけが変えた項目 → 相手の値を採用（上書きで戻さない）
+                //   ・自分だけが変えた項目 → 自分の値
+                //   ・同じ製品の同じ項目を両方が変えた → 「ぶつかり」として数え、保存前に確認
+                // 行の追加・削除・在庫⇔アーカイブの移動も取り込む。
+                let currentArchiveRows = null;
+                if (archiveLoaded) {
+                    try {
+                        const archiveCheckResponse = await gapi.client.sheets.spreadsheets.values.get({
+                            spreadsheetId: SPREADSHEET_ID,
+                            range: '在庫アーカイブ!A2:Q',
                         });
-                    });
-                    const strip = rows => JSON.stringify(rows.map(r => Array.from({ length: 17 }, (_, i) => (i === 7 || i === 8) ? '' : String((r || [])[i] ?? ''))));
-                    onlyMergedChanges = strip(currentRows) === strip(lastLoadedRows);
+                        currentArchiveRows = archiveCheckResponse.result.values || [];
+                    } catch (e) {
+                        console.error('アーカイブ取得失敗（保存を中止）:', e);
+                        showStatus('');
+                        alert('保存を中止しました：アーカイブの取得に失敗しました。\n通信を確認して、もう一度お試しください。（データは失われていません）');
+                        return;
+                    }
                 }
-                if (lastDataHash && currentHash !== lastDataHash && !onlyMergedChanges) {
-                    const confirmOverwrite = confirm('他のユーザーによってデータが更新されています。\n\n上書きしますか？\n（キャンセルで最新データを取得します）');
-                    if (!confirmOverwrite) {
+
+                let conflicts = 0;
+                const FIELDS = ['id', 'serial', 'category', 'productName', 'orderPrefix', 'orderNumber', 'orderDate', 'receiveDate', 'status', 'shipDate', 'shipPrefix', 'shipNumber', 'costJPY', 'note', 'shelfNo', 'location', 'supplierId'];
+                const isOldRow = r => !!(r && r[4] && String(r[4]).match(/^[A-Z]+-\d+$/i));
+                const rowsById = rows => { const m = new Map(); (rows || []).forEach(r => { if (r && r[0] !== undefined && r[0] !== '' && !isOldRow(r)) m.set(String(r[0]), r); }); return m; };
+                const norm = (k, v) => k === 'status' ? normalizeStatus(String(v ?? '') || '入庫待ち') : String(v ?? '');
+                const sameRow = (a, b) => FIELDS.every((k, i) => norm(k, (a || [])[i]) === norm(k, (b || [])[i]));
+                const itemUnchanged = (item, b) => FIELDS.every((k, i) => norm(k, item[k]) === norm(k, b[i]));
+                const rowToItem = r => { const o = {}; FIELDS.forEach((k, i) => { o[k] = k === 'status' ? normalizeStatus(r[i] || '入庫待ち') : (r[i] ?? ''); }); return o; };
+                // 項目ごとに相手の変更を取り込む
+                const mergeFields = (item, b, r) => {
+                    FIELDS.forEach((k, i) => {
+                        if (i === 0) return;
+                        const bv = norm(k, b[i]), rv = norm(k, r[i]), mv = norm(k, item[k]);
+                        if (rv === bv) return;              // 相手は変えていない
+                        if (mv === bv) item[k] = k === 'status' ? rv : (r[i] ?? ''); // 相手だけが変えた
+                        else if (mv !== rv) conflicts++;    // 両方が別の値に変えた
+                    });
+                };
+
+                const useArchive = archiveLoaded && lastArchiveRows && currentArchiveRows;
+                const baseArc = useArchive ? rowsById(lastArchiveRows) : new Map();
+                const remoteArc = useArchive ? rowsById(currentArchiveRows) : new Map();
+
+                // A) アーカイブ：相手が戻した・消した行は、こちらで触っていなければ外す。両方にある行は項目ごとに合流
+                if (useArchive) {
+                    archivedInventory = archivedInventory.filter(item => {
+                        const id = String(item.id), b = baseArc.get(id), r = remoteArc.get(id);
+                        if (!b) return true;
+                        if (!r) { if (itemUnchanged(item, b)) return false; conflicts++; return true; }
+                        mergeFields(item, b, r);
+                        return true;
+                    });
+                }
+
+                if (lastLoadedRows) {
+                    const baseInv = rowsById(lastLoadedRows), remoteInv = rowsById(currentRows);
+                    const localInvIds = new Set(inventory.map(i => String(i.id)));
+                    const localArcIds = new Set(archivedInventory.map(i => String(i.id)));
+                    // B) 在庫：相手が消した（アーカイブした）行は、こちらで触っていなければ外す。両方にある行は合流
+                    inventory = inventory.filter(item => {
+                        const id = String(item.id), b = baseInv.get(id), r = remoteInv.get(id);
+                        if (!b) return true; // 自分が新しく足した行（または旧形式の行）
+                        if (!r) { if (itemUnchanged(item, b)) return false; conflicts++; return true; }
+                        mergeFields(item, b, r);
+                        return true;
+                    });
+                    // 自分がアーカイブした行を、相手が在庫で変えていたらぶつかりとして数える
+                    baseInv.forEach((b, id) => { const r = remoteInv.get(id); if (r && !localInvIds.has(id) && !sameRow(b, r)) conflicts++; });
+                    // 相手が新しく足した在庫行（アーカイブから戻した行を含む）を取り込む
+                    const invIdsNow = new Set(inventory.map(i => String(i.id)));
+                    remoteInv.forEach((r, id) => {
+                        if (!baseInv.has(id) && !invIdsNow.has(id) && !localArcIds.has(id)) inventory.push(rowToItem(r));
+                    });
+                } else if (lastDataHash && JSON.stringify(currentRows) !== lastDataHash) {
+                    conflicts++; // 基準がない（古い読み込み）ときは、これまでどおり確認する
+                }
+
+                // C) アーカイブ：相手が新しくアーカイブした行を取り込む
+                if (useArchive) {
+                    const invIdsNow = new Set(inventory.map(i => String(i.id)));
+                    const arcIdsNow = new Set(archivedInventory.map(i => String(i.id)));
+                    remoteArc.forEach((r, id) => {
+                        if (!baseArc.has(id) && !arcIdsNow.has(id) && !invIdsNow.has(id)) archivedInventory.push(rowToItem(r));
+                    });
+                } else if (archiveLoaded && currentArchiveRows && lastArchiveHash && JSON.stringify(currentArchiveRows) !== lastArchiveHash) {
+                    conflicts++;
+                }
+
+                if (conflicts > 0) {
+                    const ok = confirm(`ほかの人が、同じ製品の同じ項目を変更しています（${conflicts}か所）。\n\nこちらの内容で上書きしますか？\n（キャンセルで最新データを読み込み直します）`);
+                    if (!ok) {
                         await loadData();
                         return;
                     }
                 }
-                
+
                 const inventoryData = [
                     ['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税別)', '備考', '棚番', '保管場所', 'サプライヤーID'],
                     ...inventory.map(item => [
@@ -1468,34 +1537,6 @@
                 // アーカイブが書けない/中止された場合は在庫も書かずに中止する。
                 // これで「在庫から消えたのにアーカイブに残らない＝移動品が消える」を根本的に防ぐ。
                 if (archiveLoaded) {
-                    // 現在値を取得。取れなければ保存全体を中止（在庫も書かない）。
-                    let currentArchiveRows;
-                    try {
-                        const archiveCheckResponse = await gapi.client.sheets.spreadsheets.values.get({
-                            spreadsheetId: SPREADSHEET_ID,
-                            range: '在庫アーカイブ!A2:Q',
-                        });
-                        currentArchiveRows = archiveCheckResponse.result.values || [];
-                    } catch (e) {
-                        console.error('アーカイブ取得失敗（保存を中止）:', e);
-                        showStatus('');
-                        alert('保存を中止しました：アーカイブの取得に失敗しました。\n通信を確認して、もう一度お試しください。（データは失われていません）');
-                        return;
-                    }
-
-                    const currentArchiveHash = JSON.stringify(currentArchiveRows);
-                    if (lastArchiveHash && currentArchiveHash !== lastArchiveHash) {
-                        const confirmOverwrite = confirm(
-                            '他のユーザーによってアーカイブが更新されています。\n\n' +
-                            'このまま上書きすると、相手の変更が消える可能性があります。\n\n' +
-                            '上書きしますか？\n（キャンセルで最新データを取得して再読み込みします）'
-                        );
-                        if (!confirmOverwrite) {
-                            await loadData();
-                            return; // 在庫もまだ書いていないので、移動は「なかったこと」になり消えない
-                        }
-                    }
-
                     const archiveData = [
                         ['ID', 'Serial', '種別', '製品名', '発注接頭辞', '発注番号', '発注日', '入庫日', 'ステータス', '出庫日', '出庫接頭辞', '出庫番号', '取得金(税別)', '備考', '棚番', '保管場所', 'サプライヤーID'],
                         ...archivedInventory.map(item => [
@@ -1522,6 +1563,7 @@
                         });
                     }
                     lastArchiveHash = JSON.stringify(archiveData.slice(1));
+                    lastArchiveRows = archiveData.slice(1);
                 } else {
                     console.log('アーカイブ未読み込みのため、アーカイブ書き込みはスキップ（在庫のみ保存）');
                 }
