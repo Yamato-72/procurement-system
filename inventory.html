@@ -8,9 +8,9 @@
     <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%232383e2'/><path d='M45 65 L90 40 L135 65 L135 115 L90 140 L45 115 Z' fill='none' stroke='%23fff' stroke-width='8'/><path d='M90 40 L90 140' stroke='%23fff' stroke-width='8'/><path d='M45 65 L90 90 L135 65' fill='none' stroke='%23fff' stroke-width='8'/></svg>">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
-    <!-- QRラベル用（小さいので先に読むが、表示は待たせない） -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" defer></script>
     <script>
+        // QR機能（スキャンボタン・QRラベル印刷）は今は使わないので隠す。使うときは true にする
+        const USE_QR = false;
         // 外部ライブラリを「使うときだけ」読み込む（開く速さのため。同じURLは1回だけ読む）
         const __scriptLoads = {};
         function loadScriptOnce(url) {
@@ -1911,7 +1911,7 @@
                                             <button onclick="closeReportMenu();exportCSV()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">CSV出力</button>
                                             <button onclick="closeReportMenu();printInventoryList()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">棚卸しリスト印刷</button>
                                             <button onclick="closeReportMenu();showMonthlyReport()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">月次在庫レポート</button>
-                                            <button onclick="closeReportMenu();showLabelPrintModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">QRラベル印刷</button>
+                                            ${USE_QR ? `<button onclick="closeReportMenu();showLabelPrintModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">QRラベル印刷</button>` : ''}
                                             <button onclick="showImportToProcurementModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">調達にインポート</button>
                                             <p class="shell-menu-label border-t border-slate-200 dark:border-slate-700 mt-1 sm:hidden">表示・アカウント</p>
                                             <button onclick="closeReportMenu();toggleDarkMode()" class="sm:hidden w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">${isDarkMode ? '☀️ ライト表示にする' : '🌙 ダーク表示にする'}</button>
@@ -2411,7 +2411,7 @@
                 </div>
                 
                 <!-- フローティングスキャンボタン（スマホ用） -->
-                ${!bulkSelectMode ? `
+                ${USE_QR && !bulkSelectMode ? `
                     <button onclick="openQRScanner()" class="fixed bottom-24 sm:bottom-6 right-4 sm:right-6 z-40 w-14 h-14 sm:w-16 sm:h-16 rounded-full shadow-xl active:scale-95 transition-transform flex items-center justify-center" style="background: linear-gradient(135deg, #2383e2 0%, #1a5fb4 100%);" title="QRコードを読み取る" aria-label="QRコードを読み取る">
                         <svg class="w-8 h-8" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M3 9V6a3 3 0 013-3h3M3 15v3a3 3 0 003 3h3m6-18h3a3 3 0 013 3v3m0 6v3a3 3 0 01-3 3h-3M9 12h6m-3-3v6"/>
