@@ -215,11 +215,23 @@
             html body input[type="checkbox"], html body input[type="radio"] { width: 20px; height: 20px; }
             html body .shell-menu button { min-height: 46px; font-size: 15px; }
             html body .hide-on-phone { display: none !important; }
+            /* スマホ：検索を最初に、在庫の数はコンパクトに（PCの並びは変えない） */
+            html body .inventory-main { display: flex; flex-direction: column; }
+            html body .inventory-main > .filter-panel { order: 1; display: flex; flex-direction: column; }
+            html body .inventory-main > .m-priority { order: 2; }
+            html body .inventory-main > .m-summary { order: 3; }
+            html body .inventory-main > .m-quick { order: 4; }
+            html body .inventory-main > .inventory-panel { order: 5; }
+            html body .filter-panel > .m-search-row { order: -1; margin-top: 0; margin-bottom: 10px; }
+            html body .m-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+            html body .m-summary-grid .summary-card { padding: 8px 10px; }
+            html body .m-summary-grid .summary-card p:nth-child(3) { display: none; }
+            html body .m-summary-grid .summary-card p:nth-child(2) { font-size: 20px; margin-top: 0; }
             html body #archiveTableBody button { white-space: nowrap; }
         }
     </style>
     <!-- 見た目（Tailwind）はあらかじめ作ったCSSを読む。作り方は tailwind/tailwind.config.js を参照 -->
-    <link rel="stylesheet" href="assets/tailwind.css?v=7f1123ff">
+    <link rel="stylesheet" href="assets/tailwind.css?v=e9bc4c45">
 </head>
 <body>
     <div id="app">
@@ -2025,7 +2037,7 @@
                     <main class="inventory-main">
                         <!-- アラート -->
                         ${(summary.noShelf > 0 || summary.waiting > 0 || summary.pendingInspection > 0 || summary.defect > 0) ? `
-                            <section class="mb-5" aria-labelledby="inventoryPriorityHeading">
+                            <section class="m-priority mb-5" aria-labelledby="inventoryPriorityHeading">
                                 <div class="section-heading">
                                     <strong id="inventoryPriorityHeading">今日の確認</strong>
                                     <span>対応が必要な項目を先に確認できます</span>
@@ -2056,12 +2068,12 @@
                         ` : ''}
                         
                         <!-- サマリー -->
-                        <section class="mb-5 sm:mb-6" aria-labelledby="inventorySummaryHeading">
+                        <section class="m-summary mb-5 sm:mb-6" aria-labelledby="inventorySummaryHeading">
                             <div class="section-heading">
                                 <strong id="inventorySummaryHeading">在庫概況</strong>
                                 <span>登録全体 ${summary.total.toLocaleString()}件</span>
                             </div>
-                            <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3">
+                            <div class="m-summary-grid grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3">
                                 <div class="summary-card p-3 sm:p-4 border-t-2 border-t-emerald-500">
                                     <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">販売可能</p>
                                     <p class="tabular text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1">${summary.inStock.toLocaleString()}</p>
@@ -2096,7 +2108,7 @@
                         </section>
 
                         <!-- クイックフィルタ -->
-                        <div class="flex flex-wrap items-center gap-2 mb-3 sm:mb-4" aria-label="クイック絞り込み">
+                        <div class="m-quick flex flex-wrap items-center gap-2 mb-3 sm:mb-4" aria-label="クイック絞り込み">
                             <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 mr-1">クイック絞り込み</span>
                             <button onclick="quickFilter('multi')" class="px-3 py-1 text-xs sm:text-sm rounded-full ${currentFilters.category === 'マルチディスプレイ' ? 'bg-slate-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'}">
                                 マルチ
@@ -2153,7 +2165,7 @@
                                 ` : ''}
                                 <button onclick="clearFilters()" class="px-3 py-1.5 sm:py-2 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-white text-sm rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500">クリア</button>
                             </div>
-                            <div class="flex gap-2 mt-3">
+                            <div class="m-search-row flex gap-2 mt-3">
                                 <input type="search" id="filterSearch" value="${currentFilters.search}" onkeydown="if(event.key==='Enter'){applyFilters();event.target.blur();}" placeholder="Serial・製品名・案件番号を検索" aria-label="在庫を検索" class="flex-1 px-3 py-2 text-sm border dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:placeholder-slate-400 rounded-lg">
                                 <button onclick="applyFilters()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">検索</button>
                             </div>
@@ -2216,20 +2228,20 @@
                                 <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
                                     <h2 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white">在庫一覧（${filtered.length}件）</h2>
                                     <div class="flex rounded-lg overflow-hidden border dark:border-slate-600">
-                                        <button onclick="setViewMode('group')" class="px-2 py-1 text-xs ${viewMode === 'group' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'}" aria-pressed="${viewMode === 'group'}">
-                                            グループ
+                                        <button onclick="setViewMode('group')" title="案件番号ごとにまとめて表示" class="px-2 py-1 text-xs ${viewMode === 'group' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'}" aria-pressed="${viewMode === 'group'}">
+                                            案件ごと
                                         </button>
-                                        <button onclick="setViewMode('flat')" class="px-2 py-1 text-xs ${viewMode === 'flat' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'}" aria-pressed="${viewMode === 'flat'}">
-                                            一覧
+                                        <button onclick="setViewMode('flat')" title="製品を1件ずつ並べて表示" class="px-2 py-1 text-xs ${viewMode === 'flat' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'}" aria-pressed="${viewMode === 'flat'}">
+                                            製品ごと
                                         </button>
                                     </div>
                                     ${viewMode === 'group' ? `
                                         <div class="flex rounded-lg overflow-hidden border dark:border-slate-600">
-                                            <button onclick="setGroupMode('order')" class="px-2 py-1 text-xs ${groupMode === 'order' ? 'bg-slate-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'}">
-                                                発注元
+                                            <button onclick="setGroupMode('order')" title="発注した案件番号でまとめる" class="px-2 py-1 text-xs ${groupMode === 'order' ? 'bg-slate-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'}">
+                                                発注案件
                                             </button>
-                                            <button onclick="setGroupMode('ship')" class="px-2 py-1 text-xs ${groupMode === 'ship' ? 'bg-slate-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'}">
-                                                出庫先
+                                            <button onclick="setGroupMode('ship')" title="出庫先の案件番号でまとめる" class="px-2 py-1 text-xs ${groupMode === 'ship' ? 'bg-slate-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'}">
+                                                出庫先案件
                                             </button>
                                         </div>
                                     ` : ''}
@@ -2333,7 +2345,7 @@
                                         
                                         return `
                                             <div id="group-${project.replace(/[^a-zA-Z0-9]/g, '-')}" class="border-b dark:border-slate-700 last:border-b-0">
-                                                <div onclick="toggleProject('${project}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleProject('${project}')}" role="button" tabindex="0" aria-expanded="${Boolean(isExpanded)}" class="inventory-group-trigger p-3 sm:p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 active:bg-slate-100 dark:active:bg-slate-600">
+                                                <div onclick="toggleProject('${project}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleProject('${project}')}" role="button" tabindex="0" aria-expanded="${Boolean(isExpanded)}" class="inventory-group-trigger p-3 sm:p-4 flex flex-wrap gap-y-1.5 justify-between items-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 active:bg-slate-100 dark:active:bg-slate-600">
                                                     <div class="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                                                         <span class="text-slate-400 flex-shrink-0">${isExpanded ? '▼' : '▶'}</span>
                                                         <span class="font-semibold text-blue-600 dark:text-blue-400 text-sm sm:text-base flex-shrink-0">${project}</span>
@@ -2358,14 +2370,14 @@
                                                             </span>
                                                         ` : ''}
                                                     </div>
-                                                    <div class="flex gap-1 sm:gap-2 flex-shrink-0">
-                                                        ${statusCounts.waiting > 0 ? `<span title="入庫待ち ${statusCounts.waiting}件" aria-label="入庫待ち ${statusCounts.waiting}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">待${statusCounts.waiting}</span>` : ''}
-                                                        ${statusCounts.inStock > 0 ? `<span title="販売可能 ${statusCounts.inStock}件" aria-label="販売可能 ${statusCounts.inStock}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">庫${statusCounts.inStock}</span>` : ''}
-                                                        ${statusCounts.allocated > 0 ? `<span title="引当済 ${statusCounts.allocated}件" aria-label="引当済 ${statusCounts.allocated}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-cyan-100 dark:bg-cyan-900/50 text-cyan-700 dark:text-cyan-300">引${statusCounts.allocated}</span>` : ''}
-                                                        ${statusCounts.shipped > 0 ? `<span title="出庫済 ${statusCounts.shipped}件" aria-label="出庫済 ${statusCounts.shipped}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">出${statusCounts.shipped}</span>` : ''}
-                                                        ${statusCounts.internal > 0 ? `<span title="社内使用 ${statusCounts.internal}件" aria-label="社内使用 ${statusCounts.internal}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">社${statusCounts.internal}</span>` : ''}
-                                                        ${statusCounts.issue > 0 ? `<span title="不良品 ${statusCounts.issue}件" aria-label="不良品 ${statusCounts.issue}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">不${statusCounts.issue}</span>` : ''}
-                                                        ${statusCounts.disposed > 0 ? `<span title="廃棄 ${statusCounts.disposed}件" aria-label="廃棄 ${statusCounts.disposed}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300">廃${statusCounts.disposed}</span>` : ''}
+                                                    <div class="flex flex-wrap justify-end gap-1 sm:gap-2 ml-auto">
+                                                        ${statusCounts.waiting > 0 ? `<span title="入庫待ち ${statusCounts.waiting}件" aria-label="入庫待ち ${statusCounts.waiting}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs whitespace-nowrap bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">入庫待ち ${statusCounts.waiting}</span>` : ''}
+                                                        ${statusCounts.inStock > 0 ? `<span title="販売可能 ${statusCounts.inStock}件" aria-label="販売可能 ${statusCounts.inStock}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs whitespace-nowrap bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">在庫 ${statusCounts.inStock}</span>` : ''}
+                                                        ${statusCounts.allocated > 0 ? `<span title="引当済 ${statusCounts.allocated}件" aria-label="引当済 ${statusCounts.allocated}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs whitespace-nowrap bg-cyan-100 dark:bg-cyan-900/50 text-cyan-700 dark:text-cyan-300">引当 ${statusCounts.allocated}</span>` : ''}
+                                                        ${statusCounts.shipped > 0 ? `<span title="出庫済 ${statusCounts.shipped}件" aria-label="出庫済 ${statusCounts.shipped}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs whitespace-nowrap bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">出庫 ${statusCounts.shipped}</span>` : ''}
+                                                        ${statusCounts.internal > 0 ? `<span title="社内使用 ${statusCounts.internal}件" aria-label="社内使用 ${statusCounts.internal}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs whitespace-nowrap bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">社内 ${statusCounts.internal}</span>` : ''}
+                                                        ${statusCounts.issue > 0 ? `<span title="不良品 ${statusCounts.issue}件" aria-label="不良品 ${statusCounts.issue}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs whitespace-nowrap bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">不良 ${statusCounts.issue}</span>` : ''}
+                                                        ${statusCounts.disposed > 0 ? `<span title="廃棄 ${statusCounts.disposed}件" aria-label="廃棄 ${statusCounts.disposed}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs whitespace-nowrap bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300">廃棄 ${statusCounts.disposed}</span>` : ''}
                                                     </div>
                                                 </div>
                                                 ${isExpanded ? `

@@ -344,6 +344,15 @@
             html body .modal-eyebrow { font-size: 12px; }
             html body .modal-copy { font-size: 14px; }
             html body .project-action-button { font-size: 14px; min-height: 44px; }
+            /* スマホ：案件一覧を上に。集計（支払サマリーなど）はその下へ（PCの並びは変えない） */
+            html body .payment-main { display: flex; flex-direction: column; }
+            html body .payment-main > .priority-alerts { order: 1; }
+            html body .payment-main > .payment-queue { order: 2; }
+            html body .payment-main > .project-workspace { order: 3; margin-bottom: 16px; }
+            html body .payment-main > .payment-kpis-primary { order: 4; }
+            html body .payment-main > .payment-kpis-secondary { order: 5; }
+            html body .payment-main > .payment-kpis-insights { order: 6; }
+            html body .payment-main > .supplier-panel { order: 7; }
             html body .modal-close { width: 40px; height: 40px; }
             html body .shell-tool-button, html body .shell-bulk-button, html body .shell-primary-button { font-size: 14px; }
             html body .shell-icon-button, html body .shell-tool-button, html body .shell-bulk-button, html body .shell-primary-button { min-width: 40px; min-height: 40px; }
@@ -362,7 +371,7 @@
         }
     </style>
     <!-- 見た目（Tailwind）はあらかじめ作ったCSSを読む。作り方は tailwind/tailwind.config.js を参照 -->
-    <link rel="stylesheet" href="assets/tailwind.css?v=7f1123ff">
+    <link rel="stylesheet" href="assets/tailwind.css?v=e9bc4c45">
 </head>
 <body>
     <div id="app">
