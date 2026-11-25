@@ -192,6 +192,7 @@
             html body input[type="checkbox"], html body input[type="radio"] { width: 20px; height: 20px; }
             html body .shell-menu button { min-height: 46px; font-size: 15px; }
             html body .hide-on-phone { display: none !important; }
+            html body #archiveTableBody button { white-space: nowrap; }
         }
     </style>
 </head>
@@ -1741,6 +1742,49 @@
                 default: return 'bg-slate-100 text-slate-700';
             }
         }
+
+        // スマホの「一覧」表示用カード（表だと横スクロールが必要になるため、1件を1枚のカードで見せる）
+        function renderFlatMobileCard(item) {
+            const orderNo = formatProjectNumber(item.orderPrefix, item.orderNumber);
+            const shipNo = formatProjectNumber(item.shipPrefix, item.shipNumber);
+            const rowBg = selectedItems.has(item.id) ? 'bg-amber-50 dark:bg-amber-900/30' : (item.status === '引当済' ? 'bg-cyan-50 dark:bg-cyan-900/20' : 'bg-white dark:bg-slate-800');
+            return `
+                <div onclick="showDetailModal('${item.id}')" class="p-3 border-t border-slate-200 dark:border-slate-700 cursor-pointer active:bg-slate-100 dark:active:bg-slate-700 ${rowBg}">
+                    <div class="flex justify-between items-start gap-2 mb-1">
+                        <div class="flex items-center gap-2 min-w-0">
+                            ${bulkSelectMode ? `<input type="checkbox" ${selectedItems.has(item.id) ? 'checked' : ''} onclick="event.stopPropagation();toggleSelectItem('${item.id}')" class="w-4 h-4 rounded flex-shrink-0">` : ''}
+                            <div class="min-w-0">
+                                <p class="font-mono font-bold text-sm text-slate-900 dark:text-white break-all">${item.serial || '-'}</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">${item.category || ''}</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap justify-end items-center gap-1 flex-shrink-0">
+                            ${item.shelfNo ? `<span class="px-1.5 py-0.5 rounded text-xs font-semibold bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">棚${item.shelfNo}</span>` : ''}
+                            ${item.location === '東京' || item.location === '大阪' ? `<span class="text-xs text-slate-500 dark:text-slate-400">${item.location}</span>` : ''}
+                            <span class="px-2 py-0.5 rounded text-xs font-semibold ${getStatusClass(item.status)}">${item.status}</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-800 dark:text-slate-300 mb-1">${item.productName || ''}</p>
+                    <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
+                        <span>案件 ${orderNo ? `<a href="#" onclick="event.stopPropagation();openProcurementForProject('${orderNo}');return false;" class="font-semibold text-blue-600 dark:text-blue-400">${orderNo}</a>` : '-'}</span>
+                        <span>${getSupplierName(item.supplierId)}</span>
+                        ${shipNo ? `<span>出庫先 <b class="text-slate-700 dark:text-slate-300">${shipNo}</b></span>` : ''}
+                    </div>
+                    <div class="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 mb-2">
+                        <span>入庫: ${item.receiveDate || '-'}</span>
+                        <span>原価: ${item.costJPY ? '¥' + Number(item.costJPY).toLocaleString() : '-'}</span>
+                    </div>
+                    ${item.note ? `<p class="text-xs text-slate-500 dark:text-slate-400 mb-2 line-clamp-2">📝 ${item.note}</p>` : ''}
+                    <div class="flex gap-2" onclick="event.stopPropagation()">
+                        ${item.status === '入庫待ち' ? `<button onclick="showReceiveModal('${item.id}')" class="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded">入庫</button>` : ''}
+                        ${item.status === '在庫中' ? `<button onclick="showAllocateModal('${item.id}')" class="flex-1 px-3 py-1.5 bg-cyan-600 text-white text-xs rounded">引当</button><button onclick="showInternalUseModal('${item.id}')" class="px-3 py-1.5 bg-purple-600 text-white text-xs rounded">社内</button>` : ''}
+                        ${item.status === '引当済' ? `<button onclick="showShipFromAllocatedModal('${item.id}')" class="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded">出庫</button>` : ''}
+                        ${item.status === '不良品' ? `<button onclick="showDisposeModal('${item.id}')" class="px-3 py-1.5 bg-slate-400 text-white text-xs rounded">廃棄</button>` : ''}
+                        <button onclick="editItem('${item.id}')" class="px-3 py-1.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-white text-xs rounded">編集</button>
+                        ${item.status === '出庫済' || item.status === '社内使用' || item.status === '廃棄' ? `<button onclick="archiveItem('${item.id}')" class="px-3 py-1.5 bg-slate-500 text-white text-xs rounded">保管</button>` : ''}
+                    </div>
+                </div>`;
+        }
         
         // サプライヤーID→サプライヤー名変換
         function getSupplierName(supplierId) {
@@ -2109,8 +2153,12 @@
                                 ${filtered.length === 0 ? `
                                     <div class="px-4 py-8 text-center text-slate-500 dark:text-slate-400 text-sm">データがありません</div>
                                 ` : viewMode === 'flat' ? `
-                                    <!-- フラット表示（テーブル） -->
-                                    <div class="overflow-x-auto">
+                                    <!-- フラット表示：スマホはカード、PCは表 -->
+                                    <div class="md:hidden">
+                                        ${bulkSelectMode ? `<label class="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700"><input type="checkbox" onclick="toggleSelectAllFlat()" class="w-4 h-4 rounded">表示中をすべて選択</label>` : ''}
+                                        ${filtered.map(renderFlatMobileCard).join('')}
+                                    </div>
+                                    <div class="hidden md:block overflow-x-auto">
                                         <table class="w-full">
                                             <thead class="inventory-table-head bg-slate-100 dark:bg-slate-700">
                                                 <tr>
