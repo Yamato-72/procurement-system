@@ -1,0 +1,30 @@
+# 支払ナビ・在庫ナビのHTMLが変わったら、見た目のCSS（assets/tailwind.css）を作り直して自動で保存する
+# （新しいTailwindのクラスを使ったときに、表示が崩れないようにするため）
+name: build tailwind css
+on:
+  push:
+    branches: [main]
+    paths: ['index.html', 'inventory.html', 'tailwind/**']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npx -y tailwindcss@3.4.19 -c tailwind/tailwind.config.js -i tailwind/input.css -o assets/tailwind.css --minify
+      - name: CSSの読み込みURLを新しい版に更新（ブラウザの古いキャッシュ対策）
+        run: |
+          V=$(md5sum assets/tailwind.css | cut -c1-8)
+          sed -i -E "s#assets/tailwind\.css\?v=[0-9a-f]+#assets/tailwind.css?v=$V#" index.html inventory.html
+      - name: 変わっていれば保存
+        run: |
+          if git diff --quiet; then echo "変更なし"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/tailwind.css index.html inventory.html
+          git commit -m "Tailwind CSSを自動で作り直し"
+          git push

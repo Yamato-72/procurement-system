@@ -8,14 +8,26 @@
     <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%232383e2'/><circle cx='90' cy='90' r='50' fill='none' stroke='%23fff' stroke-width='8'/><text x='90' y='108' text-anchor='middle' fill='%23fff' font-size='60' font-weight='bold' font-family='Arial'>¥</text></svg>">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
-        tailwind.config = {
-            darkMode: 'class'
+        // 外部ライブラリを「使うときだけ」読み込む（開く速さのため。同じURLは1回だけ読む）
+        const __scriptLoads = {};
+        function loadScriptOnce(url) {
+            if (!__scriptLoads[url]) {
+                __scriptLoads[url] = new Promise((resolve, reject) => {
+                    const s = document.createElement('script');
+                    s.src = url; s.async = true;
+                    s.onload = resolve;
+                    s.onerror = () => { delete __scriptLoads[url]; reject(new Error('読み込み失敗: ' + url)); };
+                    document.head.appendChild(s);
+                });
+            }
+            return __scriptLoads[url];
         }
-        // PDF.js worker設定
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        // PDF.js は請求書・輸入許可書のPDFを読むときだけ読み込む
+        async function ensurePdfJs() {
+            await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;900&display=swap');
@@ -336,6 +348,8 @@
             html body .shell-menu button { min-height: 46px; font-size: 15px; }
         }
     </style>
+    <!-- 見た目（Tailwind）はあらかじめ作ったCSSを読む。作り方は tailwind/tailwind.config.js を参照 -->
+    <link rel="stylesheet" href="assets/tailwind.css?v=7f1123ff">
 </head>
 <body>
     <div id="app">
@@ -7453,6 +7467,7 @@
                     
                     // PDFをダウンロードして解析
                     const pdfData = await downloadDriveFile(file.id);
+                    await ensurePdfJs();
                     const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
                     
                     let fullText = '';
@@ -7790,6 +7805,7 @@
                 try {
                     // PDFをダウンロードして解析
                     const pdfData = await downloadDriveFile(file.id);
+                    await ensurePdfJs();
                     const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
                     
                     let fullText = '';
@@ -7957,7 +7973,8 @@
                 const projectNumberFromFile = extractProjectNumberFromFileName(file.name);
                 
                 const arrayBuffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                await ensurePdfJs();
+                    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
                 
                 let fullText = '';
                 for (let i = 1; i <= pdf.numPages; i++) {

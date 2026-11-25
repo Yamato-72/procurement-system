@@ -8,12 +8,22 @@
     <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%232383e2'/><path d='M45 65 L90 40 L135 65 L135 115 L90 140 L45 115 Z' fill='none' stroke='%23fff' stroke-width='8'/><path d='M90 40 L90 140' stroke='%23fff' stroke-width='8'/><path d='M45 65 L90 90 L135 65' fill='none' stroke='%23fff' stroke-width='8'/></svg>">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+    <!-- QRラベル用（小さいので先に読むが、表示は待たせない） -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" defer></script>
     <script>
-        tailwind.config = {
-            darkMode: 'class'
+        // 外部ライブラリを「使うときだけ」読み込む（開く速さのため。同じURLは1回だけ読む）
+        const __scriptLoads = {};
+        function loadScriptOnce(url) {
+            if (!__scriptLoads[url]) {
+                __scriptLoads[url] = new Promise((resolve, reject) => {
+                    const s = document.createElement('script');
+                    s.src = url; s.async = true;
+                    s.onload = resolve;
+                    s.onerror = () => { delete __scriptLoads[url]; reject(new Error('読み込み失敗: ' + url)); };
+                    document.head.appendChild(s);
+                });
+            }
+            return __scriptLoads[url];
         }
     </script>
     <style>
@@ -195,6 +205,8 @@
             html body #archiveTableBody button { white-space: nowrap; }
         }
     </style>
+    <!-- 見た目（Tailwind）はあらかじめ作ったCSSを読む。作り方は tailwind/tailwind.config.js を参照 -->
+    <link rel="stylesheet" href="assets/tailwind.css?v=7f1123ff">
 </head>
 <body>
     <div id="app">
@@ -6106,7 +6118,16 @@
             document.body.appendChild(scannerModal);
             
             // スキャナーを初期化
-            setTimeout(() => {
+            setTimeout(async () => {
+                // カメラ読み取りの部品は、スキャンを開いたときだけ読み込む
+                try {
+                    await loadScriptOnce('https://unpkg.com/html5-qrcode');
+                } catch (e) {
+                    const st = document.getElementById('scan-status');
+                    if (st) st.textContent = 'スキャナーを読み込めませんでした。電波の良い場所でもう一度開いてください';
+                    return;
+                }
+                if (!document.getElementById('qr-reader')) return; // 読み込み中に閉じられた
                 html5QrCode = new Html5Qrcode("qr-reader");
                 html5QrCode.start(
                     { facingMode: "environment" },
@@ -6408,6 +6429,13 @@
         // ==================== QRラベル印刷機能 ====================
         function showLabelPrintModal() {
             toggleReportMenu(); // メニューを閉じる
+            if (typeof qrcode === 'undefined') {
+                // QRの部品がまだ届いていなければ、読み込んでから開く
+                loadScriptOnce('https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js')
+                    .then(() => { toggleReportMenu(); showLabelPrintModal(); })
+                    .catch(() => alert('QRラベルの部品を読み込めませんでした。電波の良い場所でもう一度お試しください'));
+                return;
+            }
             
             const modal = document.createElement('div');
             modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
