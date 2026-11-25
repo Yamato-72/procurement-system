@@ -970,6 +970,24 @@
             }
         }
 
+        // AN-KAN：入荷予定日の変更を案件のGoogle Chatスペースへ通知してもらう
+        const ANKAN_URL = 'https://an-kan-47228502594.europe-west1.run.app';
+        async function notifyAnkanArrival(projectNumber) {
+            try {
+                const res = await fetch(`${ANKAN_URL}/api/projects/arrival-check`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ project_number: projectNumber, test: IS_TEST })
+                });
+                const j = await res.json().catch(() => ({}));
+                if (j.message === '通知しました') showStatus(`📣 ${projectNumber} の入荷予定日を案件のChatに通知しました`);
+                else if (j.message || j.error) showStatus(`AN-KAN：${j.message || j.error}`);
+                setTimeout(() => showStatus(''), 5000);
+            } catch (e) {
+                console.warn('AN-KANへの通知に失敗しました', e);
+            }
+        }
+
         async function saveData() {
             if (!accessToken) return;
             try {
@@ -5144,6 +5162,8 @@
             const workingDays = parseInt(document.getElementById('editGroupWorkingDays').value) || 30;
             const arrivalEl = document.getElementById('editGroupArrivalDate');
             const arrivalDate = arrivalEl ? arrivalEl.value : null;
+            const oldArrival = (groupProjects.find(p => p.arrivalDate) || {}).arrivalDate || '';
+            const arrivalChanged = arrivalDate !== null && arrivalDate !== oldArrival;
             
             // デポジットパターン
             const supplier = suppliers.find(s => s.id === supplierId);
@@ -5248,7 +5268,8 @@
                 }
             });
             
-            saveData();
+            // 入荷予定日が変わったら、保存が終わってからAN-KANに知らせる（AN-KANがシートを読み直して案件のChatへ投稿）
+            saveData().then(() => { if (arrivalChanged) notifyAnkanArrival(projectNumber); });
             closeGroupEditModal();
             renderMain();
             
