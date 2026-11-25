@@ -164,6 +164,19 @@
             .inventory-table-head { top: 69px; }
         }
 
+        /* 状態のお知らせ（スマホ・狭い画面だけ。PCは画面上部に表示） */
+        .status-toast { display: none; }
+        @media (max-width: 920px) {
+            .status-toast.is-show {
+                display: block; position: fixed; left: 50%; transform: translateX(-50%); bottom: 24px; z-index: 70;
+                max-width: min(92vw, 520px); padding: 11px 16px; border-radius: 12px;
+                background: #172033; color: #fff; font-size: 14px; font-weight: 700; line-height: 1.5; text-align: center;
+                box-shadow: 0 10px 30px rgba(15, 23, 42, .28); cursor: pointer;
+            }
+            .status-toast.is-error { background: #c62828; }
+        }
+        @media (max-width: 640px) { .status-toast.is-show { bottom: 92px; } }
+
         /* ===== スマホ表示の読みやすさ調整（640px以下だけに効く。PCの見た目は変えない） =====
            - 文字：12px前後が多く小さすぎたため、本文16px・補足13〜14pxを下限にする
            - 押しやすさ：ボタン・入力欄を指で押せる高さ（40〜44px）にする
@@ -1604,9 +1617,32 @@
             }
         }
 
+        // 画面上部の状態表示（保存中・保存完了・エラーなど）。
+        // スマホなど幅が狭い画面では上部の表示が隠れるため、画面下にも同じ内容を「お知らせ」として出す。
+        let __toastTimer = null;
         function showStatus(message) {
             const statusEl = document.getElementById('status');
             if (statusEl) statusEl.textContent = message;
+            let t = document.getElementById('statusToast');
+            if (!t) {
+                t = document.createElement('div');
+                t.id = 'statusToast';
+                t.className = 'status-toast';
+                t.setAttribute('role', 'status');
+                t.setAttribute('aria-live', 'polite');
+                t.title = 'タップで閉じる';
+                t.onclick = () => { t.classList.remove('is-show'); };
+                document.body.appendChild(t);
+            }
+            clearTimeout(__toastTimer);
+            const msg = String(message || '');
+            if (!msg) { t.classList.remove('is-show'); return; }
+            const isError = /エラー|失敗|できません|⚠️|中止/.test(msg);
+            t.textContent = msg;
+            t.classList.toggle('is-error', isError);
+            t.classList.add('is-show');
+            // エラーはタップで閉じるまで残す。それ以外は消し忘れに備えて8秒で自動的に消す
+            if (!isError) __toastTimer = setTimeout(() => t.classList.remove('is-show'), 8000);
         }
 
         function getFilteredInventory() {
