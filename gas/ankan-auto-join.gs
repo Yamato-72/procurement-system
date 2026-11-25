@@ -1,7 +1,7 @@
 // ============================================================
 // AN-KAN Chatアプリ 自動追加
 //   スペース名に案件番号（AD- / SP- / TS-）が入っているスペースへ、
-//   AN-KANアプリを自動で追加する。1時間ごとに見回す。
+//   AN-KANアプリを自動で追加する。1日1回（朝7時台）見回す。
 //
 //   ・和田さんの権限で動く（和田さんが入っているスペースだけが対象）
 //   ・このスクリプトのGoogle Cloudプロジェクトを、AN-KANアプリと同じ
@@ -9,7 +9,7 @@
 //
 //   使い方
 //     1) addAnkanToSpaces を一度実行 → 許可を出す（既存スペースにまとめて追加）
-//     2) installTrigger を一度実行（以後1時間ごとに自動）
+//     2) installTrigger を一度実行（以後毎朝7時台に自動）
 // ============================================================
 
 // 対象にするスペース名のパターン（AD-1666 / SP0123 / TS 77 など）
@@ -49,13 +49,13 @@ function addAnkanToSpaces() {
   console.log('案件スペース ' + checked + ' 件 / 新しく追加 ' + added + ' / もともと参加 ' + already + ' / 失敗 ' + failed);
 }
 
-// 1時間ごとに自動実行（一度だけ実行する）
+// 毎朝7時台に自動実行（一度だけ実行する）
 function installTrigger() {
   ScriptApp.getProjectTriggers()
     .filter(function (t) { return t.getHandlerFunction() === 'addAnkanToSpaces'; })
     .forEach(function (t) { ScriptApp.deleteTrigger(t); });
-  ScriptApp.newTrigger('addAnkanToSpaces').timeBased().everyHours(1).create();
-  console.log('1時間ごとの自動実行を設定しました');
+  ScriptApp.newTrigger('addAnkanToSpaces').timeBased().everyDays(1).atHour(7).inTimezone('Asia/Tokyo').create();
+  console.log('毎朝7時台の自動実行を設定しました');
 }
 
 // 追加済みの記録を消す（AN-KANをスペースから外した後に入れ直したいとき用）
