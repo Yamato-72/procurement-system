@@ -93,7 +93,7 @@ pre{white-space:pre;overflow-x:auto;background:var(--panel);padding:10px;border-
  <h2>今週やること</h2><p class="lead" id="load-at"></p>
  <div class="tog"><span>定期検品の対象</span><div class="seg" id="scope"></div></div>
  <div class="board">
-  <div class="col"><div class="ch"><span class="cnt" id="c-plan">0</span><b>入荷予定</b></div><p class="why">在庫ナビで「入庫待ち」。支払ナビで購入済みで、まだ届いていない製品です。</p><div id="l-plan"></div></div>
+  <div class="col"><div class="ch"><span class="cnt" id="c-plan">0</span><b>入荷予定</b></div><p class="why">在庫ナビで「入庫待ち」。入荷予定日（支払ナビで入力）が近い順に並びます。</p><div id="l-plan"></div></div>
   <div class="col tape"><div class="ch"><span class="cnt" id="c-wait">0</span><b>入荷検品まち</b></div><p class="why">在庫ナビで「検品待ち」。検品すると在庫ナビが「在庫中」（異常は「不良品」）に変わります。</p><div id="l-wait"></div></div>
   <div class="col warn"><div class="ch"><span class="cnt" id="c-due">0</span><b>定期検品</b></div><p class="why">棚ごとにまとめています。棚の前で全部見たら「この棚を正常で登録」。異常の製品だけ先に「異常」で記録してください。</p><div class="chips" id="due-tab"></div><div id="l-due"></div></div>
   <div class="col warn"><div class="ch"><span class="cnt" id="c-bad">0</span><b>不良品（処置まち）</b></div><p class="why">在庫ナビで「不良品」の製品。修理・復旧したら記録して在庫中に戻します。</p><div id="l-bad"></div></div>
@@ -183,12 +183,13 @@ const pad=n=>String(n).padStart(2,'0');
 const ymd=dt=>dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate());
 const TODAY=ymd(new Date());
 const toYmd=v=>{const m=String(v||'').trim().match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);return m?m[1]+'-'+pad(m[2])+'-'+pad(m[3]):''};
+const okn=o=>String(o||'').toUpperCase().replace(/\s/g,'').replace(/-0+(\d)/,'-$1');
 const fmt=d=>d?d.replace(/-/g,'/'):'—';
 const addMonths=(d,m)=>{const x=new Date(d+'T00:00:00');x.setMonth(x.getMonth()+m);return ymd(x)};
 const days=(a,b)=>Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/864e5);
 const ls=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}};
 
-let CHECK={},INV=[],LOG=[],SUP={},LOGBY={},LOADED_AT='',CONF=[],PEOPLE=['上村'];
+let ARRIVAL={},CHECK={},INV=[],LOG=[],SUP={},LOGBY={},LOADED_AT='',CONF=[],PEOPLE=['上村'];
 let scope=ls('qualityScope')||'all';
 
 // ===== Google ログイン（在庫ナビ・検品ナビと同じ方式。トークンも共有） =====
@@ -217,7 +218,9 @@ function busy(on,t){$('busy').classList.toggle('on',on);if(t)$('busy-t').textCon
 async function load(){
  busy(true,'読み込み中…');
  try{
-  const [inv,arc,log,sup,conf,chk]=await Promise.all([getVals(INV_ID,'在庫!A2:Q'),getVals(INV_ID,'在庫アーカイブ!A2:Q'),getVals(LOG_ID,LR('A2:N')),getVals(INV_ID,'サプライヤー!A2:B'),getVals(LOG_ID,"'設定'!A1:B").catch(()=>[]),getVals(INV_ID,'検品項目!A2:G').catch(()=>[])]);
+  const [inv,arc,log,sup,conf,chk,proj]=await Promise.all([getVals(INV_ID,'在庫!A2:Q'),getVals(INV_ID,'在庫アーカイブ!A2:Q'),getVals(LOG_ID,LR('A2:N')),getVals(INV_ID,'サプライヤー!A2:B'),getVals(LOG_ID,"'設定'!A1:B").catch(()=>[]),getVals(INV_ID,'検品項目!A2:G').catch(()=>[]),getVals(INV_ID,'案件!A2:Q').catch(()=>[])]);
+  // 入荷予定日（支払ナビの案件シートQ列。注文番号ごと）
+  ARRIVAL={};proj.forEach(r=>{const d=toYmd(r[16]);if(!d)return;let k;const p1=String(r[1]||'');if(/^[A-Z]+-\d+$/i.test(p1))k=p1;else k=(p1||'AD').replace(/-$/,'')+'-'+(r[2]||'');k=okn(k);if(!ARRIVAL[k]||d<ARRIVAL[k])ARRIVAL[k]=d});
   CHECK={};chk.forEach(r=>{if(r[0])CHECK[String(r[0]).trim()]=r.slice(1).map(v=>String(v||'').trim()).filter(Boolean)});
   CONF=conf;const pr=conf.find(r=>r[0]==='担当者');PEOPLE=pr&&pr[1]?pr[1].split(/[／\/、,]/).map(v=>v.trim()).filter(Boolean):['上村'];fillWho();
   SUP={};sup.forEach(r=>{if(r[0])SUP[String(Math.round(Number(r[0])))||r[0]]=r[1]||''});
@@ -303,7 +306,9 @@ function renderTodo(){
  $('scope').innerHTML=[['all','引当済もふくむ（'+W.length+'点）'],['core','在庫中・検品待ち・不良品だけ（'+core+'点）']].map(([v,l])=>'<button type="button" data-scope="'+v+'" class="'+(scope===v?'on':'')+'">'+esc(l)+'</button>').join('');
  const plan=INV.filter(x=>!x.arch&&x.s&&x.st==='入庫待ち');$('c-plan').textContent=plan.length;
  const latest=a=>a.map(x=>x.od||'').sort().pop()||'';
- $('l-plan').innerHTML=plan.length?group(plan,x=>x.o||'注文番号なし').sort((a,b)=>latest(b[1]).localeCompare(latest(a[1]))).map(([o,a])=>'<div class="item"><div class="t">'+esc(o)+'・'+pname(a)+' × '+a.length+'点</div><div class="s">'+(latest(a)?'発注 '+esc(fmt(latest(a)))+'・':'')+esc(a[0].sup||'')+'</div><div class="acts"><button type="button" data-a="open-in" data-o="'+esc(o+'|入庫待ち')+'">届いたので検品する</button></div></div>').join(''):'<div class="empty">入荷予定はありません。</div>';
+ const arr=o=>ARRIVAL[okn(o)]||'';
+ const arrLabel=d=>{if(!d)return '';const n=days(TODAY,d);return '<b style="color:'+(n<=1?'var(--red)':'inherit')+'">入荷予定 '+esc(fmt(d))+'（'+(n===0?'今日':n===1?'明日':n>0?'あと'+n+'日':-n+'日過ぎ')+'）</b>・'};
+ $('l-plan').innerHTML=plan.length?group(plan,x=>x.o||'注文番号なし').sort((a,b)=>{const da=arr(a[0]),db=arr(b[0]);if(da&&db)return da.localeCompare(db);if(da||db)return da?-1:1;return latest(b[1]).localeCompare(latest(a[1]))}).map(([o,a])=>'<div class="item"><div class="t">'+esc(o)+'・'+pname(a)+' × '+a.length+'点</div><div class="s">'+arrLabel(arr(o))+(latest(a)?'発注 '+esc(fmt(latest(a)))+'・':'')+esc(a[0].sup||'')+'</div><div class="acts"><button type="button" data-a="open-in" data-o="'+esc(o+'|入庫待ち')+'">届いたので検品する</button></div></div>').join(''):'<div class="empty">入荷予定はありません。</div>';
  const wait=W.filter(x=>x.st==='検品待ち');$('c-wait').textContent=wait.length;
  $('l-wait').innerHTML=wait.length?group(wait,x=>x.o||'注文番号なし').map(([o,a])=>'<div class="item"><div class="t">'+esc(o)+'・'+pname(a)+' × '+a.length+'点</div><div class="s">'+sumLine(a)+'</div><div class="acts"><button type="button" class="y" data-a="open-in" data-o="'+esc(o+'|検品待ち')+'">この注文を検品する</button></div></div>').join(''):'<div class="empty">検品待ちはありません。</div>';
  const pool=W.filter(x=>x.st!=='検品待ち'&&inScope(x)).map(x=>({x,...q(x)}));

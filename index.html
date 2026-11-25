@@ -791,7 +791,7 @@
 
                 const projectResponse = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: '案件!A2:P',
+                    range: '案件!A2:Q',
                 });
                 const projectRows = projectResponse.result.values || [];
                 projects = projectRows.map(row => {
@@ -832,7 +832,9 @@
                         // 通貨（O列）。未設定・空は 'USD' 扱い＝既存案件はこれまで通り。
                         currency: (row[14] === 'JPY') ? 'JPY' : 'USD',
                         // 発注ロット（P列）。0=初回、1=追加1、2=追加2…
-                        orderBatch: parseInt(row[15]) || 0
+                        orderBatch: parseInt(row[15]) || 0,
+                        // 入荷予定日（Q列）。倉庫に届く予定の日。和田が入力し、品質ナビ・Google Chat通知で使う
+                        arrivalDate: (row[16] && String(row[16]).includes('-')) ? String(row[16]) : ''
                     };
 
                     // 【移行】2026/10/19〜11/06 の版はO列に発注ロット（数字）を書いていた。
@@ -990,7 +992,7 @@
                 });
 
                 const projectData = [
-                    ['ID', '接頭辞', '番号', 'サプライヤーID', '製品名', '総額USD', 'デポジット予定', 'Serial', '数量', 'WorkingDays', '集荷予定日', '発注日', '諸費用', '入庫完了', '通貨', '発注ロット'],
+                    ['ID', '接頭辞', '番号', 'サプライヤーID', '製品名', '総額USD', 'デポジット予定', 'Serial', '数量', 'WorkingDays', '集荷予定日', '発注日', '諸費用', '入庫完了', '通貨', '発注ロット', '入荷予定日'],
                     ...projects.map(p => [
                         p.id, 
                         p.projectPrefix || 'AD', 
@@ -1007,7 +1009,8 @@
                         JSON.stringify(p.expenses || []),
                         p.receivedComplete ? 'true' : '',
                         p.currency === 'JPY' ? 'JPY' : '',   // 空=USD（既存案件と互換）
-                        p.orderBatch || 0                    // 発注ロット（P列）
+                        p.orderBatch || 0,                   // 発注ロット（P列）
+                        p.arrivalDate || ''                  // 入荷予定日（Q列）
                     ])
                 ];
                 // まずクリアしてから書き込み（削除された行も反映）
@@ -2227,14 +2230,16 @@
                                                         ${(() => {
                                                             // 発注ロットが複数あれば、集荷予定日をロットごとに表示
                                                             const lots = [...new Set(g.items.map(p => p.orderBatch || 0))].sort((a, b) => a - b);
+                                                            const arr = (g.items.find(p => p.arrivalDate) || {}).arrivalDate;
+                                                            const arrHtml = arr ? `<span>入荷予定: <span class="font-semibold text-amber-600">${arr.replace(/-/g, '/')}</span></span>` : '';
                                                             if (lots.length <= 1) {
-                                                                return `<span>集荷: <span class="font-semibold text-blue-600">${pickupDateDisplay}</span></span>`;
+                                                                return `<span>集荷: <span class="font-semibold text-blue-600">${pickupDateDisplay}</span></span>` + arrHtml;
                                                             }
                                                             return lots.map(b => {
                                                                 const first = g.items.find(p => (p.orderBatch || 0) === b);
                                                                 const d = first && first.pickupDate ? first.pickupDate.replace(/-/g, '/') : '未設定';
                                                                 return `<span>${b > 0 ? `追加${b}` : '初回'}集荷: <span class="font-semibold text-blue-600">${d}</span></span>`;
-                                                            }).join('');
+                                                            }).join('') + arrHtml;
                                                         })()}
                                                     </div>
                                                 </div>
@@ -4753,6 +4758,10 @@
                             </div>
                             `}
                             <div>
+                                <label class="block text-sm font-semibold mb-1 dark:text-slate-300">入荷予定日（倉庫に届く日）</label>
+                                <input type="date" id="editGroupArrivalDate" value="${representative.arrivalDate || ''}" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                            </div>
+                            <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">製造リードタイム（日）</label>
                                 <input type="number" id="editGroupWorkingDays" value="${representative.workingDays || 30}" min="1" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                             </div>
@@ -5133,6 +5142,8 @@
                 return el ? el.value : null;
             };
             const workingDays = parseInt(document.getElementById('editGroupWorkingDays').value) || 30;
+            const arrivalEl = document.getElementById('editGroupArrivalDate');
+            const arrivalDate = arrivalEl ? arrivalEl.value : null;
             
             // デポジットパターン
             const supplier = suppliers.find(s => s.id === supplierId);
@@ -5194,6 +5205,7 @@
                 const pd = lotDate('PickupDate', b);
                 if (od !== null) p.registeredDate = od;
                 if (pd !== null) p.pickupDate = pd;
+                if (arrivalDate !== null) p.arrivalDate = arrivalDate;
                 p.workingDays = workingDays;
                 p.totalAmount = productAmounts[p.id] || 0;
                 p.quantity = productQuantities[p.id] || 1;
