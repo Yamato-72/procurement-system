@@ -5124,41 +5124,100 @@
         }
         
         // グループの製品を在庫シートに追加
+        //   すでに在庫（アーカイブ含む）にある分は足さない。足りない製品・Serialだけを追加する
+        //   （以前は押すたびに案件の全製品をまるごと追加していた）
         async function addGroupToInventory(projectNumber) {
             const groupProjects = projects.filter(p => formatProjectNumber(p) === projectNumber);
             if (groupProjects.length === 0) return;
             
             // モーダルから最新の値を取得
             const supplierId = document.getElementById('editGroupSupplierId').value || '';
-            const orderDate = document.getElementById('editGroupOrderDate').value || new Date().toISOString().split('T')[0];
-            
-            let addedCount = 0;
-            
-            for (let idx = 0; idx < groupProjects.length; idx++) {
-                const p = groupProjects[idx];
-                
-                // モーダルの入力値を取得
+            const orderDate = document.getElementById('editGroupOrderDate')?.value || new Date().toISOString().split('T')[0];
+            const grpParsed = parseProjectNumberString(projectNumber);
+            const normSerial = v => String(v || '').replace(/[\s　]/g, '').toUpperCase().replace(/-0+(\d)/g, '-$1');
+            const normName = v => String(v || '').normalize('NFKC').replace(/\s+/g, '').toLowerCase();
+
+            // 在庫とアーカイブを読む（同じ案件番号の行）
+            let rows = [];
+            try {
+                showStatus('在庫を確認中...');
+                const res = await gapi.client.sheets.spreadsheets.values.batchGet({
+                    spreadsheetId: SPREADSHEET_ID,
+                    ranges: ['在庫!A2:Q', '在庫アーカイブ!A2:Q'],
+                });
+                (res.result.valueRanges || []).forEach(vr => { rows = rows.concat(vr.values || []); });
+            } catch (e) {
+                showStatus('在庫の確認に失敗しました');
+                alert('在庫シートを読めなかったため、追加を中止しました。通信を確認してもう一度お試しください。');
+                return;
+            }
+            const sameProject = rows.filter(r => String(r[4] || '').toUpperCase() === String(grpParsed.prefix).toUpperCase()
+                && parseInt(r[5], 10) === parseInt(grpParsed.number, 10));
+
+            // 製品ごとに「足りない分」を出す
+            const plan = [];
+            groupProjects.forEach((p, idx) => {
                 const qtyInput = document.getElementById(`editProductQty_${idx}`);
                 const serialInput = document.getElementById(`editProductSerial_${idx}`);
                 const nameInput = document.getElementById(`editProductName_${idx}`);
-                
                 const quantity = qtyInput ? parseInt(qtyInput.value) || 1 : (p.quantity || 1);
-                const grpParsed = parseProjectNumberString(projectNumber);
-                const serial = serialInput ? serialInput.value.trim() : (p.serial || generateSerial(quantity, grpParsed.prefix, grpParsed.number));
+                const serial = serialInput ? serialInput.value.trim() : (p.serial || '');
                 const productName = nameInput ? nameInput.value.trim() : p.productName;
                 const category = detectCategory(productName) || 'その他';
-                
-                try {
-                    await addToInventory(serial, category, productName, projectNumber, orderDate, quantity, supplierId);
-                    addedCount += quantity;
-                    console.log(`✅ 在庫追加: ${productName} x ${quantity}`);
-                } catch (err) {
-                    console.error(`在庫追加エラー: ${productName}`, err);
+                const mine = sameProject.filter(r => normName(r[3]) === normName(productName));
+
+                // このSerial指定で作られるはずの番号（addToInventory と同じ決まり）
+                const m1 = serial.match(/^(YS\d+)\((\d+)-(\d+)\)$/i), m2 = serial.match(/^(YS\d+)-(\d+)$/i);
+                const base = m1 ? m1[1] : m2 ? m2[1] : serial.replace(/\(.*\)/, '');
+                const start = m1 ? parseInt(m1[2], 10) : m2 ? parseInt(m2[2], 10) : null;
+                const expected = [];
+                for (let i = 0; i < quantity; i++) {
+                    expected.push(!base ? '' : start !== null ? `${base}-${start + i}` : quantity > 1 ? `${base}-${i + 1}` : base);
                 }
+                let missing;
+                if (base) {
+                    // Serialは全社で一意なので、案件番号に関係なく在庫・アーカイブ全体で探す（出庫で番号が変わった行も拾う）
+                    const have = new Set(rows.map(r => normSerial(r[1])));
+                    missing = expected.filter(sr => !have.has(normSerial(sr)));
+                } else {
+                    missing = expected.slice(0, Math.max(0, quantity - mine.length)); // Serialなしは数で比べる
+                }
+                plan.push({ productName, category, quantity, already: quantity - missing.length, missing });
+            });
+
+            const toAdd = plan.filter(x => x.missing.length > 0);
+            if (toAdd.length === 0) {
+                showStatus('');
+                alert('この案件の製品は、すべて在庫にあります（追加するものはありません）。');
+                return;
             }
-            
-            showStatus(`✅ 在庫シートに${addedCount}件追加しました`);
-            setTimeout(() => showStatus(''), 3000);
+            const lines = plan.map(x => x.missing.length
+                ? `・${x.productName}：${x.missing.length}点を追加${x.already ? `（${x.already}点はすでにあり）` : ''}`
+                : `・${x.productName}：すでに${x.quantity}点あり（追加しない）`);
+            if (!confirm(`在庫シートに次のとおり追加します。\n\n${lines.join('\n')}\n\nよろしいですか？`)) { showStatus(''); return; }
+
+            const newRows = [];
+            toAdd.forEach(x => x.missing.forEach((sr, i) => {
+                newRows.push([
+                    `${Date.now()}-${newRows.length + 1}-${Math.random().toString(36).substring(2, 8)}`,
+                    sr, x.category, x.productName, grpParsed.prefix, padProjectNumber(grpParsed.number),
+                    orderDate, '', '入庫待ち', '', '', '', '', '', '', '', supplierId
+                ]);
+            }));
+            try {
+                await gapi.client.sheets.spreadsheets.values.append({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: '在庫!A:Q',
+                    valueInputOption: 'RAW',
+                    insertDataOption: 'INSERT_ROWS',
+                    resource: { values: newRows }
+                });
+                showStatus(`✅ 在庫シートに${newRows.length}件追加しました`);
+                setTimeout(() => showStatus(''), 3000);
+            } catch (err) {
+                console.error('在庫追加エラー', err);
+                showStatus('在庫追加エラー: ' + (err.message || err.result?.error?.message || ''));
+            }
         }
         
         // 数量比で按分
@@ -5433,8 +5492,11 @@
             groupProjects.forEach((p, idx) => {
                 const serialChanged = oldSerials[idx] !== p.serial;
                 const nameChanged = oldProductNames[idx] !== p.productName;
+                // 新しく足した製品（元の製品名もSerialも空）は、まだ在庫に行がないので触らない
+                //（以前は空の製品名が「全部に一致」して、同じ案件のほかの製品のSerialを書き換えていた）
+                const isNewProduct = !oldProductNames[idx] && !oldSerials[idx];
                 
-                if (serialChanged || nameChanged) {
+                if (!isNewProduct && (serialChanged || nameChanged)) {
                     updateInventoryFromProject(
                         formatProjectNumber(p), 
                         oldSerials[idx], 
@@ -5815,7 +5877,8 @@
                         }
                         
                         // Serialも変更されていれば更新（B列）
-                        if (oldSerial !== newSerial && itemSerial.startsWith(oldSerial.split('(')[0])) {
+                        // 旧Serialが空のとき（新しく足した製品など）は、ほかの製品のSerialを書き換えない
+                        if (oldSerial && oldSerial !== newSerial && itemSerial.startsWith(oldSerial.split('(')[0])) {
                             const branchMatch = itemSerial.match(/\((\d+)\)$/);
                             let newSerialValue;
                             if (branchMatch) {
