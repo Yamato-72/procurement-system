@@ -8,6 +8,533 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
     <style> body { -webkit-tap-highlight-color: transparent; } </style>
+    <style>
+        /* ===== 新しいデザイン（試験中・品質ナビに寄せる）=====
+           ・地は白、文字は墨（#141414）。上の帯はナビごとの色（在庫＝クラフト、支払＝紺、品質＝黄、製品＝墨）
+           ・色は意味があるところだけ：不具合・遅れ＝赤、完了・プラス＝緑、手を動かす状態（入庫待ち・検品待ち）＝黄
+           ・それ以外の青・紫・水色・オレンジなどは、墨とグレーに置き換える
+           ・URLに ?theme=q で有効、?theme=old で元に戻す（この端末に記憶）。ダークモード中は元のまま */
+        html.theme-q:not(.dark) {
+            --ui-bg: #ffffff; --ui-surface: #ffffff; --ui-surface-muted: #f6f6f4;
+            --ui-text: #141414; --ui-subtle: #5b5b5b; --ui-line: #e2e2e2;
+            --ui-brand: #141414; --ui-brand-strong: #000000; --ui-brand-soft: #ffffff;
+            --ui-shadow: none;
+            --q-y: #ffd21f; --q-red: #d7261e; --q-ok: #2b6e3f; --q-panel: #f6f6f4;
+            --q-band: #bccfc8; /* 製品ナビの帯：灰みの浅葱。支払＝墨、在庫＝クラフト、品質＝黄 */
+        }
+        html.theme-q:not(.dark) input[type="checkbox"], html.theme-q:not(.dark) input[type="radio"] { accent-color: #141414; }
+        html.theme-q:not(.dark) body { font-family: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif; }
+        /* 上の帯 */
+        html.theme-q:not(.dark) header[class] { background: var(--q-band) !important; background-image: none !important; border-bottom: 0 !important; box-shadow: none !important; backdrop-filter: none !important; }
+        html.theme-q:not(.dark) .brand-mark { background: #141414 url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><g fill='none' stroke='%23e7d7b8' stroke-width='4.5' stroke-linejoin='round' stroke-linecap='round'><path d='M12 23 L32 14 L52 23 L52 45 L32 54 L12 45 Z'/><path d='M12 23 L32 32 L52 23'/><path d='M32 32 L32 54'/><path d='M22 18.5 L42 27.5'/></g></svg>") center / 72% no-repeat !important; color: transparent !important; font-size: 0 !important; border-radius: 6px !important; box-shadow: none !important; }
+        html.theme-q:not(.dark) .brand-title { font-weight: 900; }
+        html.theme-q:not(.dark) .brand-subtitle, html.theme-q:not(.dark) #crumb { color: #141414; }
+        html.theme-q:not(.dark) .sync-refresh { color: #141414; text-decoration: underline; }
+        html.theme-q:not(.dark) .sync-dot { background: #141414; box-shadow: none; }
+        html.theme-q:not(.dark) .global-nav a { color: #141414; }
+        html.theme-q:not(.dark) .global-nav a:hover { background: rgba(255,255,255,.5); }
+        html.theme-q:not(.dark) .global-nav a.active { background: #ffffff; color: #141414; }
+        html.theme-q:not(.dark) .shell-icon-button, html.theme-q:not(.dark) .shell-tool-button, html.theme-q:not(.dark) .shell-bulk-button { background: #ffffff; color: #141414; border: 2px solid #141414; border-radius: 6px; box-shadow: none; }
+        html.theme-q:not(.dark) .shell-primary-button { background: #141414; color: #ffffff; border: 2px solid #141414; border-radius: 6px; }
+        html.theme-q:not(.dark) .shell-bulk-button.is-active { background: #141414; color: #ffffff; border-color: #141414; }
+        html.theme-q:not(.dark) .header-status { color: #141414; }
+        /* 箱と影を減らす */
+        html.theme-q:not(.dark) [class*="shadow"] { box-shadow: none !important; }
+        html.theme-q:not(.dark) .summary-card { border: 0 !important; border-top: 4px solid #141414 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+        html.theme-q:not(.dark) .filter-panel, html.theme-q:not(.dark) .inventory-panel { border-radius: 8px !important; box-shadow: none !important; }
+        html.theme-q:not(.dark) [class*="bg-gradient-to"] { background-image: none !important; background-color: var(--q-panel) !important; }
+        /* 色の置き換え（意味のない色 → 墨・グレー） */
+html.theme-q:not(.dark) .bg-blue-50,
+html.theme-q:not(.dark) .bg-blue-100,
+html.theme-q:not(.dark) .bg-blue-200,
+html.theme-q:not(.dark) .bg-indigo-50,
+html.theme-q:not(.dark) .bg-indigo-100,
+html.theme-q:not(.dark) .bg-indigo-200,
+html.theme-q:not(.dark) .bg-purple-50,
+html.theme-q:not(.dark) .bg-purple-100,
+html.theme-q:not(.dark) .bg-purple-200,
+html.theme-q:not(.dark) .bg-violet-50,
+html.theme-q:not(.dark) .bg-violet-100,
+html.theme-q:not(.dark) .bg-violet-200,
+html.theme-q:not(.dark) .bg-cyan-50,
+html.theme-q:not(.dark) .bg-cyan-100,
+html.theme-q:not(.dark) .bg-cyan-200,
+html.theme-q:not(.dark) .bg-sky-50,
+html.theme-q:not(.dark) .bg-sky-100,
+html.theme-q:not(.dark) .bg-sky-200,
+html.theme-q:not(.dark) .bg-teal-50,
+html.theme-q:not(.dark) .bg-teal-100,
+html.theme-q:not(.dark) .bg-teal-200,
+html.theme-q:not(.dark) .bg-emerald-50,
+html.theme-q:not(.dark) .bg-emerald-100,
+html.theme-q:not(.dark) .bg-emerald-200,
+html.theme-q:not(.dark) .bg-green-50,
+html.theme-q:not(.dark) .bg-green-100,
+html.theme-q:not(.dark) .bg-green-200,
+html.theme-q:not(.dark) .bg-orange-50,
+html.theme-q:not(.dark) .bg-orange-100,
+html.theme-q:not(.dark) .bg-orange-200,
+html.theme-q:not(.dark) .bg-amber-50,
+html.theme-q:not(.dark) .bg-amber-100,
+html.theme-q:not(.dark) .bg-amber-200,
+html.theme-q:not(.dark) .bg-yellow-50,
+html.theme-q:not(.dark) .bg-yellow-100,
+html.theme-q:not(.dark) .bg-yellow-200,
+html.theme-q:not(.dark) .bg-pink-50,
+html.theme-q:not(.dark) .bg-pink-100,
+html.theme-q:not(.dark) .bg-pink-200,
+html.theme-q:not(.dark) .bg-rose-50,
+html.theme-q:not(.dark) .bg-rose-100,
+html.theme-q:not(.dark) .bg-rose-200,
+html.theme-q:not(.dark) .bg-fuchsia-50,
+html.theme-q:not(.dark) .bg-fuchsia-100,
+html.theme-q:not(.dark) .bg-fuchsia-200,
+html.theme-q:not(.dark) .bg-lime-50,
+html.theme-q:not(.dark) .bg-lime-100,
+html.theme-q:not(.dark) .bg-lime-200 { background-color: var(--q-panel) !important; }
+html.theme-q:not(.dark) .hover\:bg-blue-50:hover,
+html.theme-q:not(.dark) .hover\:bg-blue-100:hover,
+html.theme-q:not(.dark) .hover\:bg-blue-200:hover,
+html.theme-q:not(.dark) .hover\:bg-indigo-50:hover,
+html.theme-q:not(.dark) .hover\:bg-indigo-100:hover,
+html.theme-q:not(.dark) .hover\:bg-indigo-200:hover,
+html.theme-q:not(.dark) .hover\:bg-purple-50:hover,
+html.theme-q:not(.dark) .hover\:bg-purple-100:hover,
+html.theme-q:not(.dark) .hover\:bg-purple-200:hover,
+html.theme-q:not(.dark) .hover\:bg-violet-50:hover,
+html.theme-q:not(.dark) .hover\:bg-violet-100:hover,
+html.theme-q:not(.dark) .hover\:bg-violet-200:hover,
+html.theme-q:not(.dark) .hover\:bg-cyan-50:hover,
+html.theme-q:not(.dark) .hover\:bg-cyan-100:hover,
+html.theme-q:not(.dark) .hover\:bg-cyan-200:hover,
+html.theme-q:not(.dark) .hover\:bg-sky-50:hover,
+html.theme-q:not(.dark) .hover\:bg-sky-100:hover,
+html.theme-q:not(.dark) .hover\:bg-sky-200:hover,
+html.theme-q:not(.dark) .hover\:bg-teal-50:hover,
+html.theme-q:not(.dark) .hover\:bg-teal-100:hover,
+html.theme-q:not(.dark) .hover\:bg-teal-200:hover,
+html.theme-q:not(.dark) .hover\:bg-emerald-50:hover,
+html.theme-q:not(.dark) .hover\:bg-emerald-100:hover,
+html.theme-q:not(.dark) .hover\:bg-emerald-200:hover,
+html.theme-q:not(.dark) .hover\:bg-green-50:hover,
+html.theme-q:not(.dark) .hover\:bg-green-100:hover,
+html.theme-q:not(.dark) .hover\:bg-green-200:hover,
+html.theme-q:not(.dark) .hover\:bg-orange-50:hover,
+html.theme-q:not(.dark) .hover\:bg-orange-100:hover,
+html.theme-q:not(.dark) .hover\:bg-orange-200:hover,
+html.theme-q:not(.dark) .hover\:bg-amber-50:hover,
+html.theme-q:not(.dark) .hover\:bg-amber-100:hover,
+html.theme-q:not(.dark) .hover\:bg-amber-200:hover,
+html.theme-q:not(.dark) .hover\:bg-yellow-50:hover,
+html.theme-q:not(.dark) .hover\:bg-yellow-100:hover,
+html.theme-q:not(.dark) .hover\:bg-yellow-200:hover,
+html.theme-q:not(.dark) .hover\:bg-pink-50:hover,
+html.theme-q:not(.dark) .hover\:bg-pink-100:hover,
+html.theme-q:not(.dark) .hover\:bg-pink-200:hover,
+html.theme-q:not(.dark) .hover\:bg-rose-50:hover,
+html.theme-q:not(.dark) .hover\:bg-rose-100:hover,
+html.theme-q:not(.dark) .hover\:bg-rose-200:hover,
+html.theme-q:not(.dark) .hover\:bg-fuchsia-50:hover,
+html.theme-q:not(.dark) .hover\:bg-fuchsia-100:hover,
+html.theme-q:not(.dark) .hover\:bg-fuchsia-200:hover,
+html.theme-q:not(.dark) .hover\:bg-lime-50:hover,
+html.theme-q:not(.dark) .hover\:bg-lime-100:hover,
+html.theme-q:not(.dark) .hover\:bg-lime-200:hover { background-color: #ecece8 !important; }
+html.theme-q:not(.dark) .bg-blue-400,
+html.theme-q:not(.dark) .bg-blue-500,
+html.theme-q:not(.dark) .bg-blue-600,
+html.theme-q:not(.dark) .bg-blue-700,
+html.theme-q:not(.dark) .bg-blue-800,
+html.theme-q:not(.dark) .bg-indigo-400,
+html.theme-q:not(.dark) .bg-indigo-500,
+html.theme-q:not(.dark) .bg-indigo-600,
+html.theme-q:not(.dark) .bg-indigo-700,
+html.theme-q:not(.dark) .bg-indigo-800,
+html.theme-q:not(.dark) .bg-purple-400,
+html.theme-q:not(.dark) .bg-purple-500,
+html.theme-q:not(.dark) .bg-purple-600,
+html.theme-q:not(.dark) .bg-purple-700,
+html.theme-q:not(.dark) .bg-purple-800,
+html.theme-q:not(.dark) .bg-violet-400,
+html.theme-q:not(.dark) .bg-violet-500,
+html.theme-q:not(.dark) .bg-violet-600,
+html.theme-q:not(.dark) .bg-violet-700,
+html.theme-q:not(.dark) .bg-violet-800,
+html.theme-q:not(.dark) .bg-cyan-400,
+html.theme-q:not(.dark) .bg-cyan-500,
+html.theme-q:not(.dark) .bg-cyan-600,
+html.theme-q:not(.dark) .bg-cyan-700,
+html.theme-q:not(.dark) .bg-cyan-800,
+html.theme-q:not(.dark) .bg-sky-400,
+html.theme-q:not(.dark) .bg-sky-500,
+html.theme-q:not(.dark) .bg-sky-600,
+html.theme-q:not(.dark) .bg-sky-700,
+html.theme-q:not(.dark) .bg-sky-800,
+html.theme-q:not(.dark) .bg-teal-400,
+html.theme-q:not(.dark) .bg-teal-500,
+html.theme-q:not(.dark) .bg-teal-600,
+html.theme-q:not(.dark) .bg-teal-700,
+html.theme-q:not(.dark) .bg-teal-800,
+html.theme-q:not(.dark) .bg-emerald-400,
+html.theme-q:not(.dark) .bg-emerald-500,
+html.theme-q:not(.dark) .bg-emerald-600,
+html.theme-q:not(.dark) .bg-emerald-700,
+html.theme-q:not(.dark) .bg-emerald-800,
+html.theme-q:not(.dark) .bg-green-400,
+html.theme-q:not(.dark) .bg-green-500,
+html.theme-q:not(.dark) .bg-green-600,
+html.theme-q:not(.dark) .bg-green-700,
+html.theme-q:not(.dark) .bg-green-800,
+html.theme-q:not(.dark) .bg-orange-400,
+html.theme-q:not(.dark) .bg-orange-500,
+html.theme-q:not(.dark) .bg-orange-600,
+html.theme-q:not(.dark) .bg-orange-700,
+html.theme-q:not(.dark) .bg-orange-800,
+html.theme-q:not(.dark) .bg-amber-400,
+html.theme-q:not(.dark) .bg-amber-500,
+html.theme-q:not(.dark) .bg-amber-600,
+html.theme-q:not(.dark) .bg-amber-700,
+html.theme-q:not(.dark) .bg-amber-800,
+html.theme-q:not(.dark) .bg-yellow-400,
+html.theme-q:not(.dark) .bg-yellow-500,
+html.theme-q:not(.dark) .bg-yellow-600,
+html.theme-q:not(.dark) .bg-yellow-700,
+html.theme-q:not(.dark) .bg-yellow-800,
+html.theme-q:not(.dark) .bg-pink-400,
+html.theme-q:not(.dark) .bg-pink-500,
+html.theme-q:not(.dark) .bg-pink-600,
+html.theme-q:not(.dark) .bg-pink-700,
+html.theme-q:not(.dark) .bg-pink-800,
+html.theme-q:not(.dark) .bg-rose-400,
+html.theme-q:not(.dark) .bg-rose-500,
+html.theme-q:not(.dark) .bg-rose-600,
+html.theme-q:not(.dark) .bg-rose-700,
+html.theme-q:not(.dark) .bg-rose-800,
+html.theme-q:not(.dark) .bg-fuchsia-400,
+html.theme-q:not(.dark) .bg-fuchsia-500,
+html.theme-q:not(.dark) .bg-fuchsia-600,
+html.theme-q:not(.dark) .bg-fuchsia-700,
+html.theme-q:not(.dark) .bg-fuchsia-800,
+html.theme-q:not(.dark) .bg-lime-400,
+html.theme-q:not(.dark) .bg-lime-500,
+html.theme-q:not(.dark) .bg-lime-600,
+html.theme-q:not(.dark) .bg-lime-700,
+html.theme-q:not(.dark) .bg-lime-800 { background-color: #141414 !important; color: #ffffff !important; }
+html.theme-q:not(.dark) .hover\:bg-blue-500:hover,
+html.theme-q:not(.dark) .hover\:bg-blue-600:hover,
+html.theme-q:not(.dark) .hover\:bg-blue-700:hover,
+html.theme-q:not(.dark) .hover\:bg-blue-800:hover,
+html.theme-q:not(.dark) .hover\:bg-indigo-500:hover,
+html.theme-q:not(.dark) .hover\:bg-indigo-600:hover,
+html.theme-q:not(.dark) .hover\:bg-indigo-700:hover,
+html.theme-q:not(.dark) .hover\:bg-indigo-800:hover,
+html.theme-q:not(.dark) .hover\:bg-purple-500:hover,
+html.theme-q:not(.dark) .hover\:bg-purple-600:hover,
+html.theme-q:not(.dark) .hover\:bg-purple-700:hover,
+html.theme-q:not(.dark) .hover\:bg-purple-800:hover,
+html.theme-q:not(.dark) .hover\:bg-violet-500:hover,
+html.theme-q:not(.dark) .hover\:bg-violet-600:hover,
+html.theme-q:not(.dark) .hover\:bg-violet-700:hover,
+html.theme-q:not(.dark) .hover\:bg-violet-800:hover,
+html.theme-q:not(.dark) .hover\:bg-cyan-500:hover,
+html.theme-q:not(.dark) .hover\:bg-cyan-600:hover,
+html.theme-q:not(.dark) .hover\:bg-cyan-700:hover,
+html.theme-q:not(.dark) .hover\:bg-cyan-800:hover,
+html.theme-q:not(.dark) .hover\:bg-sky-500:hover,
+html.theme-q:not(.dark) .hover\:bg-sky-600:hover,
+html.theme-q:not(.dark) .hover\:bg-sky-700:hover,
+html.theme-q:not(.dark) .hover\:bg-sky-800:hover,
+html.theme-q:not(.dark) .hover\:bg-teal-500:hover,
+html.theme-q:not(.dark) .hover\:bg-teal-600:hover,
+html.theme-q:not(.dark) .hover\:bg-teal-700:hover,
+html.theme-q:not(.dark) .hover\:bg-teal-800:hover,
+html.theme-q:not(.dark) .hover\:bg-emerald-500:hover,
+html.theme-q:not(.dark) .hover\:bg-emerald-600:hover,
+html.theme-q:not(.dark) .hover\:bg-emerald-700:hover,
+html.theme-q:not(.dark) .hover\:bg-emerald-800:hover,
+html.theme-q:not(.dark) .hover\:bg-green-500:hover,
+html.theme-q:not(.dark) .hover\:bg-green-600:hover,
+html.theme-q:not(.dark) .hover\:bg-green-700:hover,
+html.theme-q:not(.dark) .hover\:bg-green-800:hover,
+html.theme-q:not(.dark) .hover\:bg-orange-500:hover,
+html.theme-q:not(.dark) .hover\:bg-orange-600:hover,
+html.theme-q:not(.dark) .hover\:bg-orange-700:hover,
+html.theme-q:not(.dark) .hover\:bg-orange-800:hover,
+html.theme-q:not(.dark) .hover\:bg-amber-500:hover,
+html.theme-q:not(.dark) .hover\:bg-amber-600:hover,
+html.theme-q:not(.dark) .hover\:bg-amber-700:hover,
+html.theme-q:not(.dark) .hover\:bg-amber-800:hover,
+html.theme-q:not(.dark) .hover\:bg-yellow-500:hover,
+html.theme-q:not(.dark) .hover\:bg-yellow-600:hover,
+html.theme-q:not(.dark) .hover\:bg-yellow-700:hover,
+html.theme-q:not(.dark) .hover\:bg-yellow-800:hover,
+html.theme-q:not(.dark) .hover\:bg-pink-500:hover,
+html.theme-q:not(.dark) .hover\:bg-pink-600:hover,
+html.theme-q:not(.dark) .hover\:bg-pink-700:hover,
+html.theme-q:not(.dark) .hover\:bg-pink-800:hover,
+html.theme-q:not(.dark) .hover\:bg-rose-500:hover,
+html.theme-q:not(.dark) .hover\:bg-rose-600:hover,
+html.theme-q:not(.dark) .hover\:bg-rose-700:hover,
+html.theme-q:not(.dark) .hover\:bg-rose-800:hover,
+html.theme-q:not(.dark) .hover\:bg-fuchsia-500:hover,
+html.theme-q:not(.dark) .hover\:bg-fuchsia-600:hover,
+html.theme-q:not(.dark) .hover\:bg-fuchsia-700:hover,
+html.theme-q:not(.dark) .hover\:bg-fuchsia-800:hover,
+html.theme-q:not(.dark) .hover\:bg-lime-500:hover,
+html.theme-q:not(.dark) .hover\:bg-lime-600:hover,
+html.theme-q:not(.dark) .hover\:bg-lime-700:hover,
+html.theme-q:not(.dark) .hover\:bg-lime-800:hover { background-color: #000000 !important; }
+html.theme-q:not(.dark) .text-blue-400,
+html.theme-q:not(.dark) .text-blue-500,
+html.theme-q:not(.dark) .text-blue-600,
+html.theme-q:not(.dark) .text-blue-700,
+html.theme-q:not(.dark) .text-blue-800,
+html.theme-q:not(.dark) .text-blue-900,
+html.theme-q:not(.dark) .text-indigo-400,
+html.theme-q:not(.dark) .text-indigo-500,
+html.theme-q:not(.dark) .text-indigo-600,
+html.theme-q:not(.dark) .text-indigo-700,
+html.theme-q:not(.dark) .text-indigo-800,
+html.theme-q:not(.dark) .text-indigo-900,
+html.theme-q:not(.dark) .text-purple-400,
+html.theme-q:not(.dark) .text-purple-500,
+html.theme-q:not(.dark) .text-purple-600,
+html.theme-q:not(.dark) .text-purple-700,
+html.theme-q:not(.dark) .text-purple-800,
+html.theme-q:not(.dark) .text-purple-900,
+html.theme-q:not(.dark) .text-violet-400,
+html.theme-q:not(.dark) .text-violet-500,
+html.theme-q:not(.dark) .text-violet-600,
+html.theme-q:not(.dark) .text-violet-700,
+html.theme-q:not(.dark) .text-violet-800,
+html.theme-q:not(.dark) .text-violet-900,
+html.theme-q:not(.dark) .text-cyan-400,
+html.theme-q:not(.dark) .text-cyan-500,
+html.theme-q:not(.dark) .text-cyan-600,
+html.theme-q:not(.dark) .text-cyan-700,
+html.theme-q:not(.dark) .text-cyan-800,
+html.theme-q:not(.dark) .text-cyan-900,
+html.theme-q:not(.dark) .text-sky-400,
+html.theme-q:not(.dark) .text-sky-500,
+html.theme-q:not(.dark) .text-sky-600,
+html.theme-q:not(.dark) .text-sky-700,
+html.theme-q:not(.dark) .text-sky-800,
+html.theme-q:not(.dark) .text-sky-900,
+html.theme-q:not(.dark) .text-teal-400,
+html.theme-q:not(.dark) .text-teal-500,
+html.theme-q:not(.dark) .text-teal-600,
+html.theme-q:not(.dark) .text-teal-700,
+html.theme-q:not(.dark) .text-teal-800,
+html.theme-q:not(.dark) .text-teal-900,
+html.theme-q:not(.dark) .text-orange-400,
+html.theme-q:not(.dark) .text-orange-500,
+html.theme-q:not(.dark) .text-orange-600,
+html.theme-q:not(.dark) .text-orange-700,
+html.theme-q:not(.dark) .text-orange-800,
+html.theme-q:not(.dark) .text-orange-900,
+html.theme-q:not(.dark) .text-amber-400,
+html.theme-q:not(.dark) .text-amber-500,
+html.theme-q:not(.dark) .text-amber-600,
+html.theme-q:not(.dark) .text-amber-700,
+html.theme-q:not(.dark) .text-amber-800,
+html.theme-q:not(.dark) .text-amber-900,
+html.theme-q:not(.dark) .text-yellow-400,
+html.theme-q:not(.dark) .text-yellow-500,
+html.theme-q:not(.dark) .text-yellow-600,
+html.theme-q:not(.dark) .text-yellow-700,
+html.theme-q:not(.dark) .text-yellow-800,
+html.theme-q:not(.dark) .text-yellow-900,
+html.theme-q:not(.dark) .text-pink-400,
+html.theme-q:not(.dark) .text-pink-500,
+html.theme-q:not(.dark) .text-pink-600,
+html.theme-q:not(.dark) .text-pink-700,
+html.theme-q:not(.dark) .text-pink-800,
+html.theme-q:not(.dark) .text-pink-900,
+html.theme-q:not(.dark) .text-rose-400,
+html.theme-q:not(.dark) .text-rose-500,
+html.theme-q:not(.dark) .text-rose-600,
+html.theme-q:not(.dark) .text-rose-700,
+html.theme-q:not(.dark) .text-rose-800,
+html.theme-q:not(.dark) .text-rose-900,
+html.theme-q:not(.dark) .text-fuchsia-400,
+html.theme-q:not(.dark) .text-fuchsia-500,
+html.theme-q:not(.dark) .text-fuchsia-600,
+html.theme-q:not(.dark) .text-fuchsia-700,
+html.theme-q:not(.dark) .text-fuchsia-800,
+html.theme-q:not(.dark) .text-fuchsia-900,
+html.theme-q:not(.dark) .text-lime-400,
+html.theme-q:not(.dark) .text-lime-500,
+html.theme-q:not(.dark) .text-lime-600,
+html.theme-q:not(.dark) .text-lime-700,
+html.theme-q:not(.dark) .text-lime-800,
+html.theme-q:not(.dark) .text-lime-900 { color: #141414 !important; }
+html.theme-q:not(.dark) .text-emerald-500,
+html.theme-q:not(.dark) .text-emerald-600,
+html.theme-q:not(.dark) .text-emerald-700,
+html.theme-q:not(.dark) .text-emerald-800,
+html.theme-q:not(.dark) .text-green-500,
+html.theme-q:not(.dark) .text-green-600,
+html.theme-q:not(.dark) .text-green-700,
+html.theme-q:not(.dark) .text-green-800 { color: var(--q-ok) !important; }
+html.theme-q:not(.dark) .border-blue-100,
+html.theme-q:not(.dark) .border-blue-200,
+html.theme-q:not(.dark) .border-blue-300,
+html.theme-q:not(.dark) .border-blue-400,
+html.theme-q:not(.dark) .border-blue-500,
+html.theme-q:not(.dark) .border-blue-600,
+html.theme-q:not(.dark) .border-blue-700,
+html.theme-q:not(.dark) .border-indigo-100,
+html.theme-q:not(.dark) .border-indigo-200,
+html.theme-q:not(.dark) .border-indigo-300,
+html.theme-q:not(.dark) .border-indigo-400,
+html.theme-q:not(.dark) .border-indigo-500,
+html.theme-q:not(.dark) .border-indigo-600,
+html.theme-q:not(.dark) .border-indigo-700,
+html.theme-q:not(.dark) .border-purple-100,
+html.theme-q:not(.dark) .border-purple-200,
+html.theme-q:not(.dark) .border-purple-300,
+html.theme-q:not(.dark) .border-purple-400,
+html.theme-q:not(.dark) .border-purple-500,
+html.theme-q:not(.dark) .border-purple-600,
+html.theme-q:not(.dark) .border-purple-700,
+html.theme-q:not(.dark) .border-violet-100,
+html.theme-q:not(.dark) .border-violet-200,
+html.theme-q:not(.dark) .border-violet-300,
+html.theme-q:not(.dark) .border-violet-400,
+html.theme-q:not(.dark) .border-violet-500,
+html.theme-q:not(.dark) .border-violet-600,
+html.theme-q:not(.dark) .border-violet-700,
+html.theme-q:not(.dark) .border-cyan-100,
+html.theme-q:not(.dark) .border-cyan-200,
+html.theme-q:not(.dark) .border-cyan-300,
+html.theme-q:not(.dark) .border-cyan-400,
+html.theme-q:not(.dark) .border-cyan-500,
+html.theme-q:not(.dark) .border-cyan-600,
+html.theme-q:not(.dark) .border-cyan-700,
+html.theme-q:not(.dark) .border-sky-100,
+html.theme-q:not(.dark) .border-sky-200,
+html.theme-q:not(.dark) .border-sky-300,
+html.theme-q:not(.dark) .border-sky-400,
+html.theme-q:not(.dark) .border-sky-500,
+html.theme-q:not(.dark) .border-sky-600,
+html.theme-q:not(.dark) .border-sky-700,
+html.theme-q:not(.dark) .border-teal-100,
+html.theme-q:not(.dark) .border-teal-200,
+html.theme-q:not(.dark) .border-teal-300,
+html.theme-q:not(.dark) .border-teal-400,
+html.theme-q:not(.dark) .border-teal-500,
+html.theme-q:not(.dark) .border-teal-600,
+html.theme-q:not(.dark) .border-teal-700,
+html.theme-q:not(.dark) .border-emerald-100,
+html.theme-q:not(.dark) .border-emerald-200,
+html.theme-q:not(.dark) .border-emerald-300,
+html.theme-q:not(.dark) .border-emerald-400,
+html.theme-q:not(.dark) .border-emerald-500,
+html.theme-q:not(.dark) .border-emerald-600,
+html.theme-q:not(.dark) .border-emerald-700,
+html.theme-q:not(.dark) .border-green-100,
+html.theme-q:not(.dark) .border-green-200,
+html.theme-q:not(.dark) .border-green-300,
+html.theme-q:not(.dark) .border-green-400,
+html.theme-q:not(.dark) .border-green-500,
+html.theme-q:not(.dark) .border-green-600,
+html.theme-q:not(.dark) .border-green-700,
+html.theme-q:not(.dark) .border-orange-100,
+html.theme-q:not(.dark) .border-orange-200,
+html.theme-q:not(.dark) .border-orange-300,
+html.theme-q:not(.dark) .border-orange-400,
+html.theme-q:not(.dark) .border-orange-500,
+html.theme-q:not(.dark) .border-orange-600,
+html.theme-q:not(.dark) .border-orange-700,
+html.theme-q:not(.dark) .border-amber-100,
+html.theme-q:not(.dark) .border-amber-200,
+html.theme-q:not(.dark) .border-amber-300,
+html.theme-q:not(.dark) .border-amber-400,
+html.theme-q:not(.dark) .border-amber-500,
+html.theme-q:not(.dark) .border-amber-600,
+html.theme-q:not(.dark) .border-amber-700,
+html.theme-q:not(.dark) .border-yellow-100,
+html.theme-q:not(.dark) .border-yellow-200,
+html.theme-q:not(.dark) .border-yellow-300,
+html.theme-q:not(.dark) .border-yellow-400,
+html.theme-q:not(.dark) .border-yellow-500,
+html.theme-q:not(.dark) .border-yellow-600,
+html.theme-q:not(.dark) .border-yellow-700,
+html.theme-q:not(.dark) .border-pink-100,
+html.theme-q:not(.dark) .border-pink-200,
+html.theme-q:not(.dark) .border-pink-300,
+html.theme-q:not(.dark) .border-pink-400,
+html.theme-q:not(.dark) .border-pink-500,
+html.theme-q:not(.dark) .border-pink-600,
+html.theme-q:not(.dark) .border-pink-700,
+html.theme-q:not(.dark) .border-rose-100,
+html.theme-q:not(.dark) .border-rose-200,
+html.theme-q:not(.dark) .border-rose-300,
+html.theme-q:not(.dark) .border-rose-400,
+html.theme-q:not(.dark) .border-rose-500,
+html.theme-q:not(.dark) .border-rose-600,
+html.theme-q:not(.dark) .border-rose-700,
+html.theme-q:not(.dark) .border-fuchsia-100,
+html.theme-q:not(.dark) .border-fuchsia-200,
+html.theme-q:not(.dark) .border-fuchsia-300,
+html.theme-q:not(.dark) .border-fuchsia-400,
+html.theme-q:not(.dark) .border-fuchsia-500,
+html.theme-q:not(.dark) .border-fuchsia-600,
+html.theme-q:not(.dark) .border-fuchsia-700,
+html.theme-q:not(.dark) .border-lime-100,
+html.theme-q:not(.dark) .border-lime-200,
+html.theme-q:not(.dark) .border-lime-300,
+html.theme-q:not(.dark) .border-lime-400,
+html.theme-q:not(.dark) .border-lime-500,
+html.theme-q:not(.dark) .border-lime-600,
+html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
+        html.theme-q:not(.dark) [class*="text-red-"] { color: var(--q-red) !important; }
+        html.theme-q:not(.dark) .bg-red-500, html.theme-q:not(.dark) .bg-red-600, html.theme-q:not(.dark) .bg-red-700 { background-color: var(--q-red) !important; color: #fff !important; }
+        html.theme-q:not(.dark) .bg-red-50, html.theme-q:not(.dark) .bg-red-100 { background-color: #fdeceb !important; }
+        /* ステータスの札：手を動かす＝黄、不具合＝赤、ほかは灰色 */
+        html.theme-q:not(.dark) .st-chip { background: var(--q-panel) !important; color: #141414 !important; border: 1px solid #d6d6d2; }
+        html.theme-q:not(.dark) .st-chip.st-act { background: var(--q-y) !important; border-color: var(--q-y); }
+        html.theme-q:not(.dark) .st-chip.st-bad { background: var(--q-red) !important; color: #fff !important; border-color: var(--q-red); }
+        html.theme-q:not(.dark) .st-chip.st-done { background: #fff !important; color: #5b5b5b !important; }
+
+        /* 製品ナビ固有：帯の文字は墨、パンくずは灰色、白い半透明ボタンは白地＋墨の線 */
+        html.theme-q:not(.dark) header { color: #141414 !important; }
+        html.theme-q:not(.dark) header #crumb { color: #3b3b3b !important; }
+        html.theme-q:not(.dark) header button { background: #ffffff !important; color: #141414 !important; border: 2px solid #141414 !important; border-radius: 6px !important; }
+        html.theme-q:not(.dark) header h1::before { content: ''; display: inline-block; width: 28px; height: 28px; margin-right: 8px; vertical-align: -6px; border-radius: 6px;
+            background: #141414 url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><g fill='none' stroke='%23bccfc8' stroke-width='4.5' stroke-linejoin='round' stroke-linecap='round'><path d='M32 18 C26 14 18 13 11 14 V48 C18 47 26 48 32 52 C38 48 46 47 53 48 V14 C46 13 38 14 32 18 Z'/><path d='M32 18 V52'/></g></svg>") center / 74% no-repeat; }
+        html.theme-q:not(.dark) .rounded-xl, html.theme-q:not(.dark) .rounded-2xl { border-radius: 8px !important; }
+        html.theme-q:not(.dark) main button.bg-white, html.theme-q:not(.dark) main .bg-white.rounded-xl { border: 1px solid var(--q-line, #e2e2e2) !important; }
+        html.theme-q:not(.dark)  body { background: #ffffff !important; }
+        html.theme-q:not(.dark) main .text-emerald-700 { color: #141414 !important; } /* 用途の札は色分けしない（トラブルだけ赤） */
+    </style>
+    <script>
+        // 新しいデザイン（試験中）：?theme=q で有効、?theme=old で元に戻す。この端末に記憶する
+        (function () {
+            try {
+                const q = new URLSearchParams(location.search).get('theme');
+                if (q === 'q') localStorage.setItem('navTheme', 'q');
+                if (q === 'old') localStorage.removeItem('navTheme');
+                if (localStorage.getItem('navTheme') === 'q') {
+                    document.documentElement.classList.add('theme-q');
+                    const l = document.createElement('link');
+                    l.rel = 'stylesheet';
+                    l.href = 'https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap';
+                    document.head.appendChild(l);
+                    // タブのアイコン：灰みの浅葱の地に開いた本（製品ナビ）
+                    const ico = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23bccfc8'/><g fill='none' stroke='%23141414' stroke-width='4' stroke-linejoin='round' stroke-linecap='round'><path d='M32 18 C26 14 18 13 11 14 V48 C18 47 26 48 32 52 C38 48 46 47 53 48 V14 C46 13 38 14 32 18 Z'/><path d='M32 18 V52'/></g></svg>";
+                    const setIco = () => document.querySelectorAll('link[rel="icon"],link[rel="apple-touch-icon"]').forEach(x => { x.href = ico; });
+                    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setIco); else setIco();
+                    setIco();
+                }
+            } catch (e) {}
+        })();
+        function toggleNavTheme() {
+            const on = !document.documentElement.classList.contains('theme-q');
+            try { on ? localStorage.setItem('navTheme', 'q') : localStorage.removeItem('navTheme'); } catch (e) {}
+            location.reload();
+        }
+    </script>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen">
 
@@ -447,5 +974,32 @@
     </script>
     <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+<script>
+// 新しいデザインのとき：文字の前に付いた絵文字（📦💰📝 など）を外す。絵文字だけのボタンはそのまま残す
+(function () {
+    if (!document.documentElement.classList.contains('theme-q')) return;
+    const EMO = /(?:[\u{1F000}-\u{1FAFF}]|[\u2600-\u26FF]|[\u2705\u270F\u2728\u2B50\u23F0\u23F3\u231B])\uFE0F?\s*/gu;
+    const clean = (root) => {
+        const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        let n;
+        while ((n = tw.nextNode())) {
+            const t = n.nodeValue;
+            if (!t || !EMO.test(t)) { EMO.lastIndex = 0; continue; }
+            EMO.lastIndex = 0;
+            const p = n.parentElement;
+            if (!p || p.closest('input,textarea,script,style')) continue;
+            const stripped = t.replace(EMO, '');
+            // 絵文字だけのボタン・リンクは残す（押す場所がわからなくなるため）。飾りの絵文字だけの要素は消す
+            if (stripped.trim() === '') { const host = p.closest('button,a,[onclick]'); if (host && !(host.innerText || host.textContent || '').replace(EMO, '').trim()) continue; } // 見えている文字で判定（スマホで隠れたラベルは数えない）
+            n.nodeValue = stripped;
+        }
+    };
+    const run = () => clean(document.body);
+    new MutationObserver((ms) => {
+        for (const m of ms) m.addedNodes.forEach(x => { if (x.nodeType === 1) clean(x); else if (x.nodeType === 3 && x.parentElement) clean(x.parentElement); });
+    }).observe(document.documentElement, { childList: true, subtree: true });
+    if (document.readyState !== 'loading') run(); else document.addEventListener('DOMContentLoaded', run);
+})();
+</script>
 </body>
 </html>
