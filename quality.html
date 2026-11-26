@@ -137,6 +137,37 @@ pre{white-space:pre;overflow-x:auto;background:var(--panel);padding:10px;border-
 .navlinks a{color:#141414;font-weight:700;font-size:14px}
 @media(max-width:600px){.navlinks .pc-only{display:none}}
 </style>
+<style>
+/* ===== 今週やること：欄ごとに1行の開閉式（支払ナビ・在庫ナビと同じ作り） ===== */
+.acc{margin-top:6px}
+.acc-sec{border:1px solid var(--line);border-left:6px solid var(--ink);border-radius:8px;margin-bottom:10px;background:var(--bg)}
+.acc-sec.tape{border-left-color:var(--y)}
+.acc-sec.warn{border-left-color:var(--red)}
+.acc-sec>summary{list-style:none;display:flex;align-items:center;gap:12px;padding:12px 16px;min-height:60px;cursor:pointer;user-select:none}
+.acc-sec>summary::-webkit-details-marker{display:none}
+.acc-sec>summary::before{content:'▶';font-size:12px;color:var(--sub);transition:transform .15s ease;flex:none}
+.acc-sec[open]>summary::before{transform:rotate(90deg)}
+.acc-sec>summary:hover{background:var(--panel)}
+.acc-cnt{font-size:30px;font-weight:900;line-height:1;min-width:1.6em;text-align:right;letter-spacing:-.03em}
+.acc-sec>summary b{font-size:18px}
+.acc-why{color:var(--sub);font-size:13px;margin-left:auto;text-align:right}
+.acc-body{padding:0 16px 12px}
+.acc-body>.why{margin:0 0 8px;font-size:13px;color:var(--sub)}
+.acc-body .item{border:0;border-top:1px solid var(--line);border-radius:0;margin:0;padding:10px 2px}
+.acc-body .tog{margin-bottom:10px}
+@media(max-width:600px){.acc-why{display:none}.acc-cnt{font-size:26px}.acc-sec>summary b{font-size:16px}}
+@media(min-width:901px){
+ .acc-body .item{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:14px;align-items:center}
+ .acc-body .item>*{grid-column:1}
+ .acc-body .item>.acts{grid-column:2;grid-row:1 / span 3;margin-top:0;justify-content:flex-end}
+ .acc-body .item>.unit,.acc-body .item>div.unit{grid-column:1 / -1}
+}
+</style>
+<script>
+// 開いている欄をこの端末で覚える
+document.addEventListener('toggle',e=>{const d=e.target;if(!(d instanceof HTMLDetailsElement)||!d.classList.contains('acc-sec'))return;try{const m=JSON.parse(localStorage.getItem('qAccOpen')||'{}');m[d.dataset.k]=d.open;localStorage.setItem('qAccOpen',JSON.stringify(m))}catch(x){}},true);
+document.addEventListener('DOMContentLoaded',()=>{try{const m=JSON.parse(localStorage.getItem('qAccOpen')||'{}');document.querySelectorAll('.acc-sec').forEach(d=>{if(d.dataset.k in m)d.open=!!m[d.dataset.k]})}catch(x){}});
+</script>
 <style>.tog{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 16px;font-size:14px}.tog .seg button{min-height:38px;font-size:14px}.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}.chips button{min-height:38px;font-size:14px}.chips button.on{background:var(--ink);color:var(--bg)}.src{font-size:12px;color:var(--sub)}</style><style>.busy{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 70%,transparent);display:none;align-items:center;justify-content:center;z-index:20;font-weight:700}.busy.on{display:flex}#login{min-height:70vh;display:flex;align-items:center;justify-content:center}#qr{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:30;padding:16px}#qr.on{display:flex}#qr .box{background:var(--bg);border-radius:12px;padding:14px;width:min(420px,100%)}.chk{display:flex;gap:8px;align-items:center;font-size:15px;margin:4px 0 12px}.chk input{width:22px;height:22px}.strip{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}.strip .item{flex:1 1 260px}</style><body>
 <header>
  <div class="top"><h1>YS品質ナビ</h1>
@@ -148,12 +179,16 @@ pre{white-space:pre;overflow-x:auto;background:var(--panel);padding:10px;border-
 
 <section id="v-todo" class="hide">
  <h2>今週やること</h2><p class="lead" id="load-at"></p>
- <div class="tog"><span>定期検品の対象</span><div class="seg" id="scope"></div></div>
- <div class="board">
-  <div class="col"><div class="ch"><span class="cnt" id="c-plan">0</span><b>入荷予定</b></div><p class="why">在庫ナビで「入庫待ち」。入荷予定日（支払ナビで入力）が近い順に並びます。</p><div id="l-plan"></div></div>
-  <div class="col tape"><div class="ch"><span class="cnt" id="c-wait">0</span><b>入荷検品まち</b></div><p class="why">在庫ナビで「検品待ち」。検品すると在庫ナビが「在庫中」（異常は「不良品」）に変わります。</p><div id="l-wait"></div></div>
-  <div class="col warn"><div class="ch"><span class="cnt" id="c-due">0</span><b>定期検品</b></div><p class="why">棚ごとにまとめています。棚の前で全部見たら「この棚を正常で登録」。異常の製品だけ先に「異常」で記録してください。</p><div class="chips" id="due-tab"></div><div id="l-due"></div></div>
-  <div class="col warn"><div class="ch"><span class="cnt" id="c-bad">0</span><b>不良品（処置まち）</b></div><p class="why">在庫ナビで「不良品」の製品。修理・復旧したら記録して在庫中に戻します。</p><div id="l-bad"></div></div>
+ <!-- 支払ナビ・在庫ナビと同じく、欄ごとに1行。押すと開く（開いている欄はこの端末で覚える） -->
+ <div class="acc">
+  <details class="acc-sec" data-k="plan"><summary><span class="acc-cnt" id="c-plan">0</span><b>入荷予定</b><span class="acc-why">入荷予定日の近い順</span></summary>
+   <div class="acc-body"><p class="why">在庫ナビで「入庫待ち」。入荷予定日（支払ナビで入力）が近い順に並びます。</p><div id="l-plan"></div></div></details>
+  <details class="acc-sec tape" data-k="wait" open><summary><span class="acc-cnt" id="c-wait">0</span><b>入荷検品まち</b><span class="acc-why">届いたもの。検品して在庫中に</span></summary>
+   <div class="acc-body"><p class="why">在庫ナビで「検品待ち」。検品すると在庫ナビが「在庫中」（異常は「不良品」）に変わります。</p><div id="l-wait"></div></div></details>
+  <details class="acc-sec warn" data-k="due"><summary><span class="acc-cnt" id="c-due">0</span><b>定期検品</b><span class="acc-why">棚ごと。3か月ごとに通電確認</span></summary>
+   <div class="acc-body"><div class="tog"><span>定期検品の対象</span><div class="seg" id="scope"></div></div><p class="why">棚ごとにまとめています。棚の前で全部見たら「この棚を正常で登録」。異常の製品だけ先に「異常」で記録してください。</p><div class="chips" id="due-tab"></div><div id="l-due"></div></div></details>
+  <details class="acc-sec warn" data-k="bad" open><summary><span class="acc-cnt" id="c-bad">0</span><b>不良品（処置まち）</b><span class="acc-why">修理・復旧したら記録</span></summary>
+   <div class="acc-body"><p class="why">在庫ナビで「不良品」の製品。修理・復旧したら記録して在庫中に戻します。</p><div id="l-bad"></div></div></details>
  </div>
  <div class="strip">
   <div class="item"><div class="t">ログの入力が途中 <span id="c-mid"></span></div><div class="s">品質ログで種別か結果が空いている行。</div><div class="acts"><button type="button" data-a="go-mid">片付ける</button></div></div>
