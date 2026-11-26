@@ -21,6 +21,11 @@
                     l.rel = 'stylesheet';
                     l.href = 'https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap';
                     document.head.appendChild(l);
+                    // タブのアイコン：薄いクラフト地に段ボール箱（在庫ナビ）
+                    const ico = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23e7d7b8'/><g fill='none' stroke='%23141414' stroke-width='4' stroke-linejoin='round' stroke-linecap='round'><path d='M12 23 L32 14 L52 23 L52 45 L32 54 L12 45 Z'/><path d='M12 23 L32 32 L52 23'/><path d='M32 32 L32 54'/><path d='M22 18.5 L42 27.5'/></g></svg>";
+                    const setIco = () => document.querySelectorAll('link[rel="icon"],link[rel="apple-touch-icon"]').forEach(x => { x.href = ico; });
+                    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setIco); else setIco();
+                    setIco();
                 }
             } catch (e) {}
         })();
@@ -201,7 +206,7 @@
         html.theme-q:not(.dark) body { font-family: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif; }
         /* 上の帯 */
         html.theme-q:not(.dark) .inventory-shell-header { background: var(--q-band) !important; border-bottom: 0 !important; box-shadow: none !important; backdrop-filter: none !important; }
-        html.theme-q:not(.dark) .brand-mark { background: #141414 !important; color: var(--q-band) !important; border-radius: 6px !important; box-shadow: none !important; }
+        html.theme-q:not(.dark) .brand-mark { background: #141414 url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><g fill='none' stroke='%23e7d7b8' stroke-width='4.5' stroke-linejoin='round' stroke-linecap='round'><path d='M12 23 L32 14 L52 23 L52 45 L32 54 L12 45 Z'/><path d='M12 23 L32 32 L52 23'/><path d='M32 32 L32 54'/><path d='M22 18.5 L42 27.5'/></g></svg>") center / 72% no-repeat !important; color: transparent !important; font-size: 0 !important; border-radius: 6px !important; box-shadow: none !important; }
         html.theme-q:not(.dark) .brand-title { font-weight: 900; }
         html.theme-q:not(.dark) .brand-subtitle, html.theme-q:not(.dark) .inventory-sync-row { color: #141414; }
         html.theme-q:not(.dark) .sync-refresh { color: #141414; text-decoration: underline; }
