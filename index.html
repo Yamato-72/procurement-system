@@ -2707,13 +2707,14 @@
                                                                     <div class="flex items-center gap-2">
                                                                         <span class="font-mono text-xs text-slate-500 dark:text-slate-400">${item.serial || '-'}</span>
                                                                         <span class="px-1 py-0.5 text-xs rounded ${badgeClass}">${badgeText}</span>
+                                                                        ${String(item.note || '').startsWith(DOMESTIC_MARK) ? '<span class="px-1 py-0.5 text-xs rounded bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">国内調達</span>' : ''}
                                                                     </div>
                                                                     <p class="text-sm font-semibold text-slate-900 dark:text-white truncate">${item.productName || ''}</p>
                                                                     <p class="text-xs text-slate-500 dark:text-slate-400">
                                                                         ${item.category || ''} 
                                                                         ${item.orderProject ? `← 仕入: ${item.orderProject}` : ''}
                                                                     </p>
-                                                                    ${item.note ? `<p class="text-xs text-slate-600 dark:text-slate-300 mt-0.5">📝 ${item.note}</p>` : ''}
+                                                                    ${item.note ? `<p class="text-xs text-slate-600 dark:text-slate-300 mt-0.5">📝 ${String(item.note).replace(DOMESTIC_MARK, '購入先：')}</p>` : ''}
                                                                 </div>
                                                                 <div class="text-right">
                                                                     <span class="font-bold text-slate-900 dark:text-white">${formatJPY(item.costJPY || 0)}</span>
@@ -2732,6 +2733,7 @@
                                                                 </div>
                                                                 <div class="flex items-center">
                                                                     <span class="font-bold text-slate-900 dark:text-white">${formatJPY(exp.amountJPY || 0)}</span>
+                                                                    <button onclick="event.stopPropagation();migrateSalesDomesticExpense('${sp.projectNumber}', ${exp._idx})" class="ml-2 px-2 py-0.5 text-xs rounded border border-amber-400 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/30" title="以前の形（経費）で入っているので、在庫の行に移す">在庫に移す</button>
                                                                     <button onclick="event.stopPropagation();deleteSalesExpense('${sp.projectNumber}', ${exp._idx})" class="ml-2 p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400" title="削除" aria-label="削除">✕</button>
                                                                 </div>
                                                             </div>
@@ -3549,6 +3551,48 @@
         // 画面に出す名前（保存する種別の値は「周辺機器」のまま。過去の記録もそのまま使える）
         function salesExpenseLabel(type) { return type === '周辺機器' ? '周辺機器（国内調達）' : (type || '経費'); }
 
+        // ===== 周辺機器（国内調達）を在庫の行として登録する共通処理 =====
+        //  製品の原価は、どの入口から入れても在庫に集める（販売原価・概要・CSV・保証の追跡を同じ扱いにするため）
+        //  備考の先頭に「［国内調達］」を付ける：概要（ダッシュボード）の輸入諸掛係数（1.18倍）をかけない目印
+        const DOMESTIC_MARK = '［国内調達］';
+        // opts: { itemName, category, quantity, totalJPY, payee, paidDate, note,
+        //         orderProject（発注側の案件番号）, shipProject（使う販売案件。あれば）, status, location, supplierId }
+        async function registerDomesticItems(opts) {
+            const qty = Math.max(1, parseInt(opts.quantity) || 1);
+            const unit = Math.round((opts.totalJPY || 0) / qty);
+            const op = parseProjectNumberString(opts.orderProject || opts.shipProject);
+            const sp = opts.shipProject ? parseProjectNumberString(opts.shipProject) : null;
+            const memo = [DOMESTIC_MARK + (opts.payee || ''), opts.note || ''].filter(Boolean).join(' ').trim();
+            const rows = [];
+            for (let i = 0; i < qty; i++) {
+                rows.push([
+                    `${Date.now()}-${i + 1}-${Math.random().toString(36).substring(2, 8)}`,
+                    '',                                   // Serial（周辺機器は無し）
+                    opts.category || '周辺機器',
+                    opts.itemName,
+                    op.prefix, padProjectNumber(op.number),
+                    opts.paidDate || '',                  // 発注日＝購入日
+                    opts.status === '入庫待ち' ? '' : (opts.paidDate || ''), // 入庫日（倉庫を通らない物は購入日）
+                    opts.status,
+                    opts.status === '出庫済' ? (opts.paidDate || '') : '',  // 出庫日
+                    sp ? sp.prefix : '', sp ? padProjectNumber(sp.number) : '',
+                    unit,                                 // 取得金（1点あたり）
+                    memo,
+                    '',                                   // 棚番
+                    opts.location || '',
+                    opts.supplierId || ''
+                ]);
+            }
+            await gapi.client.sheets.spreadsheets.values.append({
+                spreadsheetId: SPREADSHEET_ID,
+                range: '在庫!A:Q',
+                valueInputOption: 'RAW',
+                insertDataOption: 'INSERT_ROWS',
+                resource: { values: rows }
+            });
+            return { count: rows.length, unit };
+        }
+
         // 販売案件経費の追加モーダル
         function showAddSalesExpenseModal(projectNumber) {
             const expenseTypes = [
@@ -3565,10 +3609,21 @@
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">費用種別 <span class="text-red-500">*</span></label>
-                                <select id="salesExpenseType" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <select id="salesExpenseType" onchange="updateSalesExpenseTypeUI()" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                                     ${expenseTypes.map(t => `<option value="${t}">${salesExpenseLabel(t)}</option>`).join('')}
                                 </select>
-                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">「周辺機器（国内調達）」はお客さんに納める物の購入で、製品原価に入ります。それ以外は経費です。</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">「周辺機器（国内調達）」はお客さんに納める物の購入で、製品原価に入ります（在庫に「この案件へ出庫済み」として記録）。それ以外は経費です。</p>
+                            </div>
+                            <div id="salesItemFields" class="hidden space-y-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                                <div>
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">品名 <span class="text-red-500">*</span></label>
+                                    <input type="text" id="salesItemName" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white" placeholder="例：MM-SPSBA4 サウンドバー">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold mb-1 dark:text-slate-300">数量</label>
+                                    <input type="number" id="salesItemQty" value="1" min="1" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">金額は合計で入れてください（1点あたりは自動で計算）</p>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">金額（円） <span class="text-red-500">*</span></label>
@@ -3597,8 +3652,15 @@
             document.body.appendChild(modal);
         }
         
+        function updateSalesExpenseTypeUI() {
+            const t = document.getElementById('salesExpenseType').value;
+            const box = document.getElementById('salesItemFields');
+            if (box) box.classList.toggle('hidden', !isProductSalesExpense(t));
+        }
+
         async function submitSalesExpense(projectNumber) {
             const type = document.getElementById('salesExpenseType').value;
+            if (isProductSalesExpense(type)) return submitSalesDomesticItem(projectNumber);
             const amount = parseFloat(document.getElementById('salesExpenseAmount').value);
             const payee = document.getElementById('salesExpensePayee').value.trim();
             const paidDate = document.getElementById('salesExpensePaidDate').value;
@@ -3640,12 +3702,82 @@
             }
         }
         
-        async function deleteSalesExpense(projectNumber, expenseIndex) {
+        // 以前の形（販売案件の経費）で入っている周辺機器を、在庫の行（この案件へ出庫済み）に移す
+        async function migrateSalesDomesticExpense(projectNumber, expenseIndex) {
+            const e = (salesProjectExpenses[projectNumber] || [])[expenseIndex];
+            if (!e) return;
+            const name = (e.note || '').trim() || '周辺機器';
+            if (!confirm(`「${name}」（${formatJPY(e.amountJPY || 0)}）を在庫の行に移します。\n\n・在庫に「${projectNumber} へ出庫済み」として1行作る\n・この経費の記録は消す\n\n金額・製品原価・粗利は変わりません。よろしいですか？`)) return;
+            try {
+                showStatus('在庫に移しています...');
+                await registerDomesticItems({ itemName: name, quantity: 1, totalJPY: e.amountJPY || 0, payee: e.payee || '', paidDate: e.paidDate || '',
+                    orderProject: projectNumber, shipProject: projectNumber, status: '出庫済' });
+                try {
+                    await deleteSalesExpense(projectNumber, expenseIndex, true);
+                } catch (delErr) {
+                    await loadInventoryForSales(); renderMain();
+                    alert(`在庫の行は作りましたが、元の経費「${name}」を消せませんでした。\n二重にならないよう、経費の ✕ で消してください。`);
+                    return;
+                }
+                await loadInventoryForSales();
+                renderMain();
+                showStatus(`✅ 「${name}」を在庫に移しました`);
+                setTimeout(() => showStatus(''), 3000);
+            } catch (err) {
+                console.error('在庫への移し替えエラー', err);
+                alert('移し替えに失敗しました。もう一度お試しください。（途中まで進んだ場合は、在庫と経費の両方に残っていないか確認してください）');
+            }
+        }
+
+        // 販売原価から「あとから追加」する周辺機器（国内調達）：在庫に「この案件へ出庫済み」の行を作る
+        async function submitSalesDomesticItem(projectNumber) {
+            const itemName = document.getElementById('salesItemName').value.trim();
+            const qty = parseInt(document.getElementById('salesItemQty').value) || 1;
+            const amount = parseFloat(document.getElementById('salesExpenseAmount').value);
+            const payee = document.getElementById('salesExpensePayee').value.trim();
+            const paidDate = document.getElementById('salesExpensePaidDate').value;
+            const note = document.getElementById('salesExpenseNote').value.trim();
+            if (!itemName) { alert('品名を入力してください'); return; }
+            if (!amount || amount <= 0) { alert('金額を入力してください'); return; }
+
+            // 二重登録の確認：同じ販売案件に、品名が似ている・または金額が近い周辺機器がすでにあるか
+            const sp = getSalesProjects().find(x => x.projectNumber === projectNumber);
+            const nm = v => String(v || '').normalize('NFKC').replace(/\s+/g, '').toLowerCase();
+            const unit = amount / qty;
+            const similar = [];
+            (sp ? sp.items : []).forEach(it => {
+                const sameName = nm(it.productName) && (nm(it.productName).includes(nm(itemName)) || nm(itemName).includes(nm(it.productName)));
+                const near = it.costJPY && Math.abs(it.costJPY - unit) <= Math.max(1, unit * 0.05);
+                if ((it.category === '周辺機器' || String(it.note || '').startsWith(DOMESTIC_MARK)) && (sameName || near)) similar.push(`・${it.productName}（${formatJPY(it.costJPY || 0)}）`);
+            });
+            (sp ? sp.productExpenses : []).forEach(e => {
+                if (nm(e.note).includes(nm(itemName)) || Math.abs((e.amountJPY || 0) - amount) <= Math.max(1, amount * 0.05)) similar.push(`・${e.note || e.type}（${formatJPY(e.amountJPY || 0)}）`);
+            });
+            if (similar.length && !confirm(`この案件には、似た周辺機器がすでに登録されています。\n\n${[...new Set(similar)].slice(0, 6).join('\n')}\n\n同じ物を二重に登録していませんか？\nそれでも追加する場合は OK を押してください。`)) return;
+
+            try {
+                showStatus('在庫に登録中...');
+                const r = await registerDomesticItems({
+                    itemName, quantity: qty, totalJPY: amount, payee, paidDate, note,
+                    orderProject: projectNumber, shipProject: projectNumber, status: '出庫済'
+                });
+                closeModal('salesExpenseModal');
+                await loadInventoryForSales();
+                renderMain();
+                showStatus(`✅ ${itemName} を製品原価に追加しました（${r.count}点 × ${formatJPY(r.unit)}）`);
+                setTimeout(() => showStatus(''), 4000);
+            } catch (e) {
+                console.error('周辺機器の登録エラー:', e);
+                alert('登録に失敗しました。通信を確認してもう一度お試しください。');
+            }
+        }
+
+        async function deleteSalesExpense(projectNumber, expenseIndex, skipConfirm = false) {
             const expenses = salesProjectExpenses[projectNumber];
             if (!expenses || !expenses[expenseIndex]) return;
             
             const expense = expenses[expenseIndex];
-            if (!confirm(`「${expense.type}」(${formatJPY(expense.amountJPY)}) を削除しますか？`)) return;
+            if (!skipConfirm && !confirm(`「${expense.type}」(${formatJPY(expense.amountJPY)}) を削除しますか？`)) return;
             
             try {
                 // スプレッドシートから該当行を探して削除
@@ -3657,7 +3789,7 @@
                 
                 let rowToDelete = -1;
                 rows.forEach((row, idx) => {
-                    if (row[0] === projectNumber && row[1] === String(expense.id)) {
+                    if (row[0] === projectNumber && String(row[1]).replace(/\.0+$/, '') === String(expense.id)) {
                         rowToDelete = idx + 2; // ヘッダー行を考慮
                     }
                 });
@@ -3687,6 +3819,9 @@
                     }
                 }
                 
+                if (rowToDelete < 0 && skipConfirm) {
+                    throw new Error('経費の行がシートで見つかりませんでした');
+                }
                 // ローカルデータからも削除
                 expenses.splice(expenseIndex, 1);
                 
@@ -3695,6 +3830,7 @@
                 setTimeout(() => showStatus(''), 3000);
             } catch (e) {
                 console.error('経費削除エラー:', e);
+                if (skipConfirm) throw e; // 呼び出し元（在庫への移し替え）で知らせる
                 alert('経費の削除に失敗しました');
             }
         }
@@ -6769,6 +6905,22 @@
                                         <input type="number" id="expenseItemQuantity" value="1" min="1" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white text-sm">
                                     </div>
                                 </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs text-slate-600 dark:text-slate-400 mb-1">届く場所</label>
+                                        <select id="expenseItemPlace" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white text-sm">
+                                            <option value="上尾">上尾倉庫</option>
+                                            <option value="大阪">大阪</option>
+                                            <option value="東京">東京</option>
+                                            <option value="現場直送">現場に直送</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-slate-600 dark:text-slate-400 mb-1">使う販売案件（決まっていれば）</label>
+                                        <input type="text" id="expenseItemShip" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white text-sm" placeholder="例：AD-1793">
+                                    </div>
+                                </div>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">上尾倉庫 → 入庫待ちで登録（倉庫で入庫）。大阪・東京・現場直送で案件が決まっていれば、その案件に出庫済みとして登録（倉庫の作業には出ません）。</p>
                             </div>
                             
                             <div>
@@ -6939,21 +7091,24 @@
             // 在庫にも登録（販売案件に引き当てると、販売原価の製品原価に入る）
             if (isInvItem) {
                 const projectNumber = formatProjectNumber(project);
-                const unitCost = Math.round(amount / itemQuantity);
-                
+                const place = (document.getElementById('expenseItemPlace') || {}).value || '上尾';
+                const shipRaw = ((document.getElementById('expenseItemShip') || {}).value || '').trim().toUpperCase();
+                const shipProject = shipRaw ? (/^[A-Z]+-?\d+$/.test(shipRaw) ? shipRaw.replace(/^([A-Z]+)-?(\d+)$/, '$1-$2') : '') : '';
+                if (shipRaw && !shipProject) { alert('使う販売案件は「AD-1793」のように入力してください'); project.expenses.pop(); return; }
+                if (place === '現場直送' && !shipProject) { alert('現場に直送する場合は、使う販売案件を入れてください'); project.expenses.pop(); return; }
+                // 状態の決め方：上尾倉庫→入庫待ち／倉庫以外で案件が決まっている→その案件に出庫済／倉庫以外で未定→在庫中（保管場所つき）
+                const status = place === '上尾' ? '入庫待ち' : (shipProject ? '出庫済' : '在庫中');
                 try {
-                    await addToInventory(
-                        '',                     // serial（空でOK）
-                        itemCategory,           // category
-                        itemName,              // productName
-                        projectNumber,          // projectNumber
-                        paidDate,              // orderDate（支払日を使用）
-                        itemQuantity,          // quantity
-                        selectedSupplierId,    // supplierId（既存suppliersから選んだ場合のみセット）
-                        unitCost               // costPerUnit（取得金）
-                    );
-                    
-                    showStatus(`✅ ${itemName} を在庫に登録しました（${itemQuantity}点 × ¥${unitCost.toLocaleString()}）`);
+                    const r = await registerDomesticItems({
+                        itemName, category: itemCategory, quantity: itemQuantity, totalJPY: amount, payee, paidDate,
+                        note: [note, (place === '上尾' && shipProject) ? `${shipProject}用` : ''].filter(Boolean).join(' '),
+                        orderProject: projectNumber, shipProject: status === '出庫済' ? shipProject : '',
+                        status, location: place === '上尾' ? '' : place, supplierId: selectedSupplierId
+                    });
+                    expenseData.place = place;
+                    if (shipProject) expenseData.shipProject = shipProject;
+                    const where = status === '出庫済' ? `${shipProject} に出庫済み` : status === '在庫中' ? `${place}で在庫中` : '上尾倉庫に入庫待ち';
+                    showStatus(`✅ ${itemName} を在庫に登録しました（${r.count}点 × ¥${r.unit.toLocaleString()}・${where}）`);
                 } catch (e) {
                     console.error('在庫登録エラー:', e);
                     showStatus('⚠️ 諸費用は追加しましたが、在庫登録に失敗しました');

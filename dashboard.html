@@ -204,7 +204,7 @@ h1{font-size:17px;font-weight:700;letter-spacing:.02em}
         <div class="gauge"><div class="fill" id="marginFill"></div></div>
         <div class="hero-foot"><span class="tag" id="marginTag">-</span><span id="marginText"></span></div>
         <div class="hero-foot mono" id="marginBreakdown" style="font-size:11.5px"></div>
-        <div class="note">概算＝売上 −（引当在庫の取得金 × 1.18〈諸掛係数〉）− 登録済み経費。売上0円のサービス案件は除外。正確な損益は支払ナビで。</div>
+        <div class="note">概算＝売上 −（引当在庫の取得金 × 1.18〈諸掛係数〉※国内調達の周辺機器は×1）− 登録済み経費。売上0円のサービス案件は除外。正確な損益は支払ナビで。</div>
       </div>
     </div>
 
@@ -389,7 +389,7 @@ async function loadAllInner(){
     get('案件!A2:N'), get('在庫!A2:Q'), get('販売案件売上!A2:E'), get('販売案件経費!A2:G'),
   ]);
   try { const a = await get('在庫アーカイブ!A2:Q');
-    archive = (a.result.values || []).map(r => ({ shipPrefix:r[10]||'', shipNumber:r[11]||'', costJPY:parseInt(r[12])||0, category:r[2]||'' }));
+    archive = (a.result.values || []).map(r => ({ shipPrefix:r[10]||'', shipNumber:r[11]||'', costJPY:parseInt(r[12])||0, category:r[2]||'', note:r[13]||'' }));
   } catch { archive = []; }
 
   projects = (prj.result.values || []).map(r => ({
@@ -400,7 +400,7 @@ async function loadAllInner(){
   inventory = (inv.result.values || []).map(r => ({
     serial:r[1]||'', category:r[2]||'', productName:r[3]||'', receiveDate:r[7]||'',
     status:r[8]||'', shipDate:r[9]||'', shipPrefix:r[10]||'', shipNumber:r[11]||'',
-    costJPY:parseInt(r[12])||0, shelfNo:r[14]||'',
+    costJPY:parseInt(r[12])||0, note:r[13]||'', shelfNo:r[14]||'', location:r[15]||'',
   }));
   sales = (sal.result.values || []).map(r => ({
     number:r[0]||'', amount:parseFloat(r[1])||0, updated:r[2]||'', delivery:r[4]||'',
@@ -460,22 +460,25 @@ function render(){
   document.getElementById('paceText').textContent = `${elapsed}ヶ月経過時点の目標ペース（${man(theory)}）との差`;
 
   // ---- 概算粗利 ----
-  const costMap = {};
+  // 輸入品は取得金×諸掛係数、国内で買った周辺機器（備考が「［国内調達］」で始まる）は取得金そのまま
+  const costMap = {}, domMap = {};
   [...inventory, ...archive].forEach(i => {
     if (!i.shipPrefix || !i.shipNumber) return;
     const key = `${String(i.shipPrefix).toUpperCase()}-${pad4(i.shipNumber)}`;
-    costMap[key] = (costMap[key] || 0) + (i.costJPY || 0);
+    const m = String(i.note || '').startsWith('［国内調達］') ? domMap : costMap;
+    m[key] = (m[key] || 0) + (i.costJPY || 0);
   });
   const expMap = {};
   expenses.forEach(e => { if (e.number) expMap[e.number] = (expMap[e.number] || 0) + e.amount; });
 
-  let rev = 0, cost = 0, exp = 0;
+  let rev = 0, cost = 0, dom = 0, exp = 0;
   fySales.forEach(s => {
     rev += s.amount;
     cost += (costMap[s.number] || 0);
+    dom += (domMap[s.number] || 0);
     exp += (expMap[s.number] || 0);
   });
-  const margin = rev > 0 ? (rev - cost * EXPENSE_COEF - exp) / rev * 100 : null;
+  const margin = rev > 0 ? (rev - cost * EXPENSE_COEF - dom - exp) / rev * 100 : null;
   const mEl = document.getElementById('marginNum');
   const mTag = document.getElementById('marginTag');
   if (margin === null){
@@ -490,7 +493,7 @@ function render(){
     mTag.textContent = (d >= 0 ? '+' : '') + d.toFixed(1) + 'pt';
     document.getElementById('marginText').textContent = `対象 ${fySales.length}案件`;
     document.getElementById('marginBreakdown').textContent =
-      `売上 ${man(rev)} ／ 原価(諸掛込) ${man(cost * EXPENSE_COEF)} ／ 経費 ${man(exp)}`;
+      `売上 ${man(rev)} ／ 原価(諸掛込) ${man(cost * EXPENSE_COEF + dom)} ／ 経費 ${man(exp)}`;
     document.getElementById('marginFill').style.width = Math.max(0, Math.min(100, margin / TARGET_MARGIN * 100)) + '%';
     document.getElementById('marginFill').style.background = d >= 0 ? 'var(--ok)' : 'var(--warn)';
   }
@@ -522,7 +525,8 @@ function render(){
     .filter(i => i.days >= STALE_DAYS).sort((a, b) => b.days - a.days);
   const stayDays = inStock.filter(i => i.receiveDate).map(i => Math.floor((today - new Date(i.receiveDate)) / 86400000));
   const avgStay = stayDays.length ? Math.round(stayDays.reduce((a, b) => a + b, 0) / stayDays.length) : 0;
-  const noShelf = inStock.filter(i => !i.shelfNo).length;
+  // 棚番は上尾倉庫の物だけが対象（大阪・東京などで保管している物は数えない）
+  const noShelf = inStock.filter(i => !i.shelfNo && !['大阪','東京','現場直送'].includes(String(i.location).trim())).length;
 
   // ---- アラートカード ----
   const dAlerts = ankan ? (ankan.deliveryAlerts || []) : [];

@@ -265,7 +265,8 @@ async function load(){
   CONF=conf;const pr=conf.find(r=>r[0]==='担当者');PEOPLE=pr&&pr[1]?pr[1].split(/[／\/、,]/).map(v=>v.trim()).filter(Boolean):['上村'];fillWho();
   SUP={};sup.forEach(r=>{if(r[0])SUP[String(Math.round(Number(r[0])))||r[0]]=r[1]||''});
   const mk=(r,arch)=>({id:r[0]||'',s:(r[1]||'').trim(),key:norm(r[1]),cat:r[2]||'',p:r[3]||'',o:r[5]!==undefined&&r[5]!==''?(r[4]||'')+'-'+r[5]:(r[4]||''),od:toYmd(r[6]),recv:toYmd(r[7]),st:arch?'出庫済':(r[8]||'入庫待ち').replace(/^(発送済|引渡済)$/,'出庫済').replace(/^不具合$/,'不良品'),ship:toYmd(r[9]),al:(r[11]!==undefined&&r[11]!=='')?(r[10]||'')+'-'+r[11]:'',shelf:r[14]||'',memo:r[13]||'',sup:SUP[String(Math.round(Number(r[16])))]||'',arch});
-  INV=inv.filter(r=>r[1]||r[3]).map(r=>mk(r,false)).concat(arc.filter(r=>r[1]).map(r=>mk(r,true)));
+  // 保管場所が大阪・東京・現場直送の物は上尾倉庫にないので、倉庫の画面には出さない
+  INV=inv.filter(r=>(r[1]||r[3])&&!['大阪','東京','現場直送'].includes(String(r[15]||'').trim())).map(r=>mk(r,false)).concat(arc.filter(r=>r[1]).map(r=>mk(r,true)));
   LOG=log.map((r,i)=>({row:i+2,d:toYmd(r[0]),s:(r[1]||'').trim(),o:r[2]||'',sup:r[3]||'',p:r[4]||'',t:r[5]||'',sym:r[6]||'',cause:r[7]||'',act:r[8]||'',res:r[9]||'',cls:r[10]||'',who:r[11]||'',photo:r[12]||'',note:r[13]||''})).filter(r=>r.s||r.p||r.d);
   LOGBY={};LOG.forEach(r=>{const k=norm(r.s);if(k)(LOGBY[k]=LOGBY[k]||[]).push(r)});Object.values(LOGBY).forEach(a=>a.sort((x,y)=>(x.d||'').localeCompare(y.d||'')));
   LOADED_AT=new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
