@@ -5353,25 +5353,82 @@
                 p.quantity = productQuantities[p.id] || 1;
                 p.serial = productSerials[p.id] || '';
                 p.productName = productNames[p.id] || p.productName;
-                
-                // デポジット：支払い済みの記録がある製品は作り直さない（支払日・レート・円額を守る）
-                const existingDeps = p.depositSchedule || [];
-                const hasPaid = existingDeps.some(d => d.paid);
-                if (hasPaid) {
-                    // 支払い済みの回はそのまま、未払いの回だけ金額を再計算
-                    p.depositSchedule = existingDeps.map(d => d.paid ? d : ({
-                        ...d,
-                        amountUSD: Math.round((p.totalAmount || 0) * (d.percentage || 0) / 100 * 100) / 100
-                    }));
+            });
+
+            // デポジットを発注ロットごとに組み直す
+            //   ・支払い済みの回がある：実際に払った金額（USD・円）はそのまま、各製品の金額の比率で配り直す
+            //     （例：最初は「ディスプレイ10台」で払ったが、実はブラケットも含んでいた → 払った額をディスプレイとブラケットに分ける）
+            //     まだ払っていない回は、各製品の金額 × 比率で計算し直す
+            //   ・支払い済みの回がない：選んだ支払パターンで作り直す（パターン未選択なら、今の回の比率のまま金額だけ計算し直す）
+            const rebalancedIds = new Set();
+            const r2 = v => Math.round(v * 100) / 100;
+            const lots = [...new Set(groupProjects.map(p => p.orderBatch || 0))];
+            lots.forEach(b => {
+                const items = groupProjects.filter(p => (p.orderBatch || 0) === b);
+                const anyPaid = items.some(p => (p.depositSchedule || []).some(d => d.paid));
+                // ロットの回の並び（どの製品かに入っている回をまとめる）
+                const rounds = new Map();
+                items.forEach(p => (p.depositSchedule || []).forEach(d => {
+                    const r = rounds.get(d.depositNumber) || { depositNumber: d.depositNumber, percentage: d.percentage, paid: false, paidDate: null, exchangeRate: null, paidUSD: 0, paidJPY: 0 };
+                    if (d.paid) {
+                        r.paid = true;
+                        r.paidDate = r.paidDate || d.paidDate;
+                        r.exchangeRate = r.exchangeRate || d.exchangeRate;
+                        r.paidUSD += d.amountUSD || 0;
+                        r.paidJPY += d.amountJPY || 0;
+                    }
+                    rounds.set(d.depositNumber, r);
+                }));
+                const roundList = [...rounds.values()].sort((x, y) => x.depositNumber - y.depositNumber);
+
+                if (anyPaid) {
+                    const sum = items.reduce((t, p) => t + (p.totalAmount || 0), 0);
+                    if (sum <= 0) return; // 金額が全部0のときは触らない
+                    const allocUSD = {}, allocJPY = {};
+                    roundList.filter(r => r.paid).forEach(r => {
+                        let restU = r2(r.paidUSD), restJ = r2(r.paidJPY);
+                        items.forEach((p, i) => {
+                            const last = i === items.length - 1;
+                            const share = (p.totalAmount || 0) / sum;
+                            const u = last ? restU : r2(r.paidUSD * share);
+                            const j = last ? restJ : r2(r.paidJPY * share);
+                            restU = r2(restU - u); restJ = r2(restJ - j);
+                            allocUSD[`${p.id}-${r.depositNumber}`] = u;
+                            allocJPY[`${p.id}-${r.depositNumber}`] = j;
+                        });
+                    });
+                    items.forEach(p => {
+                        const own = new Map((p.depositSchedule || []).map(d => [d.depositNumber, d]));
+                        p.depositSchedule = roundList.map(r => {
+                            const base = own.get(r.depositNumber) || {};
+                            if (r.paid) {
+                                return { ...base, depositNumber: r.depositNumber, percentage: r.percentage, paid: true,
+                                         paidDate: r.paidDate, exchangeRate: r.exchangeRate,
+                                         amountUSD: allocUSD[`${p.id}-${r.depositNumber}`],
+                                         amountJPY: allocJPY[`${p.id}-${r.depositNumber}`] };
+                            }
+                            return { ...base, depositNumber: r.depositNumber, percentage: r.percentage, paid: false,
+                                     paidDate: null, exchangeRate: null, amountJPY: null,
+                                     amountUSD: r2((p.totalAmount || 0) * (r.percentage || 0) / 100) };
+                        });
+                        rebalancedIds.add(String(p.id));
+                    });
                 } else if (depositSchedule.length > 0) {
-                    // 未払いの製品だけ、選んだパターンで作り直す（製品自身の金額 × 比率）
-                    p.depositSchedule = depositSchedule.map(d => ({
-                        ...d,
-                        amountUSD: Math.round((p.totalAmount || 0) * d.percentage / 100 * 100) / 100
-                    }));
+                    // 未払いのロットは、選んだパターンで作り直す（製品自身の金額 × 比率）
+                    items.forEach(p => {
+                        p.depositSchedule = depositSchedule.map(d => ({ ...d, amountUSD: r2((p.totalAmount || 0) * d.percentage / 100) }));
+                    });
+                } else if (roundList.length > 0) {
+                    // パターン未選択：今の回の比率のまま、金額だけ計算し直す（回のない新しい製品にも同じ回を付ける）
+                    items.forEach(p => {
+                        const own = new Map((p.depositSchedule || []).map(d => [d.depositNumber, d]));
+                        p.depositSchedule = roundList.map(r => ({ ...(own.get(r.depositNumber) || {}),
+                            depositNumber: r.depositNumber, percentage: r.percentage, paid: false, paidDate: null,
+                            exchangeRate: null, amountJPY: null, amountUSD: r2((p.totalAmount || 0) * (r.percentage || 0) / 100) }));
+                    });
                 }
             });
-            
+
             // 在庫シートのSerial・製品名も更新（変更があった場合）
             groupProjects.forEach((p, idx) => {
                 const serialChanged = oldSerials[idx] !== p.serial;
@@ -5391,7 +5448,15 @@
             });
             
             // 入荷予定日が変わったら、保存が終わってからAN-KANに知らせる（AN-KANがシートを読み直して案件のChatへ投稿）
-            saveData().then(() => { if (arrivalChanged) notifyAnkanArrival(projectNumber); });
+            saveData().then(async () => {
+                if (arrivalChanged) notifyAnkanArrival(projectNumber);
+                // 支払いが全部済んでいる製品は、配り直した金額で在庫の取得金も更新する
+                for (const p of groupProjects) {
+                    if (!rebalancedIds.has(String(p.id))) continue;
+                    if (!(p.depositSchedule || []).length || !p.depositSchedule.every(d => d.paid)) continue;
+                    try { await updateInventoryCost(p, true); } catch (e) { console.error('取得金の更新に失敗', e); }
+                }
+            });
             closeGroupEditModal();
             renderMain();
             
