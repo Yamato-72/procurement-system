@@ -21,8 +21,8 @@
                     l.rel = 'stylesheet';
                     l.href = 'https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap';
                     document.head.appendChild(l);
-                    // タブのアイコン：浅葱の地に ¥ の書類（支払ナビ）
-                    const ico = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23a9d8d2'/><g fill='none' stroke='%23141414' stroke-width='4' stroke-linejoin='round' stroke-linecap='round'><path d='M17 10 H40 L48 18 V54 H17 Z'/><path d='M40 10 V18 H48'/><path d='M25 26 L32.5 35 L40 26'/><path d='M32.5 35 V46'/><path d='M26 37 H39'/><path d='M26 42 H39'/></g></svg>";
+                    // タブのアイコン：墨の地に白い ¥ の書類（支払ナビ）
+                    const ico = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%232b2b2b'/><g fill='none' stroke='%23ffffff' stroke-width='4' stroke-linejoin='round' stroke-linecap='round'><path d='M17 10 H40 L48 18 V54 H17 Z'/><path d='M40 10 V18 H48'/><path d='M25 26 L32.5 35 L40 26'/><path d='M32.5 35 V46'/><path d='M26 37 H39'/><path d='M26 42 H39'/></g></svg>";
                     const setIco = () => document.querySelectorAll('link[rel="icon"],link[rel="apple-touch-icon"]').forEach(x => { x.href = ico; });
                     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setIco); else setIco();
                     setIco();
@@ -345,13 +345,13 @@
             --ui-brand: #141414; --ui-brand-strong: #000000; --ui-brand-soft: #ffffff;
             --ui-shadow: none;
             --q-y: #ffd21f; --q-red: #d7261e; --q-ok: #2b6e3f; --q-panel: #f6f6f4;
-            --q-band: #a9d8d2; /* 支払ナビの帯：浅葱（薄い青緑）。在庫＝クラフト、品質＝黄、製品＝墨 */
+            --q-band: #2b2b2b; /* 支払ナビの帯：墨（黄の札と相性が良い）。在庫＝クラフト、品質＝黄 */
         }
         html.theme-q:not(.dark) input[type="checkbox"], html.theme-q:not(.dark) input[type="radio"] { accent-color: #141414; }
         html.theme-q:not(.dark) body { font-family: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif; }
         /* 上の帯 */
         html.theme-q:not(.dark) .payment-shell-header { background: var(--q-band) !important; border-bottom: 0 !important; box-shadow: none !important; backdrop-filter: none !important; }
-        html.theme-q:not(.dark) .brand-mark { background: #141414 url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><g fill='none' stroke='%23a9d8d2' stroke-width='4.5' stroke-linejoin='round' stroke-linecap='round'><path d='M17 10 H40 L48 18 V54 H17 Z'/><path d='M40 10 V18 H48'/><path d='M25 26 L32.5 35 L40 26'/><path d='M32.5 35 V46'/><path d='M26 37 H39'/><path d='M26 42 H39'/></g></svg>") center / 72% no-repeat !important; color: transparent !important; font-size: 0 !important; border-radius: 6px !important; box-shadow: none !important; }
+        html.theme-q:not(.dark) .brand-mark { background: #ffffff url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><g fill='none' stroke='%23141414' stroke-width='4.5' stroke-linejoin='round' stroke-linecap='round'><path d='M17 10 H40 L48 18 V54 H17 Z'/><path d='M40 10 V18 H48'/><path d='M25 26 L32.5 35 L40 26'/><path d='M32.5 35 V46'/><path d='M26 37 H39'/><path d='M26 42 H39'/></g></svg>") center / 72% no-repeat !important; color: transparent !important; font-size: 0 !important; border-radius: 6px !important; box-shadow: none !important; }
         html.theme-q:not(.dark) .brand-title { font-weight: 900; }
         html.theme-q:not(.dark) .brand-subtitle, html.theme-q:not(.dark) .payment-sync-row { color: #141414; }
         html.theme-q:not(.dark) .sync-refresh { color: #141414; text-decoration: underline; }
@@ -822,6 +822,14 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
         html.theme-q:not(.dark) .st-chip.st-bad { background: var(--q-red) !important; color: #fff !important; border-color: var(--q-red); }
         html.theme-q:not(.dark) .st-chip.st-done { background: #fff !important; color: #5b5b5b !important; }
 
+        /* 支払ナビは帯が墨なので、帯の中の文字は白 */
+        html.theme-q:not(.dark) .payment-shell-header .brand-title, html.theme-q:not(.dark) .payment-shell-header .brand-subtitle,
+        html.theme-q:not(.dark) .payment-sync-row, html.theme-q:not(.dark) .payment-sync-row span, html.theme-q:not(.dark) .payment-shell-header .header-status,
+        html.theme-q:not(.dark) .payment-shell-header .global-nav a:not(.active) { color: #ffffff !important; }
+        html.theme-q:not(.dark) .payment-shell-header .global-nav a:not(.active):hover { background: rgba(255,255,255,.14); }
+        html.theme-q:not(.dark) .payment-sync-row .sync-refresh { color: #ffffff !important; }
+        html.theme-q:not(.dark) .payment-sync-row .sync-dot { background: #ffffff !important; }
+        html.theme-q:not(.dark) .payment-shell-header .shell-icon-button, html.theme-q:not(.dark) .payment-shell-header .shell-tool-button { border-color: #ffffff !important; }
         /* 支払ナビ固有：支払待ちリスト＝手を動かす（黄）、期日の近い案件＝黄、完了＝緑、集計カードは上罫線 */
         html.theme-q:not(.dark) .payment-queue { border: 2px solid var(--q-y) !important; border-radius: 8px !important; }
         html.theme-q:not(.dark) .payment-queue > button { border-radius: 6px !important; }
