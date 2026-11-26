@@ -129,40 +129,40 @@ a.cell:focus-visible{outline:2px solid var(--y);outline-offset:4px;border-radius
   <div class="panel">
     <div class="lcd">
       <div class="cell"><span class="mono k">Time</span><span class="clock" id="clock">--:--</span><span class="s" id="date"></span></div>
-      <a class="cell" id="st-pay" href="index.html"><span class="mono k">支払待ち</span><span class="v z">–</span><span class="s"></span><span class="go">支払ナビ →</span></a>
-      <a class="cell" id="st-arr" href="quality.html"><span class="mono k">入荷 今日・明日</span><span class="v z">–</span><span class="s"></span><span class="go">品質ナビ →</span></a>
-      <a class="cell" id="st-insp" href="quality.html"><span class="mono k">検品まち</span><span class="v z">–</span><span class="s"></span><span class="go">品質ナビ →</span></a>
-      <a class="cell" id="st-bad" href="quality.html"><span class="mono k">不具合・遅れ</span><span class="v z">–</span><span class="s"></span><span class="go">中身を見る →</span></a>
+      <a class="cell" id="st-pay" href="index.html" target="_blank" rel="noopener"><span class="mono k">支払待ち</span><span class="v z">–</span><span class="s"></span><span class="go">支払ナビ →</span></a>
+      <a class="cell" id="st-arr" href="quality.html" target="_blank" rel="noopener"><span class="mono k">入荷 今日・明日</span><span class="v z">–</span><span class="s"></span><span class="go">品質ナビ →</span></a>
+      <a class="cell" id="st-insp" href="quality.html" target="_blank" rel="noopener"><span class="mono k">検品まち</span><span class="v z">–</span><span class="s"></span><span class="go">品質ナビ →</span></a>
+      <a class="cell" id="st-bad" href="quality.html" target="_blank" rel="noopener"><span class="mono k">不具合・遅れ</span><span class="v z">–</span><span class="s"></span><span class="go">中身を見る →</span></a>
     </div>
     <div class="login" id="login"><span>ログインすると今日の数字が出ます（ほかのナビとログインは共通）</span><button type="button" id="loginBtn">ログイン</button></div>
 
     <div class="keys" id="keys">
-      <a class="key dk" style="--c:#c8463a;--d:#8e2c23;--i:0" href="https://an-kan-47228502594.europe-west1.run.app" data-k="1" data-words="AN-KAN アンカン 案件 台帳 ステータス ankan">
+      <a class="key dk" style="--c:#c8463a;--d:#8e2c23;--i:0" href="https://an-kan-47228502594.europe-west1.run.app" target="_blank" rel="noopener" data-k="1" data-words="AN-KAN アンカン 案件 台帳 ステータス ankan">
         <div class="row"><span class="mono no">01</span><span class="led" id="l-ankan"></span></div>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2h8.5A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/></svg>
         <div><div class="n">AN-KAN</div><div class="c" id="c-ankan">案件台帳</div></div>
       </a>
-      <a class="key" style="--c:#e0823f;--d:#a95a22;--i:1" href="https://yamato-72.github.io/ys-tools/deliverytime.html" data-k="2" data-words="納期 のうき 集荷 連休 中国 deliverytime">
+      <a class="key" style="--c:#e0823f;--d:#a95a22;--i:1" href="https://yamato-72.github.io/ys-tools/deliverytime.html" target="_blank" rel="noopener" data-win="1" data-k="2" data-words="納期 のうき 集荷 連休 中国 deliverytime">
         <div class="row"><span class="mono no">02</span><span class="led"></span></div>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="1.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4M8 14h3"/></svg>
         <div><div class="n">納期</div><div class="c">集荷日・納期の計算</div></div>
       </a>
-      <a class="key" style="--c:#e9bd3c;--d:#b08a1c;--i:2" href="index.html" data-k="3" data-words="支払 しはらい 発注 デポジット 入荷予定日 pay">
+      <a class="key" style="--c:#e9bd3c;--d:#b08a1c;--i:2" href="index.html" target="_blank" rel="noopener" data-k="3" data-words="支払 しはらい 発注 デポジット 入荷予定日 pay">
         <div class="row"><span class="mono no">03</span><span class="led" id="l-pay"></span></div>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
         <div><div class="n">支払</div><div class="c" id="c-pay">発注・支払</div></div>
       </a>
-      <a class="key" style="--c:#c9995c;--d:#96703d;--i:3" href="inventory.html" data-k="4" data-words="在庫 ざいこ 入庫 引当 出庫 シリアル inventory">
+      <a class="key" style="--c:#c9995c;--d:#96703d;--i:3" href="inventory.html" target="_blank" rel="noopener" data-k="4" data-words="在庫 ざいこ 入庫 引当 出庫 シリアル inventory">
         <div class="row"><span class="mono no">04</span><span class="led" id="l-inv"></span></div>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg>
         <div><div class="n">在庫</div><div class="c" id="c-inv">入庫・引当・出庫</div></div>
       </a>
-      <a class="key dk" style="--c:#4f9c95;--d:#336f6a;--i:4" href="quality.html" data-k="5" data-words="品質 ひんしつ 検品 けんぴん 不具合 不良 quality">
+      <a class="key dk" style="--c:#4f9c95;--d:#336f6a;--i:4" href="quality.html" target="_blank" rel="noopener" data-k="5" data-words="品質 ひんしつ 検品 けんぴん 不具合 不良 quality">
         <div class="row"><span class="mono no">05</span><span class="led" id="l-qual"></span></div>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="m8 12 3 3 5-6"/></svg>
         <div><div class="n">品質</div><div class="c" id="c-qual">検品・不具合</div></div>
       </a>
-      <a class="key dk" style="--c:#4f72a8;--d:#334f7c;--i:5" href="genba.html" data-k="6" data-words="製品 せいひん マニュアル トラブル 研修 genba">
+      <a class="key dk" style="--c:#4f72a8;--d:#334f7c;--i:5" href="genba.html" target="_blank" rel="noopener" data-k="6" data-words="製品 せいひん マニュアル トラブル 研修 genba">
         <div class="row"><span class="mono no">06</span><span class="led"></span></div>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 6c-2-1.5-5-2-8-1.5v14c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5v-14c-3-.5-6 0-8 1.5z"/><path d="M12 6v14"/></svg>
         <div><div class="n">製品</div><div class="c">マニュアル・研修</div></div>
@@ -198,7 +198,13 @@ tick(); setInterval(tick, 10000);
 
 /* ---------- キー：数字キー・検索 ---------- */
 const keys = [...document.querySelectorAll('.key')];
-function press(k) { k.classList.add('down'); setTimeout(() => { location.href = k.href; }, 130); }
+// 開き方：ふつうは別タブ。納期ナビだけ小さな別ウィンドウ（横に置いて使う計算機なので）
+function openKey(k) {
+  if (k.dataset.win) window.open(k.href, 'ys-nouki', 'popup,width=500,height=940');
+  else window.open(k.href, '_blank', 'noopener');
+}
+function press(k) { k.classList.add('down'); openKey(k); setTimeout(() => k.classList.remove('down'), 180); }
+keys.filter(k => k.dataset.win).forEach(k => k.addEventListener('click', e => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); openKey(k); }));
 const q = $('q');
 const nrm = s => String(s || '').normalize('NFKC').toLowerCase();
 function matches() { const v = nrm(q.value.trim()); return v ? keys.filter(k => nrm(k.dataset.words + ' ' + k.querySelector('.n').textContent).includes(v)) : []; }
