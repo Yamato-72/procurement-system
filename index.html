@@ -3541,6 +3541,10 @@
         
         // 販売案件の「経費」のうち、製品原価として扱う種別（お客さんに納める物の購入）
         const PRODUCT_SALES_EXPENSE_TYPES = ['周辺機器'];
+        // 支払案件の諸費用のうち、在庫に1行ずつ登録する物品（国内で買った周辺機器など）
+        //  「付帯品」は以前の名前。過去の記録のために残す
+        const INVENTORY_EXPENSE_TYPES = ['周辺機器', '付帯品'];
+        function isInventoryExpenseType(type) { return INVENTORY_EXPENSE_TYPES.includes(type); }
         function isProductSalesExpense(type) { return PRODUCT_SALES_EXPENSE_TYPES.includes(type); }
         // 画面に出す名前（保存する種別の値は「周辺機器」のまま。過去の記録もそのまま使える）
         function salesExpenseLabel(type) { return type === '周辺機器' ? '周辺機器（国内調達）' : (type || '経費'); }
@@ -6737,11 +6741,8 @@
                                         <option value="設置工事費">設置工事費</option>
                                         <option value="加工費">加工費</option>
                                     </optgroup>
-                                    <optgroup label="物品">
-                                        <option value="周辺機器">周辺機器</option>
-                                    </optgroup>
-                                    <optgroup label="付帯品（国内調達）">
-                                        <option value="付帯品">付帯品（Amazon等）</option>
+                                    <optgroup label="物品（在庫に登録）">
+                                        <option value="周辺機器">周辺機器（国内調達）</option>
                                     </optgroup>
                                     <optgroup label="その他">
                                         <option value="その他">その他</option>
@@ -6751,7 +6752,7 @@
                             
                             <!-- 付帯品の場合の追加入力欄 -->
                             <div id="expenseItemDetails" class="hidden space-y-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                                <p class="text-xs font-semibold text-green-700 dark:text-green-400">📦 付帯品情報（在庫に登録されます）</p>
+                                <p class="text-xs font-semibold text-green-700 dark:text-green-400">📦 周辺機器の情報（在庫に登録され、販売案件に引き当てられます）</p>
                                 <div>
                                     <label class="block text-xs text-slate-600 dark:text-slate-400 mb-1">品名 <span class="text-red-500">*</span></label>
                                     <input type="text" id="expenseItemName" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white text-sm" placeholder="HDMIケーブル 2m">
@@ -6823,15 +6824,17 @@
             const includeInCostWrapper = document.getElementById('expenseIncludeInCostWrapper');
             const includeInCostCheckbox = document.getElementById('expenseIncludeInCost');
             
-            // 付帯品の場合は付帯品入力欄を表示
-            if (type === '付帯品') {
+            // 周辺機器（国内調達）は品名・数量の入力欄を表示（在庫に登録するため）
+            if (isInventoryExpenseType(type)) {
                 itemDetails.classList.remove('hidden');
+                const cat = document.getElementById('expenseItemCategory');
+                if (cat && [...cat.options].some(o => o.value === '周辺機器') && !cat.dataset.touched) cat.value = '周辺機器';
             } else {
                 itemDetails.classList.add('hidden');
             }
             
             // 付帯品・外注系は「製品原価に含む」を非表示にしてOFFにする
-            const hideIncludeInCostTypes = ['付帯品', '施工外注費', '設置工事費', '加工費'];
+            const hideIncludeInCostTypes = [...INVENTORY_EXPENSE_TYPES, '施工外注費', '設置工事費', '加工費'];
             if (hideIncludeInCostTypes.includes(type)) {
                 includeInCostWrapper.classList.add('hidden');
                 includeInCostCheckbox.checked = false;
@@ -6896,13 +6899,14 @@
             let itemCategory = '';
             let itemQuantity = 1;
             
-            if (type === '付帯品') {
+            const isInvItem = isInventoryExpenseType(type);
+            if (isInvItem) {
                 itemName = document.getElementById('expenseItemName').value.trim();
                 itemCategory = document.getElementById('expenseItemCategory').value;
                 itemQuantity = parseInt(document.getElementById('expenseItemQuantity').value) || 1;
                 
                 if (!itemName) {
-                    alert('付帯品の品名を入力してください');
+                    alert('品名を入力してください');
                     return;
                 }
             }
@@ -6922,8 +6926,8 @@
                 note: note
             };
 
-            // 付帯品の場合は追加情報を保存
-            if (type === '付帯品') {
+            // 在庫に登録する物品は追加情報を保存
+            if (isInvItem) {
                 expenseData.itemName = itemName;
                 expenseData.itemCategory = itemCategory;
                 expenseData.itemQuantity = itemQuantity;
@@ -6932,8 +6936,8 @@
 
             project.expenses.push(expenseData);
 
-            // 付帯品の場合は在庫にも登録
-            if (type === '付帯品') {
+            // 在庫にも登録（販売案件に引き当てると、販売原価の製品原価に入る）
+            if (isInvItem) {
                 const projectNumber = formatProjectNumber(project);
                 const unitCost = Math.round(amount / itemQuantity);
                 
@@ -6949,7 +6953,7 @@
                         unitCost               // costPerUnit（取得金）
                     );
                     
-                    showStatus(`✅ 付帯品を追加し、在庫にも登録しました（${itemQuantity}点 × ¥${unitCost.toLocaleString()}）`);
+                    showStatus(`✅ ${itemName} を在庫に登録しました（${itemQuantity}点 × ¥${unitCost.toLocaleString()}）`);
                 } catch (e) {
                     console.error('在庫登録エラー:', e);
                     showStatus('⚠️ 諸費用は追加しましたが、在庫登録に失敗しました');
@@ -6962,11 +6966,11 @@
             
             // 諸費用（原価に含むもの）を確定したら、本体製品の在庫原価を再反映
             // 付帯品は本体原価に影響しない（在庫には別途1行登録済み）のでスキップ
-            if (type !== '付帯品' && includeInCost) {
+            if (!isInvItem && includeInCost) {
                 await updateInventoryCost(project);
             }
             
-            if (type !== '付帯品') {
+            if (!isInvItem) {
                 showStatus('✅ 諸費用を追加しました');
             }
             setTimeout(() => showStatus(''), 3000);
@@ -7014,6 +7018,9 @@
                 '周辺機器',
                 'その他'
             ];
+            // 今の種別が一覧にないとき（以前の「付帯品」など）は足しておく。勝手に別の種別に変わらないように
+            if (expense.type && !expenseTypes.includes(expense.type)) expenseTypes.push(expense.type);
+            const expenseTypeLabel = t => t === '周辺機器' ? '周辺機器（国内調達）' : t === '付帯品' ? '付帯品（国内調達）' : t;
             // 既存データにincludeInCostがない場合はデフォルトtrue（後方互換）
             const isIncludeInCost = expense.includeInCost !== false;
 
@@ -7028,7 +7035,7 @@
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">費用種別 <span class="text-red-500">*</span></label>
                                 <select id="editExpenseType" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                                    ${expenseTypes.map(t => `<option value="${t}" ${expense.type === t ? 'selected' : ''}>${t}</option>`).join('')}
+                                    ${expenseTypes.map(t => `<option value="${t}" ${expense.type === t ? 'selected' : ''}>${expenseTypeLabel(t)}</option>`).join('')}
                                 </select>
                             </div>
                             <div>
