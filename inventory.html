@@ -1692,12 +1692,15 @@
                     const search = currentFilters.search.toLowerCase();
                     const matchSerial = item.serial.toLowerCase().includes(search);
                     const matchProduct = item.productName.toLowerCase().includes(search);
+                    // 備考も検索（全角・半角、大文字・小文字、空白の違いは気にしない）
+                    const nz = v => String(v || '').normalize('NFKC').toLowerCase().replace(/\s+/g, '');
+                    const matchNote = nz(search) !== '' && nz(item.note).includes(nz(search));
                     const orderProjectFull = formatProjectNumber(item.orderPrefix, item.orderNumber);
                     const matchProject = orderProjectFull.toLowerCase().includes(search) || shipProjectFull.toLowerCase().includes(search);
                     // 番号のみで検索もマッチ
                     const matchNumber = (item.orderNumber && item.orderNumber.toString().includes(search)) || 
                                        (item.shipNumber && item.shipNumber.toString().includes(search));
-                    if (!matchSerial && !matchProduct && !matchProject && !matchNumber) return false;
+                    if (!matchSerial && !matchProduct && !matchProject && !matchNumber && !matchNote) return false;
                 }
                 return true;
             });
@@ -2166,7 +2169,7 @@
                                 <button onclick="clearFilters()" class="px-3 py-1.5 sm:py-2 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-white text-sm rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500">クリア</button>
                             </div>
                             <div class="m-search-row flex gap-2 mt-3">
-                                <input type="search" id="filterSearch" value="${currentFilters.search}" onkeydown="if(event.key==='Enter'){applyFilters();event.target.blur();}" placeholder="Serial・製品名・案件番号を検索" aria-label="在庫を検索" class="flex-1 px-3 py-2 text-sm border dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:placeholder-slate-400 rounded-lg">
+                                <input type="search" id="filterSearch" value="${currentFilters.search}" onkeydown="if(event.key==='Enter'){applyFilters();event.target.blur();}" placeholder="Serial・製品名・案件番号・備考を検索" aria-label="在庫を検索" class="flex-1 px-3 py-2 text-sm border dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:placeholder-slate-400 rounded-lg">
                                 <button onclick="applyFilters()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">検索</button>
                             </div>
                             
