@@ -120,10 +120,27 @@ pre{white-space:pre;overflow-x:auto;background:var(--panel);padding:10px;border-
 .jump.on{display:flex}
 .jump button{width:46px;height:46px;min-height:46px;padding:0;border-radius:50%;background:var(--ink);color:var(--bg);border:0;font-size:20px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.25)}
 </style>
+<style>
+/* ===== PCの使い勝手（901px以上だけ。スマホの見た目は変えない） ===== */
+@media(min-width:901px){
+ /* 帯の中身を、下の本文と同じ左右の位置にそろえる */
+ header{padding-left:max(max(4vw,16px),calc((100vw - 1240px)/2 + max(4vw,16px)));padding-right:max(max(4vw,16px),calc((100vw - 1240px)/2 + max(4vw,16px)))}
+ /* 今週やること：説明を左、ボタンを右に置いて、1件を低く */
+ #l-plan .item,#l-wait .item,#l-bad .item{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:14px;align-items:center}
+ #l-plan .item>*,#l-wait .item>*,#l-bad .item>*{grid-column:1}
+ #l-plan .item>.acts,#l-wait .item>.acts,#l-bad .item>.acts{grid-column:2;grid-row:1 / span 3;margin-top:0;justify-content:flex-end}
+ /* 下の黒い帯は、右下の小さなお知らせに */
+ .tray{left:auto;right:20px;bottom:20px;max-width:560px;border-radius:10px;padding:10px 16px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+ .tray{transition:transform .25s ease}.tray.tuck{transform:translateY(calc(100% + 40px))}
+}
+.navlinks{display:flex;gap:10px;align-items:center}
+.navlinks a{color:#141414;font-weight:700;font-size:14px}
+@media(max-width:600px){.navlinks .pc-only{display:none}}
+</style>
 <style>.tog{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 16px;font-size:14px}.tog .seg button{min-height:38px;font-size:14px}.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}.chips button{min-height:38px;font-size:14px}.chips button.on{background:var(--ink);color:var(--bg)}.src{font-size:12px;color:var(--sub)}</style><style>.busy{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 70%,transparent);display:none;align-items:center;justify-content:center;z-index:20;font-weight:700}.busy.on{display:flex}#login{min-height:70vh;display:flex;align-items:center;justify-content:center}#qr{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:30;padding:16px}#qr.on{display:flex}#qr .box{background:var(--bg);border-radius:12px;padding:14px;width:min(420px,100%)}.chk{display:flex;gap:8px;align-items:center;font-size:15px;margin:4px 0 12px}.chk input{width:22px;height:22px}.strip{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}.strip .item{flex:1 1 260px}</style><body>
 <header>
  <div class="top"><h1>YS品質ナビ</h1>
-  <div class="meta"><span id="today"></span><label for="who" style="margin:0">担当</label><select id="who"><option>上村</option></select><span id="who-add" class="hide" style="display:flex;gap:6px;align-items:center"><input id="who-new" placeholder="名前" style="width:8em;padding:5px 8px;font-size:16px;background:#fff;color:#141414;border:2px solid #141414"><button type="button" id="who-ok" style="min-height:38px;padding:4px 12px;border-color:#141414;color:#141414;background:#fff">追加</button><button type="button" id="who-x" style="min-height:38px;padding:4px 10px;border-color:#141414;color:#141414;background:transparent">やめる</button></span><a href="inventory.html" style="color:#141414;font-weight:700;font-size:14px">在庫ナビへ</a><button type="button" id="reload" style="min-height:38px;padding:4px 12px;border-color:#141414;color:#141414;background:#fff">更新</button><button type="button" id="logout" style="min-height:38px;padding:4px 12px;border-color:#141414;color:#141414;background:transparent">ログアウト</button></div></div>
+  <div class="meta"><span id="today"></span><label for="who" style="margin:0">担当</label><select id="who"><option>上村</option></select><span id="who-add" class="hide" style="display:flex;gap:6px;align-items:center"><input id="who-new" placeholder="名前" style="width:8em;padding:5px 8px;font-size:16px;background:#fff;color:#141414;border:2px solid #141414"><button type="button" id="who-ok" style="min-height:38px;padding:4px 12px;border-color:#141414;color:#141414;background:#fff">追加</button><button type="button" id="who-x" style="min-height:38px;padding:4px 10px;border-color:#141414;color:#141414;background:transparent">やめる</button></span><span class="navlinks"><a href="index.html" class="pc-only">支払ナビ</a><a href="inventory.html">在庫ナビ</a><a href="genba.html" class="pc-only">製品ナビ</a></span><button type="button" id="reload" style="min-height:38px;padding:4px 12px;border-color:#141414;color:#141414;background:#fff">更新</button><button type="button" id="logout" style="min-height:38px;padding:4px 12px;border-color:#141414;color:#141414;background:transparent">ログアウト</button></div></div>
  <nav id="nav"><a href="#todo">今週やること</a><a href="#inbound">入荷検品</a><a href="#record">1点を記録</a><a href="#stock">倉庫にある製品</a><a href="#log">履歴</a></nav>
 </header>
 <main>
@@ -544,7 +561,7 @@ init();
 // スマホでは下の黒い帯を数秒でしまう（エラー・ログイン案内は残す）。タップでしまう／もう一度出すのは文字が変わったとき
 (function(){
  const tray=document.querySelector('.tray'),t=document.getElementById('tray-t');if(!tray||!t)return;
- const mq=window.matchMedia('(max-width:600px)');let timer=null;
+ /* 以前はスマホだけ。PCでも数秒でしまう */const mq={matches:true};let timer=null;
  const keep=s=>/できませんでした|失敗|ログイン|見つかりません|読み込み中/.test(s);
  const show=()=>{tray.classList.remove('tuck');clearTimeout(timer);if(mq.matches&&!keep(t.textContent))timer=setTimeout(()=>tray.classList.add('tuck'),5000)};
  new MutationObserver(show).observe(t,{childList:true,characterData:true,subtree:true});
