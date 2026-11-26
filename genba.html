@@ -20,7 +20,7 @@
             --ui-brand: #141414; --ui-brand-strong: #000000; --ui-brand-soft: #ffffff;
             --ui-shadow: none;
             --q-y: #ffd21f; --q-red: #d7261e; --q-ok: #2b6e3f; --q-panel: #f6f6f4;
-            --q-band: #bccfc8; /* 製品ナビの帯：灰みの浅葱。支払＝墨、在庫＝クラフト、品質＝黄 */
+            --q-band: #4f72a8; /* 製品ナビの帯：青（YSナビのキーと同じ）。帯の中の文字は白 */
         }
         html.theme-q:not(.dark) input[type="checkbox"], html.theme-q:not(.dark) input[type="radio"] { accent-color: #141414; }
         html.theme-q:not(.dark) body { font-family: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif; }
@@ -498,8 +498,8 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
         html.theme-q:not(.dark) .st-chip.st-done { background: #fff !important; color: #5b5b5b !important; }
 
         /* 製品ナビ固有：帯の文字は墨、パンくずは灰色、白い半透明ボタンは白地＋墨の線 */
-        html.theme-q:not(.dark) header { color: #141414 !important; }
-        html.theme-q:not(.dark) header #crumb { color: #3b3b3b !important; }
+        html.theme-q:not(.dark) header { color: #ffffff !important; }
+        html.theme-q:not(.dark) header #crumb { color: #dfe6f2 !important; }
         html.theme-q:not(.dark) header button { background: #ffffff !important; color: #141414 !important; border: 2px solid #141414 !important; border-radius: 6px !important; }
         html.theme-q:not(.dark) header h1::before { content: ''; display: inline-block; width: 28px; height: 28px; margin-right: 8px; vertical-align: -6px; border-radius: 6px;
             background: #141414 url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><g fill='none' stroke='%23bccfc8' stroke-width='4.5' stroke-linejoin='round' stroke-linecap='round'><path d='M32 18 C26 14 18 13 11 14 V48 C18 47 26 48 32 52 C38 48 46 47 53 48 V14 C46 13 38 14 32 18 Z'/><path d='M32 18 V52'/></g></svg>") center / 74% no-repeat; }
@@ -522,7 +522,7 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
                     l.href = 'https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap';
                     document.head.appendChild(l);
                     // タブのアイコン：灰みの浅葱の地に開いた本（製品ナビ）
-                    const ico = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23bccfc8'/><g fill='none' stroke='%23141414' stroke-width='4' stroke-linejoin='round' stroke-linecap='round'><path d='M32 18 C26 14 18 13 11 14 V48 C18 47 26 48 32 52 C38 48 46 47 53 48 V14 C46 13 38 14 32 18 Z'/><path d='M32 18 V52'/></g></svg>";
+                    const ico = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%234f72a8'/><g fill='none' stroke='%23ffffff' stroke-width='4' stroke-linejoin='round' stroke-linecap='round'><path d='M32 18 C26 14 18 13 11 14 V48 C18 47 26 48 32 52 C38 48 46 47 53 48 V14 C46 13 38 14 32 18 Z'/><path d='M32 18 V52'/></g></svg>";
                     const setIco = () => document.querySelectorAll('link[rel="icon"],link[rel="apple-touch-icon"]').forEach(x => { x.href = ico; });
                     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setIco); else setIco();
                     setIco();

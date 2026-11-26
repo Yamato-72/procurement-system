@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>YS品質ナビ</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23ffd21f'/><stop offset='100%25' stop-color='%23f2b705'/></linearGradient></defs><circle cx='16' cy='16' r='15' fill='url(%23g)'/><path d='M16 6.5 L24 9.5 L24 16 C24 21 20.5 24.5 16 26 C11.5 24.5 8 21 8 16 L8 9.5 Z' fill='none' stroke='%23141414' stroke-width='2' stroke-linejoin='round'/><path d='M12 16 L15 19 L20.5 13' fill='none' stroke='%23141414' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%234f9c95'/><stop offset='100%25' stop-color='%233f857f'/></linearGradient></defs><circle cx='16' cy='16' r='15' fill='url(%23g)'/><path d='M16 6.5 L24 9.5 L24 16 C24 21 20.5 24.5 16 26 C11.5 24.5 8 21 8 16 L8 9.5 Z' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linejoin='round'/><path d='M12 16 L15 19 L20.5 13' fill='none' stroke='%23ffffff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/></svg>">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%23ffd21f'/><path d='M90 34 L136 51 L136 88 C136 117 116 137 90 146 C64 137 44 117 44 88 L44 51 Z' fill='none' stroke='%23141414' stroke-width='9' stroke-linejoin='round'/><path d='M67 90 L84 107 L115 74' fill='none' stroke='%23141414' stroke-width='11' stroke-linecap='round' stroke-linejoin='round'/></svg>">
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -14,12 +14,12 @@
    COLOUR white / near-black ink, safety yellow #ffd21f lead, red #d7261e for 異常, grey rules
    TYPE Zen Kaku Gothic New 900 for counts and titles, 500/700 for text
    LAYOUT top bar with tabs; laptop: 2x2 task board; phone: one column, tabs scroll */
-:root{color-scheme:light dark;--bg:light-dark(#ffffff,#121212);--ink:light-dark(#141414,#f1f1f1);--sub:light-dark(#5b5b5b,#a8a8a8);--line:light-dark(#e2e2e2,#2d2d2d);--panel:light-dark(#f6f6f4,#1b1b1b);--y:#ffd21f;--yink:#141414;--red:light-dark(#d7261e,#ff6b5e);--ok:light-dark(#2b6e3f,#7fd197)}
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#121212);--ink:light-dark(#141414,#f1f1f1);--sub:light-dark(#5b5b5b,#a8a8a8);--line:light-dark(#e2e2e2,#2d2d2d);--panel:light-dark(#f6f6f4,#1b1b1b);--y:#ffd21f;--band:#4f9c95;--yink:#ffffff;--red:light-dark(#d7261e,#ff6b5e);--ok:light-dark(#2b6e3f,#7fd197)}
 :root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:16px/1.55 "Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",sans-serif;overflow-x:clip}
-header{background:var(--y);color:var(--yink);padding:14px max(4vw,16px) 0}
+header{background:var(--band);color:var(--yink);padding:14px max(4vw,16px) 0}
 .top{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 18px;justify-content:space-between}
 h1{font-size:clamp(26px,4vw,36px);line-height:1.05;margin:0;font-weight:900;letter-spacing:-.02em}
 .meta{font-size:14px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
@@ -134,7 +134,7 @@ pre{white-space:pre;overflow-x:auto;background:var(--panel);padding:10px;border-
  .tray{transition:transform .25s ease}.tray.tuck{transform:translateY(calc(100% + 40px))}
 }
 .navlinks{display:flex;gap:10px;align-items:center}
-.navlinks a{color:#141414;font-weight:700;font-size:14px}
+.navlinks a{color:var(--yink);font-weight:700;font-size:14px}
 @media(max-width:600px){.navlinks .pc-only{display:none}}
 </style>
 <style>
@@ -169,6 +169,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d instanceof HTMLDe
 document.addEventListener('DOMContentLoaded',()=>{try{const m=JSON.parse(localStorage.getItem('qAccOpen')||'{}');document.querySelectorAll('.acc-sec').forEach(d=>{if(d.dataset.k in m)d.open=!!m[d.dataset.k]})}catch(x){}});
 </script>
 <style>.tog{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 16px;font-size:14px}.tog .seg button{min-height:38px;font-size:14px}.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}.chips button{min-height:38px;font-size:14px}.chips button.on{background:var(--ink);color:var(--bg)}.src{font-size:12px;color:var(--sub)}</style><style>.busy{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 70%,transparent);display:none;align-items:center;justify-content:center;z-index:20;font-weight:700}.busy.on{display:flex}#login{min-height:70vh;display:flex;align-items:center;justify-content:center}#qr{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:30;padding:16px}#qr.on{display:flex}#qr .box{background:var(--bg);border-radius:12px;padding:14px;width:min(420px,100%)}.chk{display:flex;gap:8px;align-items:center;font-size:15px;margin:4px 0 12px}.chk input{width:22px;height:22px}.strip{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}.strip .item{flex:1 1 260px}</style><body>
+<style>/* 帯は青緑（YSナビのキーと同じ）。帯の中の透明ボタンは白で */header #logout,header #who-x{color:#fff!important;border-color:#fff!important}header label{color:inherit}</style>
 <header>
  <div class="top"><h1>YS品質ナビ</h1>
   <div class="meta"><span id="today"></span><label for="who" style="margin:0">担当</label><select id="who"><option>上村</option></select><span id="who-add" class="hide" style="display:flex;gap:6px;align-items:center"><input id="who-new" placeholder="名前" style="width:8em;padding:5px 8px;font-size:16px;background:#fff;color:#141414;border:2px solid #141414"><button type="button" id="who-ok" style="min-height:38px;padding:4px 12px;border-color:#141414;color:#141414;background:#fff">追加</button><button type="button" id="who-x" style="min-height:38px;padding:4px 10px;border-color:#141414;color:#141414;background:transparent">やめる</button></span><span class="navlinks"><a href="index.html" class="pc-only">支払ナビ</a><a href="inventory.html">在庫ナビ</a><a href="genba.html" class="pc-only">製品ナビ</a></span><button type="button" id="reload" style="min-height:38px;padding:4px 12px;border-color:#141414;color:#141414;background:#fff">更新</button><button type="button" id="logout" style="min-height:38px;padding:4px 12px;border-color:#141414;color:#141414;background:transparent">ログアウト</button></div></div>
