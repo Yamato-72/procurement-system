@@ -7457,7 +7457,8 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
             const p = n.parentElement;
             if (!p || p.closest('input,textarea,script,style')) continue;
             const stripped = t.replace(EMO, '');
-            if (stripped.trim() === '' && !(p.textContent || '').replace(EMO, '').trim()) continue; // 絵文字だけの要素は残す
+            // 絵文字だけのボタン・リンクは残す（押す場所がわからなくなるため）。飾りの絵文字だけの要素は消す
+            if (stripped.trim() === '') { const host = p.closest('button,a,[onclick]'); if (host && !(host.innerText || host.textContent || '').replace(EMO, '').trim()) continue; } // 見えている文字で判定（スマホで隠れたラベルは数えない）
             n.nodeValue = stripped;
         }
     };
