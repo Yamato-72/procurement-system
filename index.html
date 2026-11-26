@@ -2691,7 +2691,7 @@
                                             <div class="border-t dark:border-purple-700 p-3 sm:p-5 bg-white dark:bg-slate-800/50 rounded-b-lg">
                                                 <!-- 引当製品一覧 -->
                                                 <div class="mb-4">
-                                                    <p class="text-xs sm:text-sm font-semibold text-purple-700 dark:text-purple-400 mb-2">📦 引当製品</p>
+                                                    <p class="text-xs sm:text-sm font-semibold text-purple-700 dark:text-purple-400 mb-2">📦 引当製品${sp.productExpenses.length ? '・直接購入' : ''}</p>
                                                     <div class="space-y-2">
                                                         ${sp.items.map(item => {
                                                             const statusClass = item.isArchived 
@@ -2720,6 +2720,22 @@
                                                                 </div>
                                                             </div>
                                                         `}).join('')}
+                                                        ${sp.productExpenses.map(exp => `
+                                                            <div class="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-700 rounded border-l-4 border-amber-400">
+                                                                <div class="flex-1 min-w-0">
+                                                                    <div class="flex items-center gap-2">
+                                                                        <span class="px-1 py-0.5 text-xs rounded bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">直接購入</span>
+                                                                        <span class="text-xs text-slate-500 dark:text-slate-400">${exp.type}</span>
+                                                                    </div>
+                                                                    <p class="text-sm font-semibold text-slate-900 dark:text-white truncate">${exp.note || exp.type}</p>
+                                                                    <p class="text-xs text-slate-500 dark:text-slate-400">${exp.payee || ''}${exp.paidDate ? ` ・ ${exp.paidDate}` : ''}</p>
+                                                                </div>
+                                                                <div class="flex items-center">
+                                                                    <span class="font-bold text-slate-900 dark:text-white">${formatJPY(exp.amountJPY || 0)}</span>
+                                                                    <button onclick="event.stopPropagation();deleteSalesExpense('${sp.projectNumber}', ${exp._idx})" class="ml-2 p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400" title="削除" aria-label="削除">✕</button>
+                                                                </div>
+                                                            </div>
+                                                        `).join('')}
                                                     </div>
                                                     <div class="mt-2 pt-2 border-t dark:border-slate-600 text-right">
                                                         <span class="text-sm text-slate-600 dark:text-slate-400">製品原価計: </span>
@@ -2733,9 +2749,9 @@
                                                         <p class="text-xs sm:text-sm font-semibold text-orange-700 dark:text-orange-400">📦 経費</p>
                                                         <button onclick="event.stopPropagation();showAddSalesExpenseModal('${sp.projectNumber}')" class="px-2 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700">+ 追加</button>
                                                     </div>
-                                                    ${sp.expenses.length > 0 ? `
+                                                    ${sp.otherExpenses.length > 0 ? `
                                                         <div class="space-y-2">
-                                                            ${sp.expenses.map((exp, idx) => `
+                                                            ${sp.otherExpenses.map((exp) => `
                                                                 <div class="flex justify-between items-center p-2 bg-white dark:bg-slate-700 rounded border border-orange-200 dark:border-orange-700">
                                                                     <div class="flex-1 min-w-0">
                                                                         <span class="font-semibold text-sm text-slate-900 dark:text-white">${exp.type || '経費'}</span>
@@ -2746,7 +2762,7 @@
                                                                         </div>
                                                                         ${exp.note ? `<div class="text-xs text-slate-600 dark:text-slate-300 mt-0.5">📝 ${exp.note}</div>` : ''}
                                                                     </div>
-                                                                    <button onclick="event.stopPropagation();deleteSalesExpense('${sp.projectNumber}', ${idx})" 
+                                                                    <button onclick="event.stopPropagation();deleteSalesExpense('${sp.projectNumber}', ${exp._idx})" 
                                                                         class="ml-2 p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400" title="削除">
                                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -3473,7 +3489,13 @@
             
             // 経費を合計
             Object.values(grouped).forEach(sp => {
-                sp.expensesCost = sp.expenses.reduce((sum, e) => sum + (e.amountJPY || 0), 0);
+                // 周辺機器など「お客さんに納める物」の購入は製品原価に入れる。外注費・工事費・配送料などは経費
+                //（どちらも案件総原価・粗利には入る。分け方だけの違い）
+                const withIdx = sp.expenses.map((e, idx) => ({ ...e, _idx: idx }));
+                sp.productExpenses = withIdx.filter(e => isProductSalesExpense(e.type));
+                sp.otherExpenses = withIdx.filter(e => !isProductSalesExpense(e.type));
+                sp.itemsCost += sp.productExpenses.reduce((sum, e) => sum + (e.amountJPY || 0), 0);
+                sp.expensesCost = sp.otherExpenses.reduce((sum, e) => sum + (e.amountJPY || 0), 0);
                 sp.totalCost = sp.itemsCost + sp.expensesCost;
                 // 売上・粗利（売上は手入力、税抜想定）
                 const rev = salesProjectRevenue[sp.projectNumber];
@@ -3517,6 +3539,10 @@
             await loadInventoryForSales();
         }
         
+        // 販売案件の「経費」のうち、製品原価として扱う種別（お客さんに納める物の購入）
+        const PRODUCT_SALES_EXPENSE_TYPES = ['周辺機器'];
+        function isProductSalesExpense(type) { return PRODUCT_SALES_EXPENSE_TYPES.includes(type); }
+
         // 販売案件経費の追加モーダル
         function showAddSalesExpenseModal(projectNumber) {
             const expenseTypes = [
@@ -3534,7 +3560,7 @@
                             <div>
                                 <label class="block text-sm font-semibold mb-1 dark:text-slate-300">費用種別 <span class="text-red-500">*</span></label>
                                 <select id="salesExpenseType" class="w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                                    ${expenseTypes.map(t => `<option value="${t}">${t}</option>`).join('')}
+                                    ${expenseTypes.map(t => `<option value="${t}">${t}${isProductSalesExpense(t) ? '（製品原価に入る）' : ''}</option>`).join('')}
                                 </select>
                             </div>
                             <div>
