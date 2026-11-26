@@ -64,15 +64,19 @@ a.cell:focus-visible{outline:2px solid var(--y);outline-offset:4px;border-radius
 
 /* キー */
 .keys{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px;margin-top:22px}
-.key{--c:#f4f3ef;--d:#c9c6bd;position:relative;aspect-ratio:1/1.06;border-radius:16px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;background:var(--c);color:var(--ink);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -3px 0 rgba(0,0,0,.12),0 6px 0 var(--d),0 14px 20px -8px rgba(0,0,0,.35);
+.key{--c:#f4f3ef;--d:#c9c6bd;--hl:rgba(255,255,255,.55);position:relative;aspect-ratio:1/1.06;border-radius:16px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;background:var(--c);color:var(--ink);
+  box-shadow:inset 0 1px 0 var(--hl),inset 0 -3px 0 rgba(0,0,0,.12),0 6px 0 var(--d),0 14px 20px -8px rgba(0,0,0,.35);
   transition:transform .12s var(--ease),box-shadow .12s var(--ease),opacity .2s;
   animation:drop .55s var(--ease) both;animation-delay:calc(var(--i)*55ms)}
 @keyframes drop{from{opacity:0;transform:translateY(-14px)}}
-.key:hover{transform:translateY(-2px);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),inset 0 -3px 0 rgba(0,0,0,.12),0 8px 0 var(--d),0 18px 24px -8px rgba(0,0,0,.35)}
-.key:active,.key.down{transform:translateY(5px);transition-duration:.05s;box-shadow:inset 0 1px 0 rgba(255,255,255,.4),inset 0 -1px 0 rgba(0,0,0,.12),0 1px 0 var(--d),0 4px 8px -4px rgba(0,0,0,.35)}
+.key:hover{transform:translateY(-2px);box-shadow:inset 0 1px 0 var(--hl),inset 0 -3px 0 rgba(0,0,0,.12),0 8px 0 var(--d),0 18px 24px -8px rgba(0,0,0,.35)}
+.key:active,.key.down{transform:translateY(5px);transition-duration:.05s;box-shadow:inset 0 1px 0 var(--hl),inset 0 -1px 0 rgba(0,0,0,.12),0 1px 0 var(--d),0 4px 8px -4px rgba(0,0,0,.35)}
 .key:focus-visible{outline:2px solid var(--ink);outline-offset:4px}
 .key.dk{color:#f2f0e8}
+.key.matte{--hl:rgba(255,255,255,.06)}
+.key .led{box-shadow:0 0 0 2px rgba(0,0,0,.22)} /* 縁取り：赤いキーの上でもランプが見えるように */
+.key .led.on{box-shadow:0 0 0 2px rgba(0,0,0,.22),0 0 8px var(--y)}
+.key .led.bad{box-shadow:0 0 0 2px rgba(0,0,0,.35),0 0 8px var(--r)}
 .key .row{display:flex;justify-content:space-between;align-items:center}
 .key .no{opacity:.75}
 .key svg{width:30px;height:30px;transition:transform .35s var(--ease)}
@@ -85,7 +89,7 @@ a.cell:focus-visible{outline:2px solid var(--y);outline-offset:4px;border-radius
 .key .led.bad,.led.bad{background:var(--r);box-shadow:0 0 8px var(--r);animation:pulse 1.6s ease-in-out infinite}
 @keyframes pulse{50%{opacity:.55}}
 .key.dim{opacity:.25}
-.key.hit{transform:translateY(-4px);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),inset 0 -3px 0 rgba(0,0,0,.12),0 10px 0 var(--d),0 22px 26px -8px rgba(0,0,0,.4)}
+.key.hit{transform:translateY(-4px);box-shadow:inset 0 1px 0 var(--hl),inset 0 -3px 0 rgba(0,0,0,.12),0 10px 0 var(--d),0 22px 26px -8px rgba(0,0,0,.4)}
 
 .bottom{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:22px;color:var(--mute)}
 .bottom .lg{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
@@ -134,35 +138,35 @@ a.cell:focus-visible{outline:2px solid var(--y);outline-offset:4px;border-radius
     <div class="login" id="login"><span>ログインすると今日の数字が出ます（ほかのナビとログインは共通）</span><button type="button" id="loginBtn">ログイン</button></div>
 
     <div class="keys" id="keys">
-      <a class="key dk" style="--c:#2b2b2b;--d:#0b0b0b;--i:0" href="index.html" data-k="1" data-words="支払 しはらい 発注 デポジット 入荷予定日 pay">
-        <div class="row"><span class="mono no">01</span><span class="led" id="l-pay"></span></div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
-        <div><div class="n">支払</div><div class="c" id="c-pay">発注・支払</div></div>
+      <a class="key dk matte" style="--c:#b3372d;--d:#7a221b;--i:0" href="https://an-kan-47228502594.europe-west1.run.app" data-k="1" data-words="AN-KAN アンカン 案件 台帳 ステータス ankan">
+        <div class="row"><span class="mono no">01</span><span class="led" id="l-ankan"></span></div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2h8.5A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/></svg>
+        <div><div class="n">AN-KAN</div><div class="c" id="c-ankan">案件台帳</div></div>
       </a>
-      <a class="key" style="--c:#e7d7b8;--d:#b9a681;--i:1" href="inventory.html" data-k="2" data-words="在庫 ざいこ 入庫 引当 出庫 シリアル inventory">
-        <div class="row"><span class="mono no">02</span><span class="led" id="l-inv"></span></div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg>
-        <div><div class="n">在庫</div><div class="c" id="c-inv">入庫・引当・出庫</div></div>
-      </a>
-      <a class="key" style="--c:#ffd21f;--d:#c9a200;--i:2" href="quality.html" data-k="3" data-words="品質 ひんしつ 検品 けんぴん 不具合 不良 quality">
-        <div class="row"><span class="mono no">03</span><span class="led" id="l-qual"></span></div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="m8 12 3 3 5-6"/></svg>
-        <div><div class="n">品質</div><div class="c" id="c-qual">検品・不具合</div></div>
-      </a>
-      <a class="key" style="--c:#bccfc8;--d:#8ea79e;--i:3" href="genba.html" data-k="4" data-words="製品 せいひん マニュアル トラブル 研修 genba">
-        <div class="row"><span class="mono no">04</span><span class="led"></span></div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 6c-2-1.5-5-2-8-1.5v14c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5v-14c-3-.5-6 0-8 1.5z"/><path d="M12 6v14"/></svg>
-        <div><div class="n">製品</div><div class="c">マニュアル・研修</div></div>
-      </a>
-      <a class="key" style="--c:#f4f3ef;--d:#c9c6bd;--i:4" href="https://yamato-72.github.io/ys-tools/deliverytime.html" data-k="5" data-words="納期 のうき 集荷 連休 中国 deliverytime">
-        <div class="row"><span class="mono no">05</span><span class="led"></span></div>
+      <a class="key" style="--c:#f4f3ef;--d:#c9c6bd;--i:1" href="https://yamato-72.github.io/ys-tools/deliverytime.html" data-k="2" data-words="納期 のうき 集荷 連休 中国 deliverytime">
+        <div class="row"><span class="mono no">02</span><span class="led"></span></div>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="1.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4M8 14h3"/></svg>
         <div><div class="n">納期</div><div class="c">集荷日・納期の計算</div></div>
       </a>
-      <a class="key dk" style="--c:#151515;--d:#000;--i:5" href="https://an-kan-47228502594.europe-west1.run.app" data-k="6" data-words="AN-KAN アンカン 案件 台帳 ステータス ankan">
-        <div class="row"><span class="mono no">06</span><span class="led" id="l-ankan"></span></div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2h8.5A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/></svg>
-        <div><div class="n">AN-KAN</div><div class="c" id="c-ankan">案件台帳</div></div>
+      <a class="key dk" style="--c:#2b2b2b;--d:#0b0b0b;--i:2" href="index.html" data-k="3" data-words="支払 しはらい 発注 デポジット 入荷予定日 pay">
+        <div class="row"><span class="mono no">03</span><span class="led" id="l-pay"></span></div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+        <div><div class="n">支払</div><div class="c" id="c-pay">発注・支払</div></div>
+      </a>
+      <a class="key" style="--c:#e7d7b8;--d:#b9a681;--i:3" href="inventory.html" data-k="4" data-words="在庫 ざいこ 入庫 引当 出庫 シリアル inventory">
+        <div class="row"><span class="mono no">04</span><span class="led" id="l-inv"></span></div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg>
+        <div><div class="n">在庫</div><div class="c" id="c-inv">入庫・引当・出庫</div></div>
+      </a>
+      <a class="key" style="--c:#ffd21f;--d:#c9a200;--i:4" href="quality.html" data-k="5" data-words="品質 ひんしつ 検品 けんぴん 不具合 不良 quality">
+        <div class="row"><span class="mono no">05</span><span class="led" id="l-qual"></span></div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="m8 12 3 3 5-6"/></svg>
+        <div><div class="n">品質</div><div class="c" id="c-qual">検品・不具合</div></div>
+      </a>
+      <a class="key" style="--c:#bccfc8;--d:#8ea79e;--i:5" href="genba.html" data-k="6" data-words="製品 せいひん マニュアル トラブル 研修 genba">
+        <div class="row"><span class="mono no">06</span><span class="led"></span></div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 6c-2-1.5-5-2-8-1.5v14c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5v-14c-3-.5-6 0-8 1.5z"/><path d="M12 6v14"/></svg>
+        <div><div class="n">製品</div><div class="c">マニュアル・研修</div></div>
       </a>
     </div>
   </div>
