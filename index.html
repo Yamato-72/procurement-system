@@ -932,6 +932,7 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
         let accessToken = null;
         let suppliers = [];
         let projects = [];
+        let pendingOrders = []; // AN-KANから来た「これから発注」の番号（発注待ちシート）
         let productMaster = []; // 製品マスタ
         let nextSerial = 554; // YS0554から開始
         let showSupplierSection = false; // サプライヤー管理の折りたたみ状態
@@ -1418,6 +1419,7 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
                     range: '案件!A2:Q',
                 });
                 const projectRows = projectResponse.result.values || [];
+                await loadPendingOrders();
                 projects = projectRows.map(row => {
                     // 新形式: ID, 接頭辞, 番号, サプライヤーID, 製品名, 総額USD, デポジット予定, Serial, 数量, WorkingDays, 集荷予定日, 発注日, 諸費用
                     let projectPrefix = row[1] || 'AD';
@@ -2811,6 +2813,8 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
                                 <button onclick="showAddProjectForm()" class="primary-action px-3 sm:px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">+ 新規案件</button>
                             </div>
                             
+                            ${renderPendingOrders()}
+
                             <!-- フィルタ -->
                             <div class="workspace-filters flex flex-wrap gap-2 mb-4 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
                                 <select id="filterStatus" onchange="applyProjectFilter()" class="px-2 py-1 text-sm border rounded dark:bg-slate-700 dark:border-slate-600 dark:text-white">
@@ -5375,6 +5379,75 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
 
         // 連続登録用の一時データ
         let pendingItems = [];
+
+        // ============================================================
+        // AN-KANから来た「これから発注」の番号（2026-11-27）
+        //   シート「発注待ち」：A 案件番号 / B 接頭辞 / C 番号 / D 名前 / E 追加日 / F きっかけ
+        //   まだ案件（発注）が無い番号だけを、支払い案件の上に出す
+        // ============================================================
+        async function loadPendingOrders() {
+            try {
+                const r = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: '発注待ち!A2:F' });
+                pendingOrders = (r.result.values || []).filter(row => row[1] && row[2]).map(row => ({
+                    prefix: String(row[1]).toUpperCase(),
+                    number: parseInt(row[2]) || 0,
+                    name: row[3] || '',
+                    addedDate: row[4] || '',
+                    reason: row[5] || ''
+                }));
+            } catch (e) {
+                pendingOrders = []; // シートがまだ無いときは何も出さない
+            }
+        }
+
+        function openPendingOrders() {
+            const has = new Set(projects.map(p => `${(p.projectPrefix || 'AD').toUpperCase()}-${parseInt(p.projectNumber)}`));
+            return pendingOrders.filter(o => !has.has(`${o.prefix}-${o.number}`));
+        }
+
+        function pendingLabel(o) {
+            return o.prefix === 'SP' || o.prefix === 'TS' ? `${o.prefix}-${String(o.number).padStart(4, '0')}` : `${o.prefix}-${o.number}`;
+        }
+
+        function renderPendingOrders() {
+            const list = openPendingOrders();
+            if (!list.length) return '';
+            return `
+                <div class="pending-orders mb-4">
+                    <div class="flex items-baseline gap-2 mb-2">
+                        <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">これから発注</h3>
+                        <span class="text-xs text-slate-500 dark:text-slate-400">AN-KANで作った番号です。インボイスが来たら押して登録</span>
+                    </div>
+                    <div class="flex gap-2 overflow-x-auto pb-1">
+                        ${list.map(o => `
+                            <button onclick="startPendingOrder('${o.prefix}', ${o.number})"
+                                class="pending-card shrink-0 text-left rounded-xl border border-dashed border-amber-300 bg-amber-50/70 dark:bg-amber-900/20 dark:border-amber-700 px-3 py-2 hover:bg-amber-100 hover:border-solid transition min-w-[180px]">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 dark:bg-slate-800 text-amber-700 dark:text-amber-300">未着手</span>
+                                    <span class="font-mono text-sm font-bold text-slate-800 dark:text-slate-100">${escapeHtml(pendingLabel(o))}</span>
+                                </div>
+                                <div class="mt-1 text-xs text-slate-600 dark:text-slate-300 truncate max-w-[220px]">${escapeHtml(o.name || '（名前なし）')}</div>
+                                <div class="mt-1 text-[10px] text-amber-700 dark:text-amber-300">＋ 発注を登録</div>
+                            </button>`).join('')}
+                    </div>
+                </div>`;
+        }
+
+        function startPendingOrder(prefix, number) {
+            showAddProjectForm();
+            const pre = document.getElementById('modalProjectPrefix');
+            const num = document.getElementById('modalProjectNumber');
+            if (!pre || !num) return;
+            pre.value = prefix;
+            num.value = String(number);
+            pre.disabled = true;
+            num.readOnly = true;
+            num.classList.add('bg-slate-100');
+            const o = pendingOrders.find(x => x.prefix === prefix && x.number === number);
+            const copy = document.querySelector('#projectModal .modal-copy');
+            if (copy && o) copy.textContent = `${pendingLabel(o)}　${o.name || ''}（AN-KANで作った番号）`;
+            document.getElementById('modalSupplierId')?.focus();
+        }
 
         function showAddProjectForm() {
             if (suppliers.length === 0) {
