@@ -2911,6 +2911,7 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
                                                     </div>
                                                 </div>
                                                 
+                                                ${/^SP-/i.test(g.projectNumber) ? renderSpDestinations(g.projectNumber) : ''}
                                                 <!-- 製品一覧 -->
                                                 ${isMultiProduct ? `
                                                     <div class="bg-white dark:bg-slate-700 rounded-lg p-3 mb-3 border border-slate-200 dark:border-slate-600">
@@ -4678,7 +4679,65 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
 
         function toggleProject(projectNumber) {
             expandedProjects[projectNumber] = !expandedProjects[projectNumber];
+            // SP（まとめ買い）を開いたときは行き先を出すので、在庫がまだなら読む
+            if (expandedProjects[projectNumber] && /^SP-/i.test(projectNumber) && !inventoryData.length && !salesDataLoading) {
+                loadInventoryForSales();
+            }
             renderMain();
+        }
+
+        const escapeHtml = str => String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+        // ===== SP（まとめ買い）の行き先 =====
+        //  この発注番号で入った物が、どの販売案件に引き当て・出庫されたか／在庫に何台残っているか
+        function spKey(prefix, number) {
+            const n = parseInt(number, 10);
+            return prefix && !isNaN(n) ? `${String(prefix).toUpperCase()}-${n}` : '';
+        }
+        function renderSpDestinations(projectNumber) {
+            const m = String(projectNumber).match(/^([A-Za-z]+)-0*(\d+)/);
+            const key = m ? `${m[1].toUpperCase()}-${parseInt(m[2], 10)}` : '';
+            const box = (inner) => `<div class="bg-white dark:bg-slate-700 rounded-lg p-3 mb-3 border border-slate-200 dark:border-slate-600">
+                <p class="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">この発注の行き先</p>${inner}</div>`;
+            if (!inventoryData.length) {
+                return box(`<p class="text-xs text-slate-500">${salesDataLoading ? '在庫を読み込み中…' : '在庫データがまだ読み込まれていません'}</p>`);
+            }
+            const ordered = inventoryData.filter(it => spKey(it.orderPrefix, it.orderNumber) === key);
+            if (!ordered.length) return box(`<p class="text-xs text-slate-500">在庫ナビにこの発注番号の物はまだありません</p>`);
+            const dest = {}; let inStock = 0, other = 0;
+            ordered.forEach(it => {
+                const ship = spKey(it.shipPrefix, it.shipNumber);
+                const shipped = ['引当済', '出庫済', '出庫済み'].includes(it.status) || it.isArchived;
+                if (ship && shipped) {
+                    const d = (dest[ship] ||= { ship, count: 0, products: {}, allocated: 0 });
+                    d.count++;
+                    if (it.status === '引当済') d.allocated++;
+                    d.products[it.productName] = (d.products[it.productName] || 0) + 1;
+                } else if (['入庫待ち', '検品待ち', '在庫中'].includes(it.status)) inStock++;
+                else other++;
+            });
+            const list = Object.values(dest).sort((a, b) => b.count - a.count);
+            const out = list.reduce((n, d) => n + d.count, 0);
+            const stat = (label, v, tone) => `<div class="rounded-md border border-slate-200 dark:border-slate-600 px-2.5 py-1.5">
+                <div class="text-[11px] text-slate-500">${label}</div><div class="text-base font-bold tabular ${tone}">${v}</div></div>`;
+            return box(`
+                <div class="grid grid-cols-3 gap-2 mb-2">
+                    ${stat('入った数', ordered.length, 'text-slate-900 dark:text-white')}
+                    ${stat('案件へ', out, 'text-slate-900 dark:text-white')}
+                    ${stat('在庫に残り', inStock, inStock ? 'text-amber-700' : 'text-slate-400')}
+                </div>
+                ${list.length ? `<div class="divide-y divide-slate-100 dark:divide-slate-600">
+                    ${list.map(d => `<div class="flex items-start justify-between gap-3 py-1.5">
+                        <div class="min-w-0">
+                            <span class="font-mono font-semibold text-sm text-slate-900 dark:text-white">${escapeHtml(d.ship)}</span>
+                            ${d.allocated ? `<span class="ml-1 px-1.5 py-0.5 rounded text-[11px] bg-cyan-50 text-cyan-700">引当済 ${d.allocated}</span>` : ''}
+                            <div class="text-xs text-slate-500 truncate">${Object.entries(d.products).map(([n, c]) => `${escapeHtml(n)} ×${c}`).join('、')}</div>
+                        </div>
+                        <span class="text-sm font-semibold tabular text-slate-900 dark:text-white shrink-0">${d.count}台</span>
+                    </div>`).join('')}
+                </div>` : ''}
+                ${other ? `<p class="text-[11px] text-slate-500 mt-1">ほか 社内使用・不良品・廃棄など ${other}台</p>` : ''}
+            `);
         }
 
         function editSupplier(supplierId) {
