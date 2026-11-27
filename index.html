@@ -3960,6 +3960,11 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
                 let rowIndex = -1;
                 rows.forEach((row, idx) => { if (row[0] === projectNumber) rowIndex = idx + 2; });
                 const vals = [[F, G === '' ? '' : parseFloat(G), H, I, J]];
+                // 見出し（F〜J）も書いておく（人がシートを見たときに分かるように）
+                await withAuthRetry(() => gapi.client.sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID, range: '販売案件売上!F1:J1', valueInputOption: 'RAW',
+                    resource: { values: [['保証の種類', '保証料', '保証の終わり日', 'TS区分', '関連AD']] }
+                }));
                 if (rowIndex > 0) {
                     await withAuthRetry(() => gapi.client.sheets.spreadsheets.values.update({
                         spreadsheetId: SPREADSHEET_ID, range: `販売案件売上!F${rowIndex}:J${rowIndex}`,
