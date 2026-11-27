@@ -2566,6 +2566,7 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
                                             <button onclick="syncImportPermits()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold text-orange-600 dark:text-orange-400">↻ 輸入許可書を同期</button>
                                             <p class="shell-menu-label border-t border-slate-200 dark:border-slate-700 mt-1">集計・出力</p>
                                             <button onclick="showAllocateExpenseModal()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">費用を按分</button>
+                                            <button onclick="toggleToolsMenu();showWarrantyImport()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">保証一覧を取り込む</button>
                                             <button onclick="showSupplierSummary()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">サプライヤー別集計</button>
                                             <button onclick="showExchangeSimulator()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">為替計算</button>
                                             <button onclick="exportCSV()" class="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700">支払CSV出力</button>
@@ -3239,7 +3240,7 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
                         <div class="flex items-center gap-2 flex-wrap">
                             <select id="w-kind-${pn}" class="${inputCls}">
                                 <option value="">（未設定）</option>
-                                ${TS_KINDS.map(k => `<option value="${k}" ${rev.tsKind === k ? 'selected' : ''}>${k}</option>`).join('')}
+                                ${TS_KINDS.map(k => `<option value="${k}" ${rev.tsKind === k ? 'selected' : ''}>${k}${k === 'サービス保証' ? '（過去の契約）' : ''}</option>`).join('')}
                             </select>
                             <input id="w-ad-${pn}" value="${escapeHtml(rev.relatedAd || '')}" placeholder="AD-0362" class="${inputCls} w-28">
                             ${btn}
@@ -3253,7 +3254,7 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
                     <div class="flex items-center gap-2 flex-wrap">
                         <select id="w-type-${pn}" class="${inputCls}">
                             <option value="">なし（製品保証1年のみ）</option>
-                            ${WARRANTY_TYPES.map(k => `<option value="${k}" ${rev.warrantyType === k ? 'selected' : ''}>${k}</option>`).join('')}
+                            ${WARRANTY_TYPES.map(k => `<option value="${k}" ${rev.warrantyType === k ? 'selected' : ''}>${k}${k.includes('サービス') ? '（過去の契約）' : ''}</option>`).join('')}
                         </select>
                         <div class="flex items-center gap-1"><span class="text-slate-500">¥</span><input id="w-fee-${pn}" type="number" value="${rev.warrantyFee || ''}" placeholder="保証料" class="${inputCls} w-28 text-right"></div>
                         <input id="w-end-${pn}" type="date" value="${rev.warrantyEnd || ''}" title="保証の終わり日" class="${inputCls}">
@@ -3925,9 +3926,10 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
         // ===== 保証と修理（TS）の区分 =====
         //  TS は「誰がお金を出すか」で見方を変える。スポットだけ TS 単体で損益を見る
         //  延長保証・サービス保証は AD の売上に込みの保証料から、製品保証（1年・無償）と保証外の無償対応は YS 負担
-        const TS_KINDS = ['スポット', '製品保証', '延長保証', 'サービス保証', '保証外の無償対応'];
-        const WARRANTY_TYPES = ['延長保証', 'サービス保証'];
-        const COVERED_BY_FEE = ['延長保証', 'サービス保証'];   // AD の保証料から出る
+        // サービス保証は今は新しく売っていない。過去の契約の修理のために残す
+        const TS_KINDS = ['スポット', '製品保証', '延長保証', '保証外の無償対応', 'サービス保証'];
+        const WARRANTY_TYPES = ['延長保証', '延長保証＋サービス保証', 'サービス保証'];  // 後ろ2つは過去の契約
+        const COVERED_BY_FEE = ['延長保証', 'サービス保証'];   // TS の区分のうち、AD の保証料から出るもの
         const COMPANY_PAID = ['製品保証', '保証外の無償対応'];   // YS 負担
         // 「AD-362」「ad362」「AD-0362」→「AD-0362」（販売案件の番号の書き方にそろえる）
         function normSalesPn(raw) {
@@ -3985,6 +3987,168 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
             } catch (e) {
                 console.error('保証・区分の保存エラー:', e);
                 alert('保存に失敗しました');
+            }
+        }
+
+        // ===== 保証一覧スプレッドシートの取り込み =====
+        //  期ごとのシート（AD番号・取引先・製品・保証加入日・保証終了日・サービス保証 …）を読み、
+        //  販売案件売上の F（種類）・H（終わり日）、保証料の列があれば G に入れる。先に一覧で確認してから書く
+        const WARRANTY_LIST_ID = '1LEovxeVDNIspy64VyoUn0l0tVYNrRc65_M17HmLEFpU';
+        let warrantyImportRows = [];
+
+        function parseLooseDate(v) {
+            const t = String(v || '').normalize('NFKC').trim();
+            const m = t.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+            return m ? `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}` : '';
+        }
+        function addYearsMinusDay(dateStr, years) {
+            const d = new Date(dateStr + 'T00:00:00');
+            if (isNaN(d)) return '';
+            d.setFullYear(d.getFullYear() + years);
+            d.setDate(d.getDate() - 1);
+            return d.toISOString().slice(0, 10);
+        }
+
+        async function showWarrantyImport() {
+            try {
+                await ensureFreshToken();
+                showStatus('保証一覧を読み込み中...');
+                const meta = await withAuthRetry(() => gapi.client.sheets.spreadsheets.get({ spreadsheetId: WARRANTY_LIST_ID }));
+                const titles = meta.result.sheets.map(x => x.properties.title).filter(t => t !== '原本');
+                const got = await withAuthRetry(() => gapi.client.sheets.spreadsheets.values.batchGet({
+                    spreadsheetId: WARRANTY_LIST_ID, ranges: titles.map(t => `'${t}'!A1:J`),
+                }));
+                if (!Object.keys(salesProjectRevenue).length || !inventoryData.length) await loadInventoryForSales();
+                const out = [];
+                (got.result.valueRanges || []).forEach((vr, si) => {
+                    const rows = vr.values || [];
+                    const hi = rows.findIndex(r => r.some(c => String(c).includes('取引先')));
+                    if (hi < 0) return;
+                    const head = rows[hi].map(c => String(c).trim());
+                    const col = (re) => head.findIndex(h => re.test(h));
+                    const cJoin = col(/加入/), cEnd = col(/終了/), cSvc = col(/サービス/), cFee = col(/保証料/);
+                    rows.slice(hi + 1).forEach(r => {
+                        const pn = normSalesPn(String(r[0] || '').replace(/[‐‑–—−－]/g, '-'));
+                        if (!pn) return;
+                        const notes = [];
+                        const endRaw = String(r[cEnd] || '').trim();
+                        const svcRaw = cSvc >= 0 ? String(r[cSvc] || '').trim() : '';
+                        const svc = svcRaw && svcRaw.toUpperCase() !== 'FALSE';
+                        const onlyFirst = /初年度のみ/.test(endRaw);
+                        const type = onlyFirst ? (svc ? 'サービス保証' : '') : (svc ? '延長保証＋サービス保証' : '延長保証');
+                        if (!type) return;
+                        const join = parseLooseDate(r[cJoin]);
+                        const rev = salesProjectRevenue[pn] || {};
+                        // 始まりの日：加入日 → 納品日 → 在庫ナビでこのADに出庫した日（いちばん遅い日）
+                        const shipDates = (inventoryData || []).filter(i => normSalesPn(`${i.shipPrefix}-${i.shipNumber}`) === pn).map(i => i.shipDate).filter(Boolean).sort();
+                        const start = join || rev.deliveryDate || shipDates[shipDates.length - 1] || '';
+                        if (start && !join && !rev.deliveryDate) notes.push(`始まりは出庫日 ${start} で計算`);
+                        let end = parseLooseDate(endRaw);
+                        const yrs = (endRaw.normalize('NFKC').match(/(\d+)\s*年/) || [])[1];
+                        const svcYrs = (svcRaw.normalize('NFKC').match(/(\d+)\s*年/) || [])[1] || (String(r[cSvc + 1] || '').normalize('NFKC').match(/(\d+)\s*年/) || [])[1];
+                        const n = !onlyFirst && yrs ? parseInt(yrs) : (onlyFirst && svcYrs ? parseInt(svcYrs) : 0);
+                        if (!end && n) {
+                            if (start) end = addYearsMinusDay(start, n);
+                            else notes.push(`${n}年（始まりの日が分からない）`);
+                        }
+                        if (!end && !n) notes.push(endRaw ? `終了日「${endRaw}」` : '終了日なし');
+                        const extra = r.slice(Math.max(cSvc, cEnd) + 1).filter(x => x && !/^\d+年$/.test(String(x).trim()) && !parseLooseDate(x)).join(' ');
+                        if (extra) notes.push(extra);
+                        const fee = cFee >= 0 ? parseFloat(String(r[cFee] || '').replace(/[,¥￥]/g, '')) || 0 : 0;
+                        out.push({ pn, client: r[1] || '', sheet: titles[si], type, end, fee, notes, hasRow: !!salesProjectRevenue[pn], cur: rev });
+                    });
+                });
+                // 同じ AD が2回あれば後のシート（新しい期）を優先
+                const seen = {};
+                out.forEach(x => { seen[x.pn] = x; });
+                warrantyImportRows = Object.values(seen);
+                showStatus('');
+                renderWarrantyImportModal();
+            } catch (e) {
+                console.error('保証一覧の読み込みエラー:', e);
+                showStatus('');
+                alert('保証一覧を読めませんでした（スプレッドシートの共有を確認してください）');
+            }
+        }
+
+        function renderWarrantyImportModal() {
+            document.getElementById('warrantyImportModal')?.remove();
+            const rows = warrantyImportRows;
+            const ok = rows.filter(r => !r.notes.length).length;
+            const div = document.createElement('div');
+            div.id = 'warrantyImportModal';
+            div.className = 'fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-3';
+            div.innerHTML = `
+                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-4xl max-h-[88vh] flex flex-col">
+                    <div class="p-4 border-b dark:border-slate-700">
+                        <h3 class="text-lg font-bold dark:text-white">保証一覧の取り込み（${rows.length}件）</h3>
+                        <p class="text-xs text-slate-500 mt-1">販売原価の各ADに「保証の種類・終わり日」${rows.some(r => r.fee) ? '・保証料' : ''}を入れます。注意の付いた行も取り込み、終わり日は空のままにします。保証料の列が無いときは、今入っている保証料を消しません。</p>
+                    </div>
+                    <div class="overflow-auto flex-1">
+                        <table class="w-full text-sm">
+                            <thead class="sticky top-0 bg-slate-50 dark:bg-slate-700 text-xs text-slate-500"><tr>
+                                <th class="text-left p-2">AD</th><th class="text-left p-2">取引先</th><th class="text-left p-2">期</th><th class="text-left p-2">種類</th><th class="text-left p-2">終わり日</th><th class="text-right p-2">保証料</th><th class="text-left p-2">注意</th>
+                            </tr></thead>
+                            <tbody>
+                                ${rows.map(r => `<tr class="border-t dark:border-slate-700 ${r.notes.length ? 'bg-amber-50 dark:bg-amber-900/20' : ''}">
+                                    <td class="p-2 font-mono whitespace-nowrap">${r.pn}</td>
+                                    <td class="p-2">${escapeHtml(r.client)}</td>
+                                    <td class="p-2 text-xs text-slate-500 whitespace-nowrap">${escapeHtml(r.sheet)}</td>
+                                    <td class="p-2 whitespace-nowrap">${r.type}</td>
+                                    <td class="p-2 whitespace-nowrap">${r.end || '—'}</td>
+                                    <td class="p-2 text-right whitespace-nowrap">${r.fee ? formatJPY(r.fee) : '—'}</td>
+                                    <td class="p-2 text-xs text-amber-800 dark:text-amber-300">${escapeHtml(r.notes.join('／'))}</td>
+                                </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-4 border-t dark:border-slate-700 flex items-center justify-between gap-2">
+                        <p class="text-xs text-slate-500">そのまま入る ${ok}件／注意あり ${rows.length - ok}件</p>
+                        <div class="flex gap-2">
+                            <button onclick="document.getElementById('warrantyImportModal').remove()" class="px-4 py-2 bg-slate-200 dark:bg-slate-600 dark:text-white rounded-lg text-sm">やめる</button>
+                            <button id="warrantyImportGo" onclick="runWarrantyImport()" class="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm hover:bg-teal-700">${rows.length}件を取り込む</button>
+                        </div>
+                    </div>
+                </div>`;
+            document.body.appendChild(div);
+        }
+
+        async function runWarrantyImport() {
+            const btn = document.getElementById('warrantyImportGo');
+            if (btn) { btn.disabled = true; btn.textContent = '書き込み中...'; }
+            try {
+                await ensureFreshToken();
+                const resp = await withAuthRetry(() => gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: '販売案件売上!A2:J' }));
+                const sheetRows = resp.result.values || [];
+                const rowOf = {};
+                sheetRows.forEach((r, i) => { if (r[0]) rowOf[normSalesPn(r[0])] = { idx: i + 2, r }; });
+                const data = [], appends = [];
+                const today = new Date().toISOString().split('T')[0];
+                warrantyImportRows.forEach(x => {
+                    const hit = rowOf[x.pn];
+                    const fee = x.fee || (hit ? hit.r[6] || '' : '');
+                    if (hit) data.push({ range: `販売案件売上!F${hit.idx}:H${hit.idx}`, values: [[x.type, fee === '' ? '' : parseFloat(fee), x.end]] });
+                    else appends.push([x.pn, '', today, '', '', x.type, x.fee || '', x.end, '', '']);
+                });
+                if (data.length) await withAuthRetry(() => gapi.client.sheets.spreadsheets.values.batchUpdate({
+                    spreadsheetId: SPREADSHEET_ID, resource: { valueInputOption: 'RAW', data }
+                }));
+                if (appends.length) await withAuthRetry(() => gapi.client.sheets.spreadsheets.values.append({
+                    spreadsheetId: SPREADSHEET_ID, range: '販売案件売上!A:J', valueInputOption: 'RAW', resource: { values: appends }
+                }));
+                await withAuthRetry(() => gapi.client.sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID, range: '販売案件売上!F1:J1', valueInputOption: 'RAW',
+                    resource: { values: [['保証の種類', '保証料', '保証の終わり日', 'TS区分', '関連AD']] }
+                }));
+                document.getElementById('warrantyImportModal')?.remove();
+                await loadSalesRevenue();
+                renderMain();
+                showStatus(`✅ 保証を ${data.length + appends.length}件 取り込みました`);
+                setTimeout(() => showStatus(''), 4000);
+            } catch (e) {
+                console.error('保証の取り込みエラー:', e);
+                alert('取り込みに失敗しました');
+                if (btn) { btn.disabled = false; btn.textContent = 'もう一度'; }
             }
         }
 
