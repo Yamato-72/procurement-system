@@ -93,19 +93,32 @@ a.cell:focus-visible{outline:2px solid var(--y);outline-offset:4px;border-radius
 .key.dim{opacity:.25}
 .key.hit{transform:translateY(-4px);box-shadow:inset 0 1px 0 var(--hl),inset 0 -3px 0 rgba(0,0,0,.12),0 10px 0 var(--d),0 22px 26px -8px rgba(0,0,0,.4)}
 
-/* 和田さんだけの小窓：最近のファイル（Chromeの新しいタブのドライブ欄くらいの小ささ） */
-.mini{margin-top:16px;display:flex;align-items:center;gap:12px}
-.mini[hidden]{display:none}
-.mini .lb{flex-shrink:0;color:var(--mute)}
-.mini .lb a{color:inherit}
-.mini .lb a:hover{color:var(--ink)}
-.files{display:flex;gap:8px;min-width:0;flex:1;overflow-x:auto;scrollbar-width:none}
-.files::-webkit-scrollbar{display:none}
-.file{flex:1 1 0;min-width:150px;max-width:260px;display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;border-radius:9px;background:#fff;box-shadow:0 1px 0 #d9d6ce;transition:transform .15s var(--ease),box-shadow .15s;animation:drop .4s var(--ease) both;animation-delay:calc(var(--i)*40ms)}
-.file:hover{transform:translateY(-1px);box-shadow:0 3px 0 #d9d6ce}
-.file .ic{flex-shrink:0;width:12px;height:14px;border-radius:2px;background:var(--fc,#9a988f)}
-.file .nm{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
-.file .ag{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--mute);flex-shrink:0}
+/* 和田さんだけの小窓（Chromeの新しいタブのカレンダー・ドライブ欄のような箱） */
+.wid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px;align-items:start}
+.wid[hidden]{display:none}
+.box{background:#e3e0d8;border-radius:16px;padding:12px 8px 8px;box-shadow:inset 0 1px 0 rgba(255,255,255,.6)}
+.box .hd{display:flex;justify-content:space-between;align-items:center;padding:0 8px 10px}
+.box .hd b{font-size:13px;font-weight:700}
+.box .hd a,.box .hd button{color:var(--mute);font-size:12px;background:none;border:0;padding:0}
+.box .hd a:hover,.box .hd button:hover{color:var(--ink)}
+.box .bd{background:#f4f3ef;border-radius:11px;overflow:hidden}
+.row2{display:flex;align-items:center;gap:12px;padding:9px 12px;transition:background .15s;animation:drop .4s var(--ease) both;animation-delay:calc(var(--i)*40ms)}
+a.row2:hover{background:#fff}
+.row2+.row2{border-top:1px solid #e6e3dc}
+.row2 .ic{flex-shrink:0;width:30px;height:30px;border-radius:7px;background:var(--fc,#9a988f);display:grid;place-items:center;color:#fff;box-shadow:inset 0 -2px 0 rgba(0,0,0,.15)}
+.row2 .ic svg{width:15px;height:15px}
+.row2 .tx{min-width:0;flex:1}
+.row2 .nm{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row2 .sb{font-size:11px;color:var(--mute);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev{display:flex;align-items:center;gap:12px;padding:10px 12px}
+.ev+.ev{border-top:1px solid #e6e3dc}
+.ev .tm{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;width:44px;flex-shrink:0}
+.ev .nm{flex:1;min-width:0;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev .in{font-size:11px;color:var(--mute);background:#e6e3dc;border-radius:999px;padding:2px 8px;flex-shrink:0}
+.ev .in.now{background:var(--y);color:var(--ink);font-weight:700}
+.ev .join{font-size:11px;font-weight:900;background:var(--ink);color:#f4f3ef;border-radius:999px;padding:5px 10px;flex-shrink:0}
+.empty{padding:14px 12px;font-size:12px;color:var(--mute)}
+.empty button{margin-left:6px;background:var(--y);border:0;border-radius:8px;padding:5px 10px;font-weight:900;font-size:12px;box-shadow:0 2px 0 #b89600}
 
 .bottom{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:22px;color:var(--mute)}
 .bottom .lg{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
@@ -125,7 +138,7 @@ a.cell:focus-visible{outline:2px solid var(--y);outline-offset:4px;border-radius
   .cell:nth-child(2),.cell:nth-child(4){border-left:0;padding-left:0}
   .v{font-size:54px}
   .keys{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}
-  .mini .lb{display:none}
+  .wid{grid-template-columns:1fr}
   .key{padding:12px;border-radius:14px}
   .key svg{width:24px;height:24px}
   .key .n{font-size:17px}
@@ -189,9 +202,9 @@ a.cell:focus-visible{outline:2px solid var(--y);outline-offset:4px;border-radius
         <div><div class="n">製品</div><div class="c">マニュアル・研修</div></div>
       </a>
     </div>
-    <div class="mini" id="mini" hidden>
-      <span class="mono lb"><a href="https://drive.google.com/drive/recent" target="_blank" rel="noopener" title="ドライブの最近使用したアイテム">最近</a></span>
-      <div class="files" id="files"></div>
+    <div class="wid" id="wid" hidden>
+      <div class="box"><div class="hd"><b>カレンダー</b><a href="https://calendar.google.com/" target="_blank" rel="noopener">開く →</a></div><div class="bd" id="cal"></div></div>
+      <div class="box"><div class="hd"><b>ドライブ</b><a href="https://drive.google.com/drive/recent" target="_blank" rel="noopener">もっと見る →</a></div><div class="bd" id="files"></div></div>
     </div>
   </div>
 
@@ -350,7 +363,7 @@ async function loadNumbers() {
     setKey('inv', `入庫待ち ${c.waitingIn}・引当 ${c.allocated}`, '');
     setKey('qual', `検品 ${c.inspWait}・不良 ${c.bad}`, c.bad ? 'bad' : (c.inspWait ? 'on' : ''));
     $('upd').textContent = '更新 ' + fmtTime.format(new Date());
-    loadMyFiles(token);
+    loadWidgets(token);
   } catch (e) {
     if (e.auth) { try { localStorage.removeItem('googleAccessToken'); localStorage.removeItem('tokenExpiresAt'); } catch (x) {} $('login').style.display = 'flex'; $('upd').textContent = 'ログインが切れました'; return; }
     console.error(e); $('upd').textContent = '数字を読めませんでした';
@@ -366,10 +379,22 @@ async function loadAnkan() {
   } catch (e) { /* AN-KANが読めなくても入口としては使える */ }
 }
 
-/* ---------- 和田さんだけの小窓：最近更新されたDriveのファイル ---------- */
+/* ---------- 和田さんだけの小窓：カレンダー（今日のこれから）とドライブ（最近のファイル） ---------- */
 const OWNER = 'toshihiro.wada8010@yamato-signage.com';
-const FILE_COLOR = { document: '#3b6fd4', spreadsheet: '#1f9d61', presentation: '#e0a100', pdf: '#d2463a', folder: '#8a887f', image: '#8b5cf6', video: '#c2410c' };
+const CAL_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
+const FILE_COLOR = { document: '#3b6fd4', spreadsheet: '#1f9d61', presentation: '#e0a100', pdf: '#d2463a', image: '#8b5cf6', video: '#c2410c', script: '#3b82f6' };
+const FILE_ICON = {
+  document: '<path d="M7 8h10M7 12h10M7 16h6"/>',
+  spreadsheet: '<path d="M5 9h14M5 15h14M10 5v14"/>',
+  presentation: '<rect x="5" y="7" width="14" height="10" rx="1"/>',
+  pdf: '<path d="M8 16V8h3a2 2 0 0 1 0 4H8"/>',
+  image: '<path d="m5 17 4-5 3 3 2-2 5 4"/>',
+  video: '<path d="m9 8 7 4-7 4z"/>',
+  script: '<path d="M5 12h12M13 7l5 5-5 5"/>',
+  '': '<path d="M8 6h6l4 4v8H8z"/>'
+};
 function fileKind(m) {
+  if (m.includes('script')) return 'script';
   if (m.includes('document') || m.includes('wordprocessing')) return 'document';
   if (m.includes('spreadsheet') || m.includes('excel') || m.includes('csv')) return 'spreadsheet';
   if (m.includes('presentation') || m.includes('powerpoint')) return 'presentation';
@@ -378,36 +403,74 @@ function fileKind(m) {
   if (m.startsWith('video/')) return 'video';
   return '';
 }
-function ago(iso) {
-  const m = Math.round((Date.now() - new Date(iso)) / 60000);
-  if (m < 1) return 'いま'; if (m < 60) return m + '分前';
-  const h = Math.round(m / 60); if (h < 24) return h + '時間前';
-  const d = Math.round(h / 24); return d < 7 ? d + '日前' : new Date(iso).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
+function dayWord(iso) {
+  const d = fmtYmd.format(new Date(iso)), t = fmtYmd.format(new Date()), y = fmtYmd.format(new Date(Date.now() - 864e5));
+  if (d === t) return '今日'; if (d === y) return '昨日';
+  const n = Math.round((new Date(t) - new Date(d)) / 864e5);
+  return n < 7 ? n + '日前' : new Date(iso).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
 }
 const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-async function driveGet(path, token) {
-  const res = await fetch('https://www.googleapis.com/drive/v3/' + path, { headers: { Authorization: 'Bearer ' + token } });
-  if (!res.ok) throw new Error('drive ' + res.status);
+async function gget(url, token) {
+  const res = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+  if (!res.ok) { const e = new Error('g ' + res.status); e.status = res.status; throw e; }
   return res.json();
 }
-async function loadMyFiles(token) {
+async function whoAmI(token) {
+  let me = '', tag = token.slice(-12);
+  try { const c = JSON.parse(localStorage.getItem('ysnaviMe') || '{}'); if (c.tag === tag) me = c.me || ''; } catch (e) {}
+  if (!me) { me = ((await gget('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)', token)).user || {}).emailAddress || ''; try { localStorage.setItem('ysnaviMe', JSON.stringify({ tag, me })); } catch (e) {} }
+  return me.toLowerCase();
+}
+async function loadFiles(token) {
+  const q = encodeURIComponent("trashed = false and mimeType != 'application/vnd.google-apps.folder'");
+  const r = await gget(`https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=modifiedTime desc&pageSize=5&corpora=allDrives&includeItemsFromAllDrives=true&supportsAllDrives=true&fields=files(id,name,mimeType,modifiedTime,webViewLink,lastModifyingUser(displayName,me))`, token);
+  const files = r.files || [];
+  $('files').innerHTML = files.map((f, i) => {
+    const k = fileKind(f.mimeType), u = f.lastModifyingUser || {};
+    const sub = u.me ? `${dayWord(f.modifiedTime)}変更を加えたファイル` : `${esc(u.displayName || '')} さんが編集（${dayWord(f.modifiedTime)}）`;
+    return `<a class="row2" style="--i:${i};--fc:${FILE_COLOR[k] || '#9a988f'}" href="${esc(f.webViewLink)}" target="_blank" rel="noopener">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${FILE_ICON[k]}</svg></span>
+      <span class="tx"><div class="nm">${esc(f.name)}</div><div class="sb">${sub}</div></span></a>`;
+  }).join('') || '<div class="empty">最近のファイルはありません</div>';
+}
+function connectCalendar() {
+  // カレンダーを見る許可を足す（一度だけ。以後はほかのナビのログインにも含まれる）
+  const go = () => {
+    const tc = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID, scope: SCOPES + ' ' + CAL_SCOPE, include_granted_scopes: true,
+      callback: r => {
+        if (r.error) return;
+        try { localStorage.setItem('googleAccessToken', r.access_token); localStorage.setItem('tokenExpiresAt', String(Date.now() + (r.expires_in || 3600) * 1000)); } catch (e) {}
+        loadWidgets(r.access_token);
+      }
+    });
+    tc.requestAccessToken({ prompt: 'consent' });
+  };
+  if (window.google && google.accounts) go(); else loadScript('https://accounts.google.com/gsi/client').then(go);
+}
+async function loadCalendar(token) {
+  const now = new Date(), end = new Date(fmtYmd.format(now) + 'T23:59:59+09:00');
+  let r;
   try {
-    // ログインした人のメール（ログインし直したら聞き直す）
-    let me = '', tag = token.slice(-12);
-    try { const c = JSON.parse(localStorage.getItem('ysnaviMe') || '{}'); if (c.tag === tag) me = c.me || ''; } catch (e) {}
-    if (!me) { me = ((await driveGet('about?fields=user(emailAddress)', token)).user || {}).emailAddress || ''; try { localStorage.setItem('ysnaviMe', JSON.stringify({ tag, me })); } catch (e) {} }
-    if (me.toLowerCase() !== OWNER) { $('mini').hidden = true; return; }
-    const q = encodeURIComponent("trashed = false and mimeType != 'application/vnd.google-apps.folder'");
-    const r = await driveGet(`files?q=${q}&orderBy=modifiedTime desc&pageSize=5&corpora=allDrives&includeItemsFromAllDrives=true&supportsAllDrives=true&fields=files(id,name,mimeType,modifiedTime,webViewLink,lastModifyingUser(displayName,me))`, token);
-    const files = r.files || [];
-    $('files').innerHTML = files.map((f, i) => {
-      const who = f.lastModifyingUser ? (f.lastModifyingUser.me ? '自分' : f.lastModifyingUser.displayName) : '';
-      return `<a class="file" style="--i:${i};--fc:${FILE_COLOR[fileKind(f.mimeType)] || '#9a988f'}" href="${esc(f.webViewLink)}" target="_blank" rel="noopener" title="${esc(f.name)}（${esc(who)}）">
-        <span class="ic" aria-hidden="true"></span><span class="nm">${esc(f.name)}</span><span class="ag">${ago(f.modifiedTime)}</span></a>`;
-    }).join('');
-    if (!files.length) { $('mini').hidden = true; return; }
-    $('mini').hidden = false;
-  } catch (e) { console.error(e); $('mini').hidden = true; }
+    r = await gget(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(new Date(now - 30 * 60000).toISOString())}&timeMax=${encodeURIComponent(end.toISOString())}&singleEvents=true&orderBy=startTime&maxResults=10`, token);
+  } catch (e) {
+    if (e.status === 403 || e.status === 401) { $('cal').innerHTML = '<div class="empty">カレンダーはまだつながっていません<button type="button" id="calBtn">つなぐ</button></div>'; $('calBtn').onclick = connectCalendar; return; }
+    throw e;
+  }
+  const evs = (r.items || []).filter(e => e.start && e.start.dateTime && e.status !== 'cancelled' && new Date(e.end.dateTime) > now).slice(0, 3);
+  $('cal').innerHTML = evs.map(e => {
+    const st = new Date(e.start.dateTime), mins = Math.round((st - now) / 60000);
+    const when = mins <= 0 ? '<span class="in now">いま</span>' : `<span class="in">${mins < 60 ? mins + '分後' : Math.floor(mins / 60) + '時間後'}</span>`;
+    const join = e.hangoutLink && mins <= 15 ? `<a class="join" href="${esc(e.hangoutLink)}" target="_blank" rel="noopener">参加</a>` : '';
+    return `<div class="ev"><span class="tm">${fmtTime.format(st)}</span><a class="nm" href="${esc(e.htmlLink)}" target="_blank" rel="noopener">${esc(e.summary || '（予定）')}</a>${join || when}</div>`;
+  }).join('') || '<div class="empty">今日のこれからの予定はありません</div>';
+}
+async function loadWidgets(token) {
+  try {
+    if ((await whoAmI(token)) !== OWNER) { $('wid').hidden = true; return; }
+    $('wid').hidden = false;
+    await Promise.all([loadFiles(token).catch(e => console.error(e)), loadCalendar(token).catch(e => console.error(e))]);
+  } catch (e) { console.error(e); $('wid').hidden = true; }
 }
 loadNumbers(); loadAnkan();
 let last = Date.now();
