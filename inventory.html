@@ -890,6 +890,9 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
             'サービス'
         ];
 
+        // サービスチケット（TSなどの0円チケット。物ではないので、出庫・登録数には数えない）
+        const isTicket = (i) => i && (i.category === 'サービス' || /^SVC-/i.test(String(i.serial || '')));
+
         // ステータスリスト
         const STATUSES = ['入庫待ち', '検品待ち', '在庫中', '引当済', '出庫済', '社内使用', '不良品', '廃棄'];
 
@@ -2331,7 +2334,7 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
             const tokyoCount = inventory.filter(i => i.location === '東京' && (i.status === '在庫中' || i.status === '引当済')).length;
             const osakaCount = inventory.filter(i => i.location === '大阪' && (i.status === '在庫中' || i.status === '引当済')).length;
             return {
-                total: inventory.length,
+                total: inventory.filter(i => !isTicket(i)).length, // チケットは物ではないので数えない
                 waiting: inventory.filter(i => i.status === '入庫待ち').length,
                 pendingInspection: inventory.filter(i => i.status === '検品待ち').length,
                 inStock: inStockItems.length,
@@ -2340,7 +2343,8 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
                 allocatedValue: allocatedValue,
                 stocktakeCount: stocktakeCount,
                 stocktakeValue: stocktakeValue,
-                shipped: inventory.filter(i => i.status === '出庫済').length,
+                shipped: inventory.filter(i => i.status === '出庫済' && !isTicket(i)).length, // チケットは出庫に数えない
+                tickets: inventory.filter(isTicket).length,
                 defect: inventory.filter(i => i.status === '不良品').length,
                 noShelf: noShelfCount,
                 tokyo: tokyoCount,
@@ -2615,7 +2619,7 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
                                 <div class="summary-card p-3 sm:p-4 border-t-2 border-t-blue-500">
                                     <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">出庫済</p>
                                     <p class="tabular text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1">${summary.shipped.toLocaleString()}</p>
-                                    <p class="text-[10px] text-slate-400 mt-1">履歴を含む</p>
+                                    <p class="text-[10px] text-slate-400 mt-1">履歴を含む${summary.tickets ? `・チケット${summary.tickets}件は除く` : ''}</p>
                                 </div>
                                 <div class="summary-card p-3 sm:p-4 border-t-2 border-t-red-500">
                                     <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">不良品</p>
@@ -2843,7 +2847,8 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
                                             waiting: items.filter(i => i.status === '入庫待ち').length,
                                             inStock: items.filter(i => i.status === '在庫中').length,
                                             allocated: items.filter(i => i.status === '引当済').length,
-                                            shipped: items.filter(i => i.status === '出庫済').length,
+                                            shipped: items.filter(i => i.status === '出庫済' && !isTicket(i)).length, // チケットは出庫に数えない
+                                            tickets: items.filter(isTicket).length,
                                             internal: items.filter(i => i.status === '社内使用').length,
                                             issue: items.filter(i => i.status === '不良品').length,
                                             disposed: items.filter(i => i.status === '廃棄').length
@@ -2893,6 +2898,7 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
                                                         ${statusCounts.inStock > 0 ? `<span title="販売可能 ${statusCounts.inStock}件" aria-label="販売可能 ${statusCounts.inStock}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs whitespace-nowrap bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 st-chip">在庫 ${statusCounts.inStock}</span>` : ''}
                                                         ${statusCounts.allocated > 0 ? `<span title="引当済 ${statusCounts.allocated}件" aria-label="引当済 ${statusCounts.allocated}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs whitespace-nowrap bg-cyan-100 dark:bg-cyan-900/50 text-cyan-700 dark:text-cyan-300 st-chip">引当 ${statusCounts.allocated}</span>` : ''}
                                                         ${statusCounts.shipped > 0 ? `<span title="出庫済 ${statusCounts.shipped}件" aria-label="出庫済 ${statusCounts.shipped}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs whitespace-nowrap bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 st-chip st-done">出庫 ${statusCounts.shipped}</span>` : ''}
+                                                        ${statusCounts.tickets > 0 ? `<span title="サービスチケット ${statusCounts.tickets}件（物ではないので出庫には数えない）" aria-label="チケット ${statusCounts.tickets}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs whitespace-nowrap bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 st-chip">チケット ${statusCounts.tickets}</span>` : ''}
                                                         ${statusCounts.internal > 0 ? `<span title="社内使用 ${statusCounts.internal}件" aria-label="社内使用 ${statusCounts.internal}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs whitespace-nowrap bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 st-chip st-done">社内 ${statusCounts.internal}</span>` : ''}
                                                         ${statusCounts.issue > 0 ? `<span title="不良品 ${statusCounts.issue}件" aria-label="不良品 ${statusCounts.issue}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs whitespace-nowrap bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 st-chip st-bad">不良 ${statusCounts.issue}</span>` : ''}
                                                         ${statusCounts.disposed > 0 ? `<span title="廃棄 ${statusCounts.disposed}件" aria-label="廃棄 ${statusCounts.disposed}件" class="px-1.5 sm:px-2 py-0.5 rounded text-xs whitespace-nowrap bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 st-chip st-done">廃棄 ${statusCounts.disposed}</span>` : ''}
@@ -6569,7 +6575,7 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
                         month.receivedCost += Number(item.costJPY) || 0;
                     }
                 }
-                if (item.shipDate) {
+                if (item.shipDate && !isTicket(item)) { // チケットは出庫に数えない
                     const key = item.shipDate.substring(0, 7);
                     const month = months.find(m => m.key === key);
                     if (month) month.shipped++;
