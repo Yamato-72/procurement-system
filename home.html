@@ -93,6 +93,23 @@ a.cell:focus-visible{outline:2px solid var(--y);outline-offset:4px;border-radius
 .key.dim{opacity:.25}
 .key.hit{transform:translateY(-4px);box-shadow:inset 0 1px 0 var(--hl),inset 0 -3px 0 rgba(0,0,0,.12),0 10px 0 var(--d),0 22px 26px -8px rgba(0,0,0,.4)}
 
+/* 和田さんだけの小窓：最近のファイル */
+.mini{margin-top:22px;border-top:1px solid #d9d6ce;padding-top:16px}
+.mini[hidden]{display:none}
+.mini .hd{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+.mini .hd .mono{color:var(--mute)}
+.mini .hd a{color:var(--mute);font-size:12px}
+.mini .hd a:hover{color:var(--ink)}
+.files{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 22px}
+.file{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;min-width:0;transition:background .15s,transform .15s var(--ease);animation:drop .45s var(--ease) both;animation-delay:calc(var(--i)*40ms)}
+.file:hover{background:#fff;transform:translateX(2px);box-shadow:0 1px 0 #d9d6ce}
+.file .ic{flex-shrink:0;width:26px;height:30px;border-radius:5px;background:var(--fc,#9a988f);position:relative;box-shadow:inset 0 -2px 0 rgba(0,0,0,.15)}
+.file .ic::after{content:"";position:absolute;right:0;top:0;width:9px;height:9px;background:linear-gradient(225deg,var(--bg) 50%,rgba(0,0,0,.18) 50%);border-bottom-left-radius:3px}
+.file .tx{min-width:0;flex:1}
+.file .nm{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file .sb{font-size:11px;color:var(--mute);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file .ag{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--mute);flex-shrink:0}
+
 .bottom{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:22px;color:var(--mute)}
 .bottom .lg{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
 .bottom i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:0}
@@ -111,6 +128,7 @@ a.cell:focus-visible{outline:2px solid var(--y);outline-offset:4px;border-radius
   .cell:nth-child(2),.cell:nth-child(4){border-left:0;padding-left:0}
   .v{font-size:54px}
   .keys{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}
+  .files{grid-template-columns:1fr}
   .key{padding:12px;border-radius:14px}
   .key svg{width:24px;height:24px}
   .key .n{font-size:17px}
@@ -173,6 +191,10 @@ a.cell:focus-visible{outline:2px solid var(--y);outline-offset:4px;border-radius
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 6c-2-1.5-5-2-8-1.5v14c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5v-14c-3-.5-6 0-8 1.5z"/><path d="M12 6v14"/></svg>
         <div><div class="n">製品</div><div class="c">マニュアル・研修</div></div>
       </a>
+    </div>
+    <div class="mini" id="mini" hidden>
+      <div class="hd"><span class="mono">最近のファイル</span><a href="https://drive.google.com/drive/recent" target="_blank" rel="noopener">ドライブで見る →</a></div>
+      <div class="files" id="files"></div>
     </div>
   </div>
 
@@ -331,6 +353,7 @@ async function loadNumbers() {
     setKey('inv', `入庫待ち ${c.waitingIn}・引当 ${c.allocated}`, '');
     setKey('qual', `検品 ${c.inspWait}・不良 ${c.bad}`, c.bad ? 'bad' : (c.inspWait ? 'on' : ''));
     $('upd').textContent = '更新 ' + fmtTime.format(new Date());
+    loadMyFiles(token);
   } catch (e) {
     if (e.auth) { try { localStorage.removeItem('googleAccessToken'); localStorage.removeItem('tokenExpiresAt'); } catch (x) {} $('login').style.display = 'flex'; $('upd').textContent = 'ログインが切れました'; return; }
     console.error(e); $('upd').textContent = '数字を読めませんでした';
@@ -344,6 +367,51 @@ async function loadAnkan() {
     const soon = (a.deliveryAlerts || []).length, trouble = a.trouble || 0;
     setKey('ankan', `進行中 ${active}` + (soon ? `・納期近 ${soon}` : ''), trouble ? 'bad' : (soon ? 'on' : ''));
   } catch (e) { /* AN-KANが読めなくても入口としては使える */ }
+}
+
+/* ---------- 和田さんだけの小窓：最近更新されたDriveのファイル ---------- */
+const OWNER = 'toshihiro.wada8010@yamato-signage.com';
+const FILE_COLOR = { document: '#3b6fd4', spreadsheet: '#1f9d61', presentation: '#e0a100', pdf: '#d2463a', folder: '#8a887f', image: '#8b5cf6', video: '#c2410c' };
+function fileKind(m) {
+  if (m.includes('document') || m.includes('wordprocessing')) return 'document';
+  if (m.includes('spreadsheet') || m.includes('excel') || m.includes('csv')) return 'spreadsheet';
+  if (m.includes('presentation') || m.includes('powerpoint')) return 'presentation';
+  if (m.includes('pdf')) return 'pdf';
+  if (m.startsWith('image/')) return 'image';
+  if (m.startsWith('video/')) return 'video';
+  return '';
+}
+function ago(iso) {
+  const m = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (m < 1) return 'いま'; if (m < 60) return m + '分前';
+  const h = Math.round(m / 60); if (h < 24) return h + '時間前';
+  const d = Math.round(h / 24); return d < 7 ? d + '日前' : new Date(iso).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
+}
+const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+async function driveGet(path, token) {
+  const res = await fetch('https://www.googleapis.com/drive/v3/' + path, { headers: { Authorization: 'Bearer ' + token } });
+  if (!res.ok) throw new Error('drive ' + res.status);
+  return res.json();
+}
+async function loadMyFiles(token) {
+  try {
+    // ログインした人のメール（ログインし直したら聞き直す）
+    let me = '', tag = token.slice(-12);
+    try { const c = JSON.parse(localStorage.getItem('ysnaviMe') || '{}'); if (c.tag === tag) me = c.me || ''; } catch (e) {}
+    if (!me) { me = ((await driveGet('about?fields=user(emailAddress)', token)).user || {}).emailAddress || ''; try { localStorage.setItem('ysnaviMe', JSON.stringify({ tag, me })); } catch (e) {} }
+    if (me.toLowerCase() !== OWNER) { $('mini').hidden = true; return; }
+    const q = encodeURIComponent("trashed = false and mimeType != 'application/vnd.google-apps.folder'");
+    const r = await driveGet(`files?q=${q}&orderBy=modifiedTime desc&pageSize=8&corpora=allDrives&includeItemsFromAllDrives=true&supportsAllDrives=true&fields=files(id,name,mimeType,modifiedTime,webViewLink,lastModifyingUser(displayName,me))`, token);
+    const files = r.files || [];
+    $('files').innerHTML = files.map((f, i) => {
+      const who = f.lastModifyingUser ? (f.lastModifyingUser.me ? '自分' : f.lastModifyingUser.displayName) : '';
+      return `<a class="file" style="--i:${i};--fc:${FILE_COLOR[fileKind(f.mimeType)] || '#9a988f'}" href="${esc(f.webViewLink)}" target="_blank" rel="noopener">
+        <span class="ic" aria-hidden="true"></span>
+        <span class="tx"><div class="nm">${esc(f.name)}</div><div class="sb">${esc(who)}</div></span>
+        <span class="ag">${ago(f.modifiedTime)}</span></a>`;
+    }).join('') || '<div class="sb">最近のファイルはありません</div>';
+    $('mini').hidden = false;
+  } catch (e) { console.error(e); $('mini').hidden = true; }
 }
 loadNumbers(); loadAnkan();
 let last = Date.now();
