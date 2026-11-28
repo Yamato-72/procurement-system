@@ -1597,7 +1597,7 @@ html.theme-q:not(.dark) .border-lime-700 { border-color: #d6d6d2 !important; }
         }
 
         // AN-KAN：入荷予定日の変更を案件のGoogle Chatスペースへ通知してもらう
-        const ANKAN_URL = 'https://an-kan-47228502594.europe-west1.run.app';
+        const ANKAN_URL = 'https://an-kan-47228502594.asia-southeast1.run.app';
         async function notifyAnkanArrival(projectNumber) {
             try {
                 const res = await fetch(`${ANKAN_URL}/api/projects/arrival-check`, {

@@ -137,7 +137,7 @@ a.cell:focus-visible{outline:2px solid var(--y);outline-offset:4px;border-radius
     <div class="login" id="login"><span>ログインすると今日の数字が出ます（ほかのナビとログインは共通）</span><button type="button" id="loginBtn">ログイン</button></div>
 
     <div class="keys" id="keys">
-      <a class="key dk" style="--c:#c8463a;--d:#8e2c23;--i:0" href="https://an-kan-47228502594.europe-west1.run.app" target="_blank" rel="noopener" data-k="1" data-words="AN-KAN アンカン 案件 台帳 ステータス ankan">
+      <a class="key dk" style="--c:#c8463a;--d:#8e2c23;--i:0" href="https://an-kan-47228502594.asia-southeast1.run.app" target="_blank" rel="noopener" data-k="1" data-words="AN-KAN アンカン 案件 台帳 ステータス ankan">
         <div class="row"><span class="mono no">01</span><span class="led" id="l-ankan"></span></div>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2h8.5A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/></svg>
         <div><div class="n">AN-KAN</div><div class="c" id="c-ankan">案件台帳</div></div>
@@ -179,7 +179,7 @@ a.cell:focus-visible{outline:2px solid var(--y);outline-offset:4px;border-radius
 <script>
 const IS_TEST = new URLSearchParams(location.search).has('test');
 const INV_ID = IS_TEST ? '1VwfwgSgfCN3CsO-L2kwtfqggy5sW9eMIGW8bGczxcFE' : '1-Sv1ci9aQ80d5U42lTa2_eWfDCpsp2HESIOpHkOaxQQ';
-const ANKAN_API = 'https://an-kan-47228502594.europe-west1.run.app/api/dashboard/external-summary';
+const ANKAN_API = 'https://an-kan-47228502594.asia-southeast1.run.app/api/dashboard/external-summary';
 const CLIENT_ID = '47228502594-hk66ecflb2s5iq02rim3o8j0j87d2p3c.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly'; // ほかのナビと同じ権限（ログイン共有のため）
 const WH = ['在庫中', '検品待ち', '引当済', '不良品'];

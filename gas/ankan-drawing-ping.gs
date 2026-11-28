@@ -8,7 +8,7 @@
 //     installDrawingTrigger と installWatchTrigger をそれぞれ1回実行（以後は自動）
 // ============================================================
 
-const ANKAN_URL = 'https://an-kan-47228502594.europe-west1.run.app';
+const ANKAN_URL = 'https://an-kan-47228502594.asia-southeast1.run.app';
 const ALERT_EMAIL = 'toshihiro.wada8010@yamato-signage.com';
 
 function checkDrawings() {

@@ -275,7 +275,7 @@ const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googlea
 function saveSharedToken(t, sec){ try{ localStorage.setItem('googleAccessToken', t); localStorage.setItem('tokenExpiresAt', String(Date.now() + (sec || 3600) * 1000)); }catch(e){} }
 function clearSharedToken(){ try{ localStorage.removeItem('googleAccessToken'); localStorage.removeItem('tokenExpiresAt'); }catch(e){} }
 function loadSharedToken(){ try{ const t = localStorage.getItem('googleAccessToken'), ex = +localStorage.getItem('tokenExpiresAt'); if (t && ex > Date.now() + 5 * 60 * 1000) return t; }catch(e){} return null; }
-const ANKAN_API = 'https://an-kan-47228502594.europe-west1.run.app/api/dashboard/external-summary';
+const ANKAN_API = 'https://an-kan-47228502594.asia-southeast1.run.app/api/dashboard/external-summary';
 const TARGET_SALES = 270000000;   // 8期目標 2.7億
 const TARGET_MARGIN = 48;         // 粗利目標 48%
 const EXPENSE_COEF = 1.18;        // 輸入諸掛係数（全社一律）
