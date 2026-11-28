@@ -326,7 +326,7 @@ const GAPPS = [
   ['ドキュメント', 'https://docs.google.com/document/', 'docs'],
   ['スプレッドシート', 'https://docs.google.com/spreadsheets/', 'sheets'],
   ['スライド', 'https://docs.google.com/presentation/', 'slides'],
-  ['フォーム', 'https://docs.google.com/forms/', 'forms']
+  ['フォト', 'https://photos.google.com/', 'photos']
 ];
 $('pop').innerHTML = GAPPS.map(([n, u, ic], i) => `<a href="${u}" target="_blank" rel="noopener" style="--i:${i}"><img src="https://ssl.gstatic.com/images/branding/product/2x/${ic}_2020q4_48dp.png" alt="" loading="lazy">${n}</a>`).join('');
 function togglePop(open) { const p = $('pop'), b = $('waffle'); open = open ?? p.hidden; p.hidden = !open; b.setAttribute('aria-expanded', String(open)); }
