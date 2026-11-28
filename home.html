@@ -35,7 +35,7 @@ button{font:inherit;cursor:pointer}
 .search .k{color:#8a887f}
 .search input{border:0;outline:0;background:transparent;font:inherit;font-size:14px;flex:1;min-width:0;color:var(--ink)}
 .search input::placeholder{color:#8a887f}
-.meta{justify-self:end;color:var(--mute)}
+.meta{color:var(--mute)}
 
 /* パネル */
 .panel{background:linear-gradient(#f4f3ef,#ebe9e3);border-radius:22px;padding:24px;box-shadow:inset 0 1px 0 #fff,0 1px 0 #cfccc4,0 26px 44px -26px rgba(0,0,0,.4)}
@@ -58,9 +58,12 @@ a.cell .go{color:#8c8b85;font-size:11px;margin-top:2px;opacity:0;transform:trans
 a.cell:hover .v{transform:translateY(-3px)}
 a.cell:hover .go{opacity:1;transform:none;color:var(--y)}
 a.cell:focus-visible{outline:2px solid var(--y);outline-offset:4px;border-radius:6px}
-.login{display:none;margin-top:16px;align-items:center;gap:14px;color:#6b6a64;font-size:13px}
-.login button{background:var(--y);color:var(--ink);border:0;border-radius:8px;padding:9px 16px;font-weight:900;box-shadow:0 3px 0 #b89600}
-.login button:active{transform:translateY(2px);box-shadow:0 1px 0 #b89600}
+.topr{justify-self:end;display:flex;align-items:center;gap:14px}
+.login{display:none;align-items:center;gap:12px;color:#6b6a64;font-size:12px;white-space:nowrap}
+.login button{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;flex-shrink:0;background:var(--y);color:var(--ink);border:0;border-radius:10px;height:42px;padding:0 18px;font-weight:900;font-size:15px;box-shadow:0 4px 0 #b89600,0 10px 16px -8px rgba(184,150,0,.7);animation:nudge 2.6s ease-in-out infinite}
+.login button:hover{transform:translateY(-1px)}
+.login button:active{transform:translateY(3px);box-shadow:0 1px 0 #b89600;animation:none}
+@keyframes nudge{0%,80%,100%{transform:none}86%{transform:translateY(-3px)}92%{transform:none}}
 
 /* キー */
 .keys{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px;margin-top:22px}
@@ -99,6 +102,7 @@ a.cell:focus-visible{outline:2px solid var(--y);outline-offset:4px;border-radius
   .page{padding:20px 16px 28px;justify-content:flex-start}
   .top{grid-template-columns:1fr auto;margin-bottom:14px}
   .search{grid-column:1/-1;grid-row:2;width:100%}
+  .login .hint{display:none}
   .panel{padding:14px;border-radius:18px}
   .lcd{grid-template-columns:repeat(2,minmax(0,1fr));padding:16px;row-gap:16px}
   .cell{padding:0 12px}
@@ -123,7 +127,10 @@ a.cell:focus-visible{outline:2px solid var(--y);outline-offset:4px;border-radius
       <span class="mono k">/</span>
       <input id="q" type="text" autocomplete="off" placeholder="ツール名・案件番号で探す" aria-label="ツールを探す・ドライブを検索" title="ツールが1つに絞れたらEnterで開く。それ以外はEnterでドライブを検索">
     </label>
-    <span class="meta mono" id="meta"></span>
+    <div class="topr">
+      <div class="login" id="login"><span class="hint">今日の数字を出す →</span><button type="button" id="loginBtn"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg>ログイン</button></div>
+      <span class="meta mono" id="meta"></span>
+    </div>
   </div>
 
   <div class="panel">
@@ -134,7 +141,6 @@ a.cell:focus-visible{outline:2px solid var(--y);outline-offset:4px;border-radius
       <a class="cell" id="st-insp" href="quality.html" target="_blank" rel="noopener"><span class="mono k">検品まち</span><span class="v z">–</span><span class="s"></span><span class="go">品質ナビ →</span></a>
       <a class="cell" id="st-bad" href="quality.html" target="_blank" rel="noopener"><span class="mono k">不具合・遅れ</span><span class="v z">–</span><span class="s"></span><span class="go">中身を見る →</span></a>
     </div>
-    <div class="login" id="login"><span>ログインすると今日の数字が出ます（ほかのナビとログインは共通）</span><button type="button" id="loginBtn">ログイン</button></div>
 
     <div class="keys" id="keys">
       <a class="key dk" style="--c:#c8463a;--d:#8e2c23;--i:0" href="https://an-kan-47228502594.asia-southeast1.run.app" target="_blank" rel="noopener" data-k="1" data-words="AN-KAN アンカン 案件 台帳 ステータス ankan">
